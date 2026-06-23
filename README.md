@@ -4,7 +4,7 @@ Bursa'da yapay zeka ve makine öğrenmesi alanında çalışan, öğrenen ve ür
 
 ## Canlı Site
 
-🔗 [bursayz.github.io/page](https://bursayz.github.io/page/)
+🔗 [bursayz.github.io](https://bursayz.github.io/)
 
 ## Etkinliklerimiz
 
@@ -34,8 +34,8 @@ Bursa'da yapay zeka ve makine öğrenmesi alanında çalışan, öğrenen ve ür
 Yerel olarak çalıştırmak için:
 
 ```bash
-git clone https://github.com/bursayz/page.git
-cd page
+git clone https://github.com/bursayz/bursayz.github.io.git
+cd bursayz.github.io
 # index.html dosyasını tarayıcıda aç
 ```
 
