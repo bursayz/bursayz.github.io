@@ -1,81 +1,141 @@
 {
-  "updatedAt": "2026-09-28T19:53:46.687Z",
+  "updatedAt": "2026-09-28T19:59:57.947Z",
   "count": 19,
   "members": [
     {
       "name": "! Asil10tr </>",
+      "role": "Üye",
+      "roles": [
+        "Üye",
+        "🧠 Yapay Zeka",
+        "💻 Geliştirici"
+      ],
       "avatar": "https://cdn.discordapp.com/avatars/1051738018089807972/460f0e2cd01b9c7d9b40cbfc7589a5e7.png?size=256"
     },
     {
       "name": "💾CRTkafa",
+      "role": null,
+      "roles": [],
       "avatar": "https://cdn.discordapp.com/avatars/1547000376237232191/8b4b7f67c60defdb5f436a32fcf55273.png?size=256"
     },
     {
       "name": "0x61",
+      "role": null,
+      "roles": [],
       "avatar": "https://cdn.discordapp.com/avatars/288123451489648640/f400a4f7b9ff8cfccdacceb9915f6ccb.png?size=256"
     },
     {
       "name": "Ayberk",
+      "role": null,
+      "roles": [],
       "avatar": "https://cdn.discordapp.com/avatars/836676753262903356/aad2afc75e12c5f39470c375c7b8d0e0.png?size=256"
     },
     {
       "name": "B.Z.Q",
+      "role": null,
+      "roles": [],
       "avatar": "https://cdn.discordapp.com/avatars/281114190096367627/09ef15416102f65b8572303d4201b6af.png?size=256"
     },
     {
       "name": "Ben Gerçek Sanal Gerçeklik Dons",
+      "role": null,
+      "roles": [],
       "avatar": "https://cdn.discordapp.com/avatars/1391139744276283422/6e47fc573391575041f5d465070fd0eb.png?size=256"
     },
     {
       "name": "DRush",
+      "role": null,
+      "roles": [],
       "avatar": "https://cdn.discordapp.com/avatars/405678058029449216/c3d44867323950af4f8f0a0bddb684ab.png?size=256"
     },
     {
       "name": "fbkaya",
+      "role": null,
+      "roles": [],
       "avatar": "https://cdn.discordapp.com/avatars/349674077998415874/85f4036de5aa3028687fa56722f631c7.png?size=256"
     },
     {
       "name": "feaz",
+      "role": "sudo",
+      "roles": [
+        "sudo",
+        "Üye"
+      ],
       "avatar": "https://cdn.discordapp.com/avatars/698595124002685079/ed970e7b73ca87cfb375a87fef4fdd3f.png?size=256"
     },
     {
       "name": "FragHub",
+      "role": null,
+      "roles": [],
       "avatar": "https://cdn.discordapp.com/embed/avatars/0.png"
     },
     {
       "name": "Furkan",
+      "role": null,
+      "roles": [],
       "avatar": "https://cdn.discordapp.com/avatars/470309017462374400/9d09647a35e707cc316b00dcd9975bd1.png?size=256"
     },
     {
       "name": "HitokiriBattousai",
+      "role": null,
+      "roles": [],
       "avatar": "https://cdn.discordapp.com/avatars/264117914154565633/fe4b6edf6092390ce284303e894627fa.png?size=256"
     },
     {
       "name": "intruder",
+      "role": null,
+      "roles": [],
       "avatar": "https://cdn.discordapp.com/avatars/231292509307928578/08544de484f0fdbbf6efd2b5ccb4cf6b.png?size=256"
     },
     {
       "name": "Kağan",
+      "role": null,
+      "roles": [],
       "avatar": "https://cdn.discordapp.com/avatars/413029083090386947/5b8beef9032ae346e745c484867f28fb.png?size=256"
     },
     {
       "name": "kale dibinin mırtıbı",
+      "role": "🧠 Yapay Zeka",
+      "roles": [
+        "🧠 Yapay Zeka",
+        "🧩 Derin Öğrenme",
+        "💬 NLP",
+        "👁️ Computer Vision",
+        "📊 Veri Bilimi",
+        "🚀 Üretici / Girişimci",
+        "🎓 Öğrenci",
+        "🔬 Araştırmacı"
+      ],
       "avatar": "https://cdn.discordapp.com/avatars/276345709962330113/9e770375e9e12124e02e0d4ca025cd61.png?size=256"
     },
     {
       "name": "mep",
+      "role": "sudo",
+      "roles": [
+        "sudo"
+      ],
       "avatar": "https://cdn.discordapp.com/avatars/323264975726444546/babacb381078a5e473cee6cb669240b7.png?size=256"
     },
     {
       "name": "sayweer",
+      "role": "Üye",
+      "roles": [
+        "Üye"
+      ],
       "avatar": "https://cdn.discordapp.com/avatars/777535468640010250/9e2df85dbffbc2224d133a083c2ce0f0.png?size=256"
     },
     {
       "name": "temelyus",
+      "role": "sudo",
+      "roles": [
+        "sudo"
+      ],
       "avatar": "https://cdn.discordapp.com/avatars/473135144849637378/5db4e3c5b088e12e2d2365f98157493f.png?size=256"
     },
     {
       "name": "Türker Yakup",
+      "role": null,
+      "roles": [],
       "avatar": "https://cdn.discordapp.com/avatars/624621801082978326/01b0195c21b5a7500c4654de1514e991.png?size=256"
     }
   ]
