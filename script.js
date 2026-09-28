@@ -158,15 +158,17 @@ function generateFilters() {
 }
 
 // Tab Switching
+function setActiveTab(target) {
+    document.querySelectorAll('.event-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === target);
+    });
+    document.getElementById('upcoming-events').classList.toggle('hidden', target !== 'upcoming');
+    document.getElementById('past-events').classList.toggle('hidden', target !== 'past');
+}
+
 document.querySelectorAll('.event-tab').forEach(tab => {
     tab.addEventListener('click', () => {
-        document.querySelectorAll('.event-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-
-        const target = tab.dataset.tab;
-        document.getElementById('upcoming-events').classList.toggle('hidden', target !== 'upcoming');
-        document.getElementById('past-events').classList.toggle('hidden', target !== 'past');
-
+        setActiveTab(tab.dataset.tab);
         generateFilters();
     });
 });
@@ -247,6 +249,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadMembers();
     renderMembers();
     generateParticles();
+
+    // Yaklaşan etkinlik yoksa varsayılan olarak geçmiş etkinlikleri göster
+    const hasUpcoming = document.querySelectorAll('#upcoming-events .event-card').length > 0;
+    if (!hasUpcoming) {
+        setActiveTab('past');
+    }
+
     generateFilters();
 
     // Observe all scroll-reveal elements (after renderMembers)
