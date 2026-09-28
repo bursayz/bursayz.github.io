@@ -14,8 +14,7 @@ Bursa'da yapay zeka ve makine öğrenmesi alanında çalışan, öğrenen ve ür
 
 ## Sosyal Medya
 
-- [Discord](https://discord.gg/W8xzuZDR4)
-- [Telegram](https://t.me/bursayz)
+- [Discord](https://discord.gg/FvhCkCc7cS)
 - [Twitter / X](https://x.com/bursayz)
 - [YouTube](https://www.youtube.com/@bursayz)
 - [LinkedIn](https://www.linkedin.com/company/bursayz/)

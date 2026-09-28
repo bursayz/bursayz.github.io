@@ -1,59 +1,29 @@
 // Initialize Lucide icons
 lucide.createIcons();
 
-// Member Data
-const members = [
-    {
-        name: "Üye 1",
-        role: "Yapay Zeka Topluluk Üyesi",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Uye1&backgroundColor=b6e3f4"
-    },
-    {
-        name: "Üye 2",
-        role: "Yapay Zeka Topluluk Üyesi",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Uye2&backgroundColor=ffdfbf"
-    },
-    {
-        name: "Üye 3",
-        role: "Yapay Zeka Topluluk Üyesi",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Uye3&backgroundColor=c0aede"
-    },
-    {
-        name: "Üye 4",
-        role: "Yapay Zeka Topluluk Üyesi",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Uye4&backgroundColor=ffd5dc"
-    },
-    {
-        name: "Üye 5",
-        role: "Yapay Zeka Topluluk Üyesi",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Uye5&backgroundColor=d1f4d1"
-    },
-    {
-        name: "Üye 6",
-        role: "Yapay Zeka Topluluk Üyesi",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Uye6&backgroundColor=f0e6ff"
-    },
-    {
-        name: "Üye 7",
-        role: "Yapay Zeka Topluluk Üyesi",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Uye7&backgroundColor=e6f3ff"
-    },
-    {
-        name: "Üye 8",
-        role: "Yapay Zeka Topluluk Üyesi",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Uye8&backgroundColor=fff0e6"
-    },
-    {
-        name: "Üye 9",
-        role: "Yapay Zeka Topluluk Üyesi",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Uye9&backgroundColor=e6ffe6"
-    },
-    {
-        name: "Üye 10",
-        role: "Yapay Zeka Topluluk Üyesi",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Uye10&backgroundColor=ffe6e6"
-    }
+// Member Data - Discord'dan çekilen members.json, yoksa yedek liste
+let members = [];
+let discordMemberCount = 0;
+
+const fallbackMembers = [
+    { name: "Üye 1", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Uye1&backgroundColor=b6e3f4" },
+    { name: "Üye 2", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Uye2&backgroundColor=ffdfbf" },
+    { name: "Üye 3", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Uye3&backgroundColor=c0aede" },
+    { name: "Üye 4", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Uye4&backgroundColor=ffd5dc" },
+    { name: "Üye 5", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Uye5&backgroundColor=d1f4d1" }
 ];
+
+async function loadMembers() {
+    try {
+        const res = await fetch('members.json');
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        members = data.members;
+        discordMemberCount = data.count;
+    } catch {
+        members = fallbackMembers;
+    }
+}
 
 // Render Members
 function renderMembers() {
@@ -64,7 +34,7 @@ function renderMembers() {
                 <img src="${member.avatar}" alt="${member.name}" class="w-full h-full object-cover">
             </div>
             <h4 class="font-semibold text-white text-sm">${member.name}</h4>
-            <p class="text-brand text-xs">${member.role}</p>
+            ${member.role ? `<p class="text-brand text-xs">${member.role}</p>` : ''}
         </div>
     `).join('');
 
@@ -89,7 +59,7 @@ function openMemberModal(member) {
                 <img src="${member.avatar}" alt="${member.name}" class="w-full h-full object-cover">
             </div>
             <h3 class="text-2xl font-bold text-white">${member.name}</h3>
-            <p class="text-brand font-medium">${member.role}</p>
+            ${member.role ? `<p class="text-brand font-medium">${member.role}</p>` : ''}
         </div>
     `;
 
@@ -273,7 +243,8 @@ function animateCounter(element, target, suffix = '') {
 }
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadMembers();
     renderMembers();
     generateParticles();
     generateFilters();
@@ -287,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const statsObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                animateCounter(document.getElementById('memberCount'), 100, '+');
+                animateCounter(document.getElementById('memberCount'), discordMemberCount || 100, '+');
                 animateCounter(document.getElementById('eventCount'), 5, '+');
                 statsObserver.unobserve(entry.target);
             }
