@@ -73,7 +73,7 @@ window.DERS_VIZ["2d-freeze"] = function () {
         ctx.fillStyle = ACCENT2; ctx.font = "bold 12px Inter"; ctx.textAlign = "center";
         ctx.fillText("❄ = requires_grad=False (öğrenmez)  🔥 = requires_grad=True (öğrenir)", w / 2, infoY);
         ctx.fillStyle = "#9aa0b4"; ctx.font = "11px Inter";
-        ctx.fillText("Ön katmanlar genel bilgi taşır → donuk. Son katmanlar göre-özel → eğitilebilir (düşük LR ile).", w / 2, infoY + 22);
+        ctx.fillText("Ön katmanlar genel bilgi taşır → donuk. Son katmanlar görev-özel → eğitilebilir (düşük LR ile).", w / 2, infoY + 22);
         ctx.fillText("fc katmanı tamamen yenidir → rastgeledir, en yüksek LR ile eğitilir.", w / 2, infoY + 40);
     }
 

@@ -4,11 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Transfer Learning ve İnce Ayar — Bursa YZGT</title>
-    <meta name="description" content="ImageNet önceden eğitilmiş modelleri kullanma, son katman değiştirme ve freeze/unfreeze stratejileri. Az veriyle güçlü görüntü modelleri.">
+    <meta name="description" content="ImageNet önceden eğitilmiş modelleri kullanma, son katman değiştirme ve dondurma/çözme stratejileri. Az veriyle güçlü görüntü modelleri.">
     <link rel="canonical" href="https://bursayz.github.io/dersler/transfer-learning/">
     <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../../css/edu.css">
+    <style>
+        .ders-icerik table.tablo { width:100%; border-collapse:collapse; font-size:0.83rem; margin:1rem 0; }
+        .ders-icerik table.tablo th, .ders-icerik table.tablo td { border:1px solid var(--edu-border); padding:0.45rem 0.6rem; text-align:left; vertical-align:top; }
+        .ders-icerik table.tablo th { background:rgba(255,255,255,0.05); color:var(--edu-text); font-weight:600; }
+        .ders-icerik table.tablo td { color:#cbd0dd; }
+        .ders-icerik table.tablo tr:nth-child(even) td { background:rgba(255,255,255,0.015); }
+        .ters-hucre { background:rgba(143,217,74,0.08); }
+        .ters-hucre2 { background:rgba(245,158,11,0.08); }
+        .ters-hucre3 { background:rgba(59,130,246,0.08); }
+        .ters-hucre4 { background:rgba(168,85,247,0.08); }
+        .hata-listesi li { margin-bottom:0.5rem; color:#cbd0dd; }
+        .hata-listesi code { color:#fca5a5; }
+    </style>
 </head>
 <body class="edu-body seri-goruntu" data-ders-slug="transfer-learning">
     <nav class="edu-topbar"><div class="edu-container">
@@ -20,22 +33,24 @@
     <main class="edu-container">
         <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
         <div class="ders-baslik-blogu"><h1>Transfer Learning ve İnce Ayar</h1>
-            <div class="ders-meta"><span>📚 G3 · Görüntü Serisi</span><span>⏱ ~30 dakika</span></div>
+            <div class="ders-meta"><span>📚 G3 · Görüntü Serisi</span><span>⏱ ~35 dakika</span></div>
         </div>
         <div class="ders-kapsam-note">
-            <strong>Bu derste öğrenecekleriniz:</strong> Milyonlarca resimle eğitilmiş hazır modelleri kendi
-            az verinize nasıl adapte edersiniz? Özellik çıkarımı vs ince ayar, freeze/unfreeze stratejileri
-            ve ne zaman hangisini kullanmalısınız.
+            <strong>Bu derste öğrenecekleriniz:</strong> Milyonlarca resimle eğitilmiş hazır modelleri elinizdeki
+            az sayıdaki veriye nasıl adapte edersiniz? Özellik çıkarımı mı, ince ayar mı; katmanları dondurma/çözme
+            stratejileri ve ne zaman hangisini kullanmalısınız.
+            <br><strong>Ön koşul:</strong> <em>G2 — Görüntü Sınıflandırma</em> dersini (eğitim döngüsü, ImageFolder) tamamlamış olmanız önerilir.
         </div>
 
         <article class="ders-icerik">
 
-            <h2>Sıfırdan Eğitim Çoğu Zaman Gereksiz</h2>
+            <h2>Sıfırdan Eğitim Çoğu Zaman Gerekmez</h2>
 
             <p>
-                2024'te bir kedi-köpek sınıflandırıcısı yapmak için ImageNet'in (~14 milyon resim,
-                yüzlerce GPU saati) yeniden eğitilmesine gerek yok. <strong>Transfer learning</strong>
-                ile hazır bir "görme beyni"ni alıp kendi görevinize adapte edersiniz.
+                Bir kedi-köpek sınıflandırıcısı yapmak için bir modeli ImageNet'in tamamında (~14 milyon resim,
+                21.000 sınıf) yeniden eğitmenize gerek yok. torchvision'un hazır ağırlıkları ImageNet-1k (ILSVRC)
+                üzerinde eğitilmiştir: <strong>~1,28 milyon resim, 1.000 sınıf</strong>. <strong>Transfer learning</strong>
+                ile bu hazır "görme beyni"ni alıp kendi görevinize uyarlayabilirsiniz.
             </p>
 
             <div class="analoji-kutu">
@@ -43,105 +58,229 @@
                 <p>
                     Tıp öğrencisi önce genel anatomi öğrenir (ImageNet — evrensel görme bilgisi),
                     sonra uzmanlık seçer (sizin göreviniz — kardiyoloji gibi). Kimse kardiyolog olmak için
-                    anatomiyi yeniden keşfetmez. İlk katmanlar kenar/doku görmeyi öğrenmiş —
-                    bu bilgi kedi ile araba arasında paylaşılır.
+                    anatomiyi yeniden keşfetmez.
                 </p>
             </div>
 
+            <p>
+                Teknik olarak: bir CNN'in <strong>ilk katmanları</strong> kenar ve doku dedektörleri gibi davranır,
+                <strong>orta katmanlar</strong> parça ve desen kombinasyonlarını, <strong>son katmanlar</strong> ise modele özgü
+                nesne temsillerini öğrenir (Zeiler &amp; Fergus, 2014; Yosinski et al., 2014). Bu genel özellikler
+                kedi ile araba gibi farklı görevler arasında paylaşılabilir — transfer learning'in çalışma nedeni budur.
+            </p>
+
+            <h2>Temel Kavramlar: Backbone ve Sınıflandırma Katmanı</h2>
+
+            <p>
+                Önceden eğitilmiş bir model iki parçadan oluşur:
+            </p>
+            <ul style="color:#cbd0dd;line-height:1.8">
+                <li><strong>Backbone (omurga):</strong> ResNet'in conv1, bn1, layer1–layer4 blokları. Girdiden <em>özellik vektörü</em> üretir (ResNet-18'de 512 boyutlu).</li>
+                <li><strong>Head (sınıflandırma katmanı):</strong> Backbone'un ürettiği özellik vektörünü sınıf sayısına çeviren son katman (ResNet-18'de <code>fc</code>: 512 → 1000). Bunu kendi sınıf sayınızla değiştirirsiniz.</li>
+            </ul>
+
             <h2>İki Temel Strateji</h2>
 
-            <h3>1. Özellik Çıkarımı (Feature Extraction / Freeze)</h3>
+            <h3>1. Özellik Çıkarımı (Feature Extraction)</h3>
             <pre><code class="language-python">import torch
 import torch.nn as nn
 from torchvision import models
 
 model = models.resnet18(weights="IMAGENET1K_V1")
 
-# Tüm backbone'u dondur — ağırlıklar değişmez
+# Backbone'un tüm parametrelerini dondur — gradyan hesaplanmaz, ağırlıklar değişmez
 for p in model.parameters():
     p.requires_grad = False
 
-# Sadece son katmanı değiştir (1000 ImageNet sınıfı → 2 sınıfımız)
+# Sadece sınıflandırma katmanını (head) değiştir: 1000 ImageNet sınıfı → 2 sınıf
 model.fc = nn.Linear(model.fc.in_features, 2)
 
-# Eğitimde sadece fc'nin ~1024 parametresi eğitilir
-print(len([p for p in model.parameters() if p.requires_grad]))  # 2</code></pre>
+# Eğitilebilir parametre sayısını doğru şekilde sayın
+n = sum(p.numel() for p in model.parameters() if p.requires_grad)
+print(n)  # 1026  (512×2 weight + 2 bias)</code></pre>
 
-            <p>✅ Avantajlar: az veri (yüzlerce örnek yeterli), hızlı, overfitting riski düşük.<br>
-               ❌ Dezavantaj: modelin "gördüğü" özellikler sizin görevinize tam uymayabilir.</p>
+            <p>
+                <code>len(...)</code> ile sayarsanız 2 çıkar (fc'nin weight ve bias tensörü) — bu yanıltıcıdır.
+                <code>p.numel()</code> ile gerçek parametre sayısını görürsünüz.
+            </p>
 
-            <h3>2. İnce Ayar (Fine-Tuning / Unfreeze)</h3>
-            <pre><code class="language-python"># Tüm katmanlar eğitilebilir, ama farklı LR ile
+            <div class="dikkat-kutu">
+                <span class="etiket">⚠️ BATCHNORM'U DA DONDURUN</span>
+                <p>
+                    <code>requires_grad=False</code> yalnızca gradyan akışını durdurur; BatchNorm katmanlarının
+                    <em>istatistiklerini</em> (running_mean, running_var) durdurmaz. <code>model.train()</code> çağrıldığında
+                    BN istatistikleri kendi verinizle güncellenir ve "dondurulmuş" backbone aslında değişir.
+                    Bunu önlemek için backbone'u <code>eval()</code> modunda tutun:
+                </p>
+                <pre style="margin:0.6rem 0 0"><code class="language-python">model.train()   # head eğitilsin
+for m in model.modules():
+    if isinstance(m, nn.BatchNorm2d):
+        m.eval()    # BN istatistikleri sabit kalsın</code></pre>
+            </div>
+
+            <p><strong>Artıları:</strong> az veri (yüzlerce örnek yeterli), hızlı eğitim, aşırı öğrenme (overfitting) riski düşük.<br>
+               <strong>Eksileri:</strong> backbone'un çıkardığı özellikler sizin görevinize tam uymayabilir (örn. tıbbi görüntü).</p>
+
+            <h3>2. İnce Ayar (Fine-Tuning)</h3>
+            <pre><code class="language-python">from itertools import chain
+
+# Tüm parametreleri eğitilebilir yap
 for p in model.parameters():
     p.requires_grad = True
 
+# Katmana özel öğrenme oranı (discriminative LR):
 # İlk katmanlara küçük LR (ImageNet bilgisini koru),
 # son katmanlara büyük LR (yeni görevi öğren)
-optimizer = torch.optim.Adam([
-    {"params": model.layer1.parameters(), "lr": 1e-5},   # Genel özellikler
-    {"params": model.layer4.parameters(), "lr": 1e-4},   # Üst seviye
-    {"params": model.fc.parameters(),     "lr": 1e-3},   # Yeni başlık
-], lr=1e-3)</code></pre>
+optimizer = torch.optim.AdamW([
+    {"params": chain(model.conv1.parameters(), model.bn1.parameters(),
+                     model.layer1.parameters(), model.layer2.parameters()),
+     "lr": 1e-5},   # en genel özellikler
+    {"params": model.layer3.parameters(), "lr": 5e-5},
+    {"params": model.layer4.parameters(), "lr": 1e-4},
+    {"params": model.fc.parameters(),     "lr": 1e-3},   # yeni head
+], weight_decay=1e-2)</code></pre>
 
-            <p>✅ Avantajlar: en iyi performans, göreve tam adaptasyon.<br>
-               ❌ Dezavantaj: daha fazla veri gerekir (binlerce), overfitting riski, daha yavaş.</p>
+            <p>
+                Önemli: optimizer'a verdiğiniz parametre grupları <strong>modelin tüm parametrelerini kapsamalıdır</strong>.
+                Unuttuğunuz katmanlar (<code>conv1</code>, <code>bn1</code>, <code>layer2</code> gibi) gradyan hesaplar ama hiç güncellenmez —
+                hem sessiz bir hatadır hem de boşa hesap maliyetidir.
+            </p>
+
+            <p><strong>Artıları:</strong> en iyi performans, göreve tam adaptasyon.<br>
+               <strong>Eksileri:</strong> daha fazla veri ister, aşırı öğrenme riski var, eğitim daha yavaş.</p>
 
             <h2>Strateji Seçim Kılavuzu</h2>
 
-            <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin:1rem 0">
-                <thead><tr style="color:var(--edu-text-dim);font-size:0.75rem;text-align:left">
-                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Durum</th>
-                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Veri az + benzer görev</th>
-                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Veri az + farklı görev</th>
-                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Veri çok + benzer görev</th>
-                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Veri çok + farklı görev</th></tr></thead>
+            <p>Aşağıdaki eşikler (yüzlerce/binlerce) kaba deneyim kurallarıdır, kesin sınır değildir. Kendi verinizde deneyin.</p>
+
+            <table class="tablo">
+                <thead><tr>
+                    <th></th>
+                    <th>Görev ImageNet'e benzer<br><span style="font-weight:400;font-size:0.75rem;color:var(--edu-text-dim)">doğal fotoğraf, nesne türleri örtüşüyor</span></th>
+                    <th>Görev farklı<br><span style="font-weight:400;font-size:0.75rem;color:var(--edu-text-dim)">tıbbi görüntü, uydu, çizim, mikroskop</span></th>
+                </tr></thead>
                 <tbody>
-                    <tr><td style="padding:0.5rem"><b>Strateji</b></td><td style="padding:0.5rem;color:#8fd94a">Freeze son katmanı</td><td style="padding:0.5rem;color:#f59e0b">Freeze son katman→sonra son 1-2 katman aç</td><td style="padding:0.5rem;color:#3b82f6">Tam fine-tuning</td><td style="padding:0.5rem;color:#a855f7">Tam fine-tuning (belki sıfırdan)</td></tr>
+                    <tr>
+                        <td><b>Az veri</b><br><span style="font-size:0.75rem;color:var(--edu-text-dim)">yüzlerce örnek</span></td>
+                        <td class="ters-hucre">Sadece head eğit<br>(backbone donuk)</td>
+                        <td class="ters-hucre2">Önce head eğit, sonra üstten 1–2 bloğu aç<br><span style="font-size:0.75rem">CS231n notu: üst katmanlar veri setine özgüdür — veri çok azsa backbone'dan daha <em>alt</em> bir katmanın çıktısına sınıflandırıcı eğitmek de işe yarayabilir</span></td>
+                    </tr>
+                    <tr>
+                        <td><b>Çok veri</b><br><span style="font-size:0.75rem;color:var(--edu-text-dim)">binlerce+ örnek</span></td>
+                        <td class="ters-hucre3">Tam ince ayar<br>(katmana özel LR)</td>
+                        <td class="ters-hucre4">Tam ince ayar<br><span style="font-size:0.75rem">Çok veri olsa bile önceden eğitilmiş ağırlıkla başlamak çoğunlukla yakınsamayı hızlandırır; sıfırdan eğitim yalnızca alan çok uzaksa ve veri gerçekten büyükse (~1M+) mantıklı</span></td>
+                    </tr>
                 </tbody>
             </table>
 
-            <h2>Pratik: Tam Kedi-Köpek İnce Ayar</h2>
+            <h2>Uçtan Uca Örnek: Kedi-Köpek Sınıflandırıcısı</h2>
+
+            <p>
+                Not: kedi-köpek, ImageNet içinde zaten kedi ve ~120 köpek ırkı sınıfı bulunduğu için transfer learning'in
+                <em>en kolay</em> senaryosudur. Gerçek hayatta alan farkı (domain shift) olan bir veri setiyle (bitki hastalığı,
+                röntgen, uydu görüntüsü) karşılaştığınızda yukarıdaki strateji tablosu daha kritik hale gelir.
+            </p>
 
             <pre><code class="language-python">import torch
+import torch.nn as nn
 from torchvision import models, transforms, datasets
 from torch.utils.data import DataLoader
 
-# Veri
-tf = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.RandomHorizontalFlip(),
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # ImageNet istatistikleri!
-])
-train = datasets.ImageFolder("veri/train", transform=tf)   # klasor/kedi/, klasor/kopek/
-loader = DataLoader(train, batch_size=32, shuffle=True)
+# Güvenli yol: ağırlıkların beklediği ön işlemeyi otomatik alın
+weights = models.ResNet18_Weights.IMAGENET1K_V1
 
-model = models.resnet18(weights="IMAGENET1K_V1")
-model.fc = nn.Linear(model.fc.in_features, 2)
+# Eğitim: artırma (augmentation) + kırpma
+train_tf = transforms.Compose([
+    transforms.RandomResizedCrop(224),          # en-boy oranını bozmadan rastgele kırp
+    transforms.RandomHorizontalFlip(),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2),
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+])
+# Doğrulama: deterministik, artırma yok
+val_tf = weights.transforms()   # Resize(256) → CenterCrop(224) → normalize, hepsi hazır
+
+train_ds = datasets.ImageFolder("veri/train", transform=train_tf)  # veri/train/kedi/, veri/train/kopek/
+val_ds   = datasets.ImageFolder("veri/val",   transform=val_tf)
+train_ld = DataLoader(train_ds, batch_size=32, shuffle=True)
+val_ld   = DataLoader(val_ds, batch_size=64)
+
+model = models.resnet18(weights=weights)
+model.fc = nn.Linear(model.fc.in_features, len(train_ds.classes))
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model = model.to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-2)
 loss_fn = nn.CrossEntropyLoss()
 
 for epoch in range(10):
+    # --- eğitim ---
     model.train()
-    for X, y in loader:
+    toplam_loss, dogru, n = 0.0, 0, 0
+    for X, y in train_ld:
         X, y = X.to(device), y.to(device)
         optimizer.zero_grad()
         loss = loss_fn(model(X), y)
         loss.backward()
         optimizer.step()
+        toplam_loss += loss.item() * len(y)
+        dogru += (model(X).argmax(1) == y).sum().item()   # not: pratikte çıktıyı saklayın
+        n += len(y)
+    # --- doğrulama ---
+    model.eval()
+    val_dogru, val_n = 0, 0
+    with torch.no_grad():
+        for X, y in val_ld:
+            X, y = X.to(device), y.to(device)
+            val_dogru += (model(X).argmax(1) == y).sum().item()
+            val_n += len(y)
+    print(f"epoch {epoch+1:2d} | loss {toplam_loss/n:.4f} | "
+          f"eğitim acc {dogru/n:.3f} | val acc {val_dogru/val_n:.3f}")
+
 torch.save(model.state_dict(), "kedi_kopek.pt")</code></pre>
+
+            <p>Bu kod, başlıktaki "ince ayar" iddiasının aksine tek LR ile tüm modeli eğitir — basitlik için.
+            Katmana özel LR kullanmak isterseniz bir önceki bölümdeki optimizer örneğini buraya taşıyın.
+            Pratikte önce 2–3 epoch yalnız head'i (backbone donuk), sonra tümünü açmak (kademeli çözme) daha kararlıdır.</p>
 
             <div class="dikkat-kutu">
                 <span class="etiket">⚠️ IMAGENET NORMALİZASYONU</span>
                 <p>
-                    Önceden eğitilmiş model, [0.485, 0.456, 0.406] ortalama ve [0.229, 0.224, 0.225] std ile
-                    eğitilmiştir. Kendi verinizi <strong>mutlaka aynı değerlerle</strong> normalize edin —
-                    yoksa modelin "beklediği girdi dağılımı" bozulur ve performans çökürür.
+                    Önceden eğitilmiş model, belirli ortalama ve standart sapma ile eğitilmiştir.
+                    Bunları elle yazmak yerine <code>weights.transforms()</code> ile ağırlığın kendi ön işlemesini
+                    almak daha güvenlidir — model sürümü değişse bile doğru değerler gelir.
                 </p>
             </div>
+
+            <h2>Kaydedilen Modeli Kullanma (Çıkarım)</h2>
+
+            <pre><code class="language-python">from PIL import Image
+
+# Modeli yeniden kur ve ağırlıkları yükle
+model = models.resnet18(weights=None)          # rastgele başlat
+model.fc = nn.Linear(model.fc.in_features, 2)  # eğitimdeki yapıyla AYNI olmalı
+model.load_state_dict(torch.load("kedi_kopek.pt", map_location=device))
+model.eval().to(device)
+
+siniflar = train_ds.classes   # ['kedi', 'kopek'] — eğitimdeki sınıf eşlemesi
+
+img = Image.open("test.jpg").convert("RGB")    # gri resimler için convert("RGB") şart!
+x = weights.transforms()(img).unsqueeze(0).to(device)
+with torch.no_grad():
+    tahmin = siniflar[model(x).argmax(1).item()]
+print(tahmin)  # 'kedi' veya 'kopek'</code></pre>
+
+            <h2>Sık Yapılan Hatalar</h2>
+            <ul class="hata-listesi">
+                <li><b>BatchNorm'u eval()'a almamak:</b> <code>requires_grad=False</code> yetmez — <code>model.train()</code> BN istatistiklerini günceller, donuk backbone değişir.</li>
+                <li><b>Yanlış normalizasyon:</b> ImageNet ort/std yerine [0,1] veya kendi verinizin istatistikleri. Model "beklediği" dağılımı görmezse performans düşer. <code>weights.transforms()</code> kullanın.</li>
+                <li><b>Dondurulmuş parametreleri optimizer'a vermek:</b> gradyanları boşuna hesaplanır. <code>filter(lambda p: p.requires_grad, ...)</code> ile süzün.</li>
+                <li><b>Optimizer'da katman unutmak:</b> gruplara eklemediğiniz katman sessizce güncellenmez. Grupların tüm <code>requires_grad=True</code> parametreleri kapsadığını kontrol edin.</li>
+                <li><b>Çok yüksek LR ile ince ayar:</b> backbone'a 1e-2 vermek ImageNet bilgisini tek adımda "ezer" (catastrophic forgetting). Backbone'a 1e-5…1e-4 aralığından başlayın.</li>
+                <li><b>Gri (1 kanallı) resimle 3 kanallı model kullanmak:</b> <code>Image.open(...).convert("RGB")</code> ekleyin.</li>
+                <li><b>Eğitim ve çıkarımda farklı ön işleme:</b> Eğitimde augmentation vardır; çıkarımda yalnız resize/crop/normalize olmalı.</li>
+                <li><b><code>model.eval()</code> + <code>torch.no_grad()</code> unutmak:</b> doğrulama metrikleri yanlış çıkar, bellek şişer.</li>
+            </ul>
 
             <h2>İnteraktif: Katman Dondurma/Çözme</h2>
 
@@ -150,16 +289,34 @@ torch.save(model.state_dict(), "kedi_kopek.pt")</code></pre>
                 <div class="viz-mount" id="viz-freeze" style="min-height:300px"></div>
             </div>
 
-            <h2>Kaynaklar</h2>
+            <h2>Güncel Araçlar ve İleri Okuma</h2>
+            <p style="color:#cbd0dd">
+                ResNet-18 öğretici bir başlangıçtır; üretimde daha güçlü backbone'lar tercih edilir:
+            </p>
+            <ul style="color:#cbd0dd;line-height:1.8">
+                <li><b>timm</b> kütüphanesi: EfficientNet, ConvNeXt, ViT gibi yüzlerce modern backbone tek satırla (<code>timm.create_model("convnext_tiny", pretrained=True)</code>).</li>
+                <li><b>Hugging Face</b> (<code>transformers</code>): ViT, CLIP, DINOv2 gibi modeller ve hazır eğitim döngüleri.</li>
+                <li><b>LoRA / PEFT:</b> tüm ağırlıkları eğitmek yerine küçük adaptör katmanları eğitmek — büyük modellerde bellek tasarrufu sağlar (ayrı ders konusudur).</li>
+            </ul>
+
+            <h2>Kendiniz Deneyin</h2>
+            <ol style="color:#cbd0dd;line-height:1.9">
+                <li>Yukarıdaki kodu <a href="https://colab.research.google.com" target="_blank">Google Colab</a>'da (ücretsiz GPU) çalıştırın. Kedi-köpek veri seti: <code>torchvision</code> veya Kaggle "Dogs vs. Cats".</li>
+                <li>Sadece head eğitme (özellik çıkarımı) ile tam ince ayarı aynı veri setinde karşılaştırın — doğruluk ve eğitim süresini not edin.</li>
+                <li>BatchNorm'u <code>eval()</code>'a almadan ve alarak iki deney yapın; val doğruluğundaki farkı gözlemleyin.</li>
+                <li>Kendi fotoğraflarınızla 2 sınıflı bir veri seti kurun (sınıf başına 50–100 resim yeterli).</li>
+            </ol>
 
             <div class="kaynaklar-kutu">
                 <h2>📚 Kaynaklar</h2>
                 <ol>
                     <li>Yosinski, J. et al. (2014). <em>"How transferable are features in deep neural networks?"</em> NeurIPS. <a href="https://arxiv.org/abs/1411.1792" target="_blank">arXiv:1411.1792</a> — Hangi katman ne kadar aktarılabilir?</li>
                     <li>PyTorch Transfer Learning Tutorial. <a href="https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html" target="_blank">pytorch.org</a> — ResNet-18 ile tam örnek.</li>
-                    <li>Russakovsky, O. et al. (2015). <em>"ImageNet Large Scale Visual Recognition Challenge."</em> IJCV — ImageNet'in teknik belgesi.</li>
-                    <li>Fast.ai. <em>"Lesson 1: Transfer Learning"</em>. <a href="https://course.fast.ai/" target="_blank">course.fast.ai</a> — Pratik odaklı yaklaşım.</li>
+                    <li>Russakovsky, O. et al. (2015). <em>"ImageNet Large Scale Visual Recognition Challenge."</em> IJCV — ImageNet-1k'nın teknik belgesi (1,28M resim, 1000 sınıf).</li>
+                    <li>Zeiler, M. D., Fergus, R. (2014). <em>"Visualizing and Understanding Convolutional Networks."</em> ECCV — Katmanların ne öğrendiğinin görselleştirilmesi.</li>
                     <li>Kornblith, S. et al. (2019). <em>"Do Better ImageNet Models Transfer Better?"</em> CVPR. <a href="https://arxiv.org/abs/1805.08974" target="_blank">arXiv:1805.08974</a>.</li>
+                    <li>Fast.ai — Practical Deep Learning. <a href="https://course.fast.ai/" target="_blank">course.fast.ai</a> — Transfer learning'e pratik odaklı giriş (Lesson 1).</li>
+                    <li>Türkçe: <em>Türkiye Açık Kaynak Platformu — Yapay Zeka Uzmanlık Eğitimi</em>, görüntü işleme modülü. <a href="https://turkiyeacikaynak.gov.tr" target="_blank">turkiyeacikaynak.gov.tr</a></li>
                 </ol>
             </div>
 
