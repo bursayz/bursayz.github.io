@@ -41,13 +41,13 @@
             </p>
 
             <div class="io-akis">
-                <div class="io-kutu"><div class="io-baslik">Girdi x</div><div class="io-icerik">Token embeddingleri<br>+ pozisyon</div></div>
+                <div class="io-kutu"><div class="io-baslik">GİRDİ X</div><div class="io-icerik">Token embeddingleri<br>+ pozisyon</div></div>
                 <div class="io-ok">→</div>
-                <div class="io-kutu"><div class="io-baslik">Multi-Head Attention</div><div class="io-icerik">Kelimeler birbirine bakar<br><b>+ x (residual)</b></div></div>
+                <div class="io-kutu"><div class="io-baslik">MULTI-HEAD ATTENTION</div><div class="io-icerik">Kelimeler birbirine bakar<br><b>+ x (residual)</b></div></div>
                 <div class="io-ok">→</div>
-                <div class="io-kutu"><div class="io-baslik">Feed-Forward</div><div class="io-icerik">Her kelime bağımsız işlenir<br><b>+ x (residual)</b></div></div>
+                <div class="io-kutu"><div class="io-baslik">FEED-FORWARD</div><div class="io-icerik">Her kelime bağımsız işlenir<br><b>+ x (residual)</b></div></div>
                 <div class="io-ok">→</div>
-                <div class="io-kutu"><div class="io-baslik">Çıktı</div><div class="io-icerik">Sonraki bloğa<br>(×12, ×24... kez tekrar)</div></div>
+                <div class="io-kutu"><div class="io-baslik">ÇIKTI</div><div class="io-icerik">Sonraki bloğa<br>(×12, ×24... kez tekrar)</div></div>
             </div>
 
             <h2>Residual Bağlantı: Bilgi Otoyolu</h2>
@@ -59,7 +59,7 @@ cikis = x + self.attention(x)   # Attention ne eklediyse eklesin,
                                  # ama orijinal x kaybolmasın</code></pre>
 
             <div class="analoji-kutu">
-                <span class="etiket">💡 Analoji</span>
+                <span class="etiket">💡 ANALOJİ</span>
                 <p>
                     Residual bağlantı, bir belgeyi düzenlerken <strong>orijinal metni silmemek</strong> gibidir.
                     Her düzenleme katmanı (attention, feed-forward) belgeye <em>ekleme yapar</em> ama
@@ -141,7 +141,7 @@ class GPT(nn.Module):
             </ul>
 
             <div class="dikkat-kutu">
-                <span class="etiket">⚠️ Boyutların Büyüklüğü</span>
+                <span class="etiket">⚠️ BOYUTLARIN BÜYÜKLÜĞÜ</span>
                 <p>
                     GPT-2 small: 12 blok, 768 boyut, 117M parametre.
                     GPT-3: 96 blok, 12.288 boyut, 175M parametre.

@@ -40,17 +40,17 @@
             </p>
 
             <div class="io-akis">
-                <div class="io-kutu"><div class="io-baslik">1. İleri</div><div class="io-icerik">Veriyi modele ver<br>Tahmin üret</div></div>
+                <div class="io-kutu"><div class="io-baslik">1. İLERİ</div><div class="io-icerik">Veriyi modele ver<br>Tahmin üret</div></div>
                 <div class="io-ok">→</div>
-                <div class="io-kutu"><div class="io-baslik">2. Kayıp</div><div class="io-icerik">Tahmin ile gerçeği karşılaştır<br>Hata skoru hesapla</div></div>
+                <div class="io-kutu"><div class="io-baslik">2. KAYIP</div><div class="io-icerik">Tahmin ile gerçeği karşılaştır<br>Hata skoru hesapla</div></div>
                 <div class="io-ok">→</div>
-                <div class="io-kutu"><div class="io-baslik">3. Geriye</div><div class="io-icerik">backward() ile<br>her ağırlığın hataya katkısını hesapla</div></div>
+                <div class="io-kutu"><div class="io-baslik">3. GERİYE</div><div class="io-icerik">backward() ile<br>her ağırlığın hataya katkısını hesapla</div></div>
                 <div class="io-ok">→</div>
-                <div class="io-kutu"><div class="io-baslik">4. Güncelle</div><div class="io-icerik">Ağırlıkları hatayı azaltacak yönde<br>azıcık değiştir</div></div>
+                <div class="io-kutu"><div class="io-baslik">4. GÜNCELLE</div><div class="io-icerik">Ağırlıkları hatayı azaltacak yönde<br>azıcık değiştir</div></div>
             </div>
 
             <div class="analoji-kutu">
-                <span class="etiket">💡 Analoji</span>
+                <span class="etiket">💡 ANALOJİ</span>
                 <p>
                     Gözünüz kapalı basketbolda serbest atış atıyorsunuz. Her atıştan sonra bir arkadaşınız
                     size "sola kaydı", "kısa geldi" diyor. Siz de bir sonraki atışta hafifçe düzeltiyorsunuz.
@@ -147,7 +147,7 @@ dK_db  = dout1                       # ∂kayıp/∂b ≈ 0.08
             </ul>
 
             <div class="analoji-kutu">
-                <span class="etiket">💡 Öğrenme Oranı Isınması (Warmup)</span>
+                <span class="etiket">💡 ÖĞRENME ORANI ISINMASI (WARMUP)</span>
                 <p>
                     Modern LLM eğitiminde LR, eğitimin başında kademeli olarak artırılır (warmup), sonra yavaşça
                     azaltılır (cosine schedule). Neden: ilk adımlarda hem rastgele ağırlıklar kargaşa yaratır, hem de
@@ -185,7 +185,7 @@ for epoch in range(5):
     print(f"Epoch {epoch+1}: Ortalama Kayıp = {epoch_kayip/len(train_loader):.4f}")</code></pre>
 
             <div class="analoji-kutu">
-                <span class="etiket">💡 optimizer.zero_grad() Neden Gerekli?</span>
+                <span class="etiket">💡 OPTIMIZER.ZERO_GRAD() NEDEN GEREKLİ?</span>
                 <p>
                     PyTorch gradyanları <strong>biriktirir</strong> (varsayılan davranış).
                     Eğer sıfırlamazsanız, her adımda önceki adımların gradyanları üst üste eklenir

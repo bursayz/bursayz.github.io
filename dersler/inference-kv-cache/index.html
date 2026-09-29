@@ -59,7 +59,7 @@ for t in range(1000):
     # Bellek maliyeti: 7B model, 4K bağlamda ~1-2 GB (FP16'da)</code></pre>
 
             <div class="analoji-kutu">
-                <span class="etiket">💡 Analoji</span>
+                <span class="etiket">💡 ANALOJİ</span>
                 <p>
                     KV-cache'siz model, bir romanı her yeni cümle için <em>en baştan okuyan</em> yazara benzer.
                     KV-cache ise not alır: "önceki 500 kelime şunlardı" — sadece yeni cümleyi düşünür.
@@ -70,9 +70,9 @@ for t in range(1000):
             <h2>Prefill vs Decode: İki Farklı Aşama</h2>
 
             <div class="io-akis">
-                <div class="io-kutu"><div class="io-baslik">Prefill</div><div class="io-icerik">Prompt işlenir (tüm tokenlar paralel)<br>GPU hesaplama yoğun<br>KV-cache doldurulur</div></div>
+                <div class="io-kutu"><div class="io-baslik">PREFILL</div><div class="io-icerik">Prompt işlenir (tüm tokenlar paralel)<br>GPU hesaplama yoğun<br>KV-cache doldurulur</div></div>
                 <div class="io-ok">→</div>
-                <div class="io-kutu"><div class="io-baslik">Decode</div><div class="io-icerik">Her adımda 1 token üretilir<br>Bellek bant genişliği sınırlı<br>KV-cache okunur ve genişler</div></div>
+                <div class="io-kutu"><div class="io-baslik">DECODE</div><div class="io-icerik">Her adımda 1 token üretilir<br>Bellek bant genişliği sınırlı<br>KV-cache okunur ve genişler</div></div>
             </div>
 
             <ul>
