@@ -21,118 +21,291 @@
         <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
         <div class="ders-baslik-blogu">
             <h1>Ön Eğitim (Pretraining)</h1>
-            <div class="ders-meta"><span>📚 L6 · LLM Serisi</span><span>⏱ ~30 dakika</span></div>
+            <div class="ders-meta"><span>📚 L6 · LLM Serisi</span><span>⏱ ~45 dakika</span></div>
         </div>
         <div class="ders-kapsam-note">
             <strong>Bu derste öğrenecekleriniz:</strong> Bir temel model (base model) milyarlarca tokenlik
             internet verisiyle nasıl eğitilir, eğitim maliyeti nasıl hesaplanır, kayıp eğrileri nasıl okunur
-            ve ölçek yasaları (scaling laws) ne söyler.
+            ve ölçek yasaları (scaling laws) ne söyler. Lise seviyesinde matematikle bile anlayabileceğiniz
+            şekilde, adım adım gideceğiz.
         </div>
 
         <article class="ders-icerik">
 
-            <h2>Temel Model Nasıl Doğar?</h2>
+            <h2>Önce Basit Bir Senaryo: Büyükannenin Tarif Defteri</h2>
 
             <p>
-                ChatGPT gibi modeller aslında iki aşamalı üründür:
+                Büyükannenizin el yazısıyla tuttuğu bir yemek tarif defteri düşünün. Siz bu defterin her satırını
+                bir kez okuyorsunuz — ama sadece okumuyorsunuz; her satırın <em>sonraki</em> satırını tahmin etmeye çalışıyorsunuz.
+                "Unu ekleyin..." → "Karıştırın." "Fırını 180 dereceye..." → "Önceden ısıtın."
+            </p>
+
+            <p>
+                Başlangıçta rastgele tahminlersiniz, yanlış yaparsanız. Ama defteri binlerce kez okuduğunuz
+                bir şey fark edersiniz: <strong>Belirli kalıplar var</strong>. "Unu" kelimesinden sonra genelde
+                "ekleyin" gelir, "fırını" gördüğünde "derece" beklenir. Tahminleriniz giderek iyileşir.
+            </p>
+
+            <p>
+                İşte <strong>ön eğitim (pretraining)</strong> tam olarak budur — sadece ölçek farkıyla.
+                Model devasa internet verisini (milyarlarca "satır") okur, her seferinde bir sonraki
+                "token"i tahmin eder. Yanıldığında geriye yayılımla öğrenir. Bu <em>self-supervised</em>
+                (kendi kendine denetimli) öğrenmedir: verinin kendisi hem soru hem cevaptır — insana ihtiyaç yoktur.
+            </p>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 TEMEL SORU</span>
+                <p>
+                    <strong>"Neden sadece tahmin oyunu, başka bir görev değil?"</strong> Cevap: bu oyun
+                    her şeyi kapsar. Dilbilgisi, kelime anlamları, dünya bilgisi, mantık zincirleri —
+                    hepsi "sonraki ne gelir?" sorusunun içinde gizlidir. Bu görevin üstünde ustalaştıkça
+                    model tüm bunları <em>tesadüfen değil, zorunluluktan</em> öğrenir.
+                </p>
+            </div>
+
+            <p>
+                ChatGPT gibi modeller aslında <strong>iki aşamalı</strong> üründür:
                 <strong>temel model</strong> (base model) internetin devasa bir kesmini okuyup
-                "bir sonraki token" oyununu öğrenir; sonra <strong>ince ayar</strong> (sonraki ders)
-                bu ham güce davranış öğretir. Bu derste ilk aşamayı inceliyoruz.
+                "bir sonraki token" oyununu öğrenir; sonra <strong>ince ayar</strong> (fine-tuning — sonraki ders)
+                bu ham güce "asıstan davranışı" öğretir. Bu derste ilk aşamayı inceliyoruz.
             </p>
 
             <div class="io-akis">
-                <div class="io-kutu"><div class="io-baslik">HAM İNTERNET VERİSİ</div><div class="io-icerik">Common Crawl, kitaplar, kodlar, Wikipedia<br>13 trilyon+ token (Llama-3)</div></div>
+                <div class="io-kutu"><div class="io-baslik">HAM İNTERNET VERİSİ</div><div class="io-icerik">Common Crawl, kitaplar, kodlar, Wikipedia<br>15 trilyon token (Llama-3) ≈ 100 milyon makale</div></div>
                 <div class="io-ok">→</div>
                 <div class="io-kutu"><div class="io-baslik">TEMİZLEME & FİLTRELEME</div><div class="io-icerik">Kopya kaldırma, kalite skoru,<br>zararlı içerik filtresi, dil tespiti</div></div>
                 <div class="io-ok">→</div>
-                <div class="io-kutu"><div class="io-baslik">ÖN EĞİTİM</div><div class="io-icerik">Binlerce GPU, haftalar/aylar<br>"sonraki token" tahmin oyunu</div></div>
+                <div class="io-kutu"><div class="io-baslik">ÖN EĞİTİM</div><div class="io-icerik">16.000+ GPU (Llama-3 405B), haftalar<br>"sonraki token" tahmin oyunu</div></div>
                 <div class="io-ok">→</div>
                 <div class="io-kutu"><div class="io-baslik">TEMEL MODEL</div><div class="io-icerik">Metin sürdürebilen ama<br>"asistan" olmayan ham model</div></div>
             </div>
 
-            <h2>Veri: Modelin Gıdası</h2>
+            <h2>Veri: Modelin Gıdası — Kalite Miktardan Önemlidir</h2>
 
-            <pre><code class="language-python"># Tipik bir LLM veri karışımı (Llama-3 tarzı):
+            <p>
+                Bir öğrenciye kötü kaynaklardan ders çalışmasını söyleseniz, ne kadar çok çalışırsa çalışsın
+                sınavda başarısız olur. LLM eğitiminde veri aynı rolü oynar. İlk dönem modeller (GPT-2, BERT)
+                veri miktarını artırmaya odaklanmıştı. Araştırmalar gösterdi ki <strong>kalite &gt; miktar</strong>:
+                az ama temiz veri, çok ama kirli veriden daha öğreticidir.
+            </p>
+
+            <p>İşte tipik bir modern LLM veri karışımı (Llama-3 tarzı):</p>
+
+            <pre><code class="language-python"># Llama-3 veri karışımı — %100 üzerinden değil, oranlarla ifade edilir
+# (Gerçek oranlar gizli tutulur; aşağıdaki toplulukta yaygın kabul gören
+# tahminlere dayanan temsilî değerlerdir)
+
 veri_karisimi = {
-    "Common Crawl (web)":  0.60,   # %60 — çeşitlilik
-    "Kod (GitHub)":        0.15,   # %15 — mantık, yapı
-    "Kitaplar":            0.10,   # %10 — uzun anlatı, edebi dil
-    "Wikipedia":           0.05,   # %5  — doğrulanmış bilgi
-    "Akademik (arXiv)":    0.05,   # %5  — bilimsel dil
-    "Diğer":               0.05,
+    "Common Crawl (web)":  0.60,   # %60 — çeşitlilik: forumlar, bloglar, haberler
+    "Kod (GitHub)":        0.15,   # %15 — mantıksal yapı, kesin sözdizimi
+    "Kitaplar":            0.10,   # %10 — uzun anlatı, edebi dil, bağlam
+    "Wikipedia":           0.05,   # %5  — doğrulanmış, iyi yazılmış bilgi
+    "Akademik (arXiv)":    0.05,   # %5  — bilimsel dil, soyut düşünme
+    "Diğer":               0.05,   # matematik forumları, Stack Exchange vb.
 }
-# Karışım oranları bile dikkatle ayarlanır — veri kalitesi > veri miktarı</code></pre>
+
+# Neden web %60? Çünkü dilin doğal kullanımını en iyi yansıtır.
+# Neden kod sadece %15? Çünkü kod öğretse de, modelin "insan gibi"
+# konuşmasını istiyoruz — kod bunu zayıflatır dengeyi korumak gerek.</code></pre>
 
             <div class="dikkat-kutu">
-                <span class="etiket">⚠️ KRİTİK İLKE: VERİ KALİTESİ</span>
+                <span class="etiket">⚠️ KRİTİK İLKE: ÇÖP GİRER, ÇÖP ÇIKAR</span>
                 <p>
-                    <strong>"Ne eklersen onu öğrenir."</strong> Spam dolu bir veri seti, spam üreten model demektir.
-                    Modern veri hazırlama boru hatları şunları yapar: kopya kaldırma (dedup),
-                    kalite skorlaması (heuristik + küçük sınıflandırıcı), PII (kişisel veri) temizliği,
-                    ve dil tespiti. Llama-3 ekibi eğitim verisinin hazırlanmasına aylar harcadı.
+                    <strong>"Ne eklersen onu öğrenir."</strong> Spam dolu bir veri seti → spam üreten model.
+                    Ama burada bir nüans var: kirli veri sadece "kötü çıktı" değil, aynı zamanda
+                    <em>hesaplama israfıdır</em>. Model aynı cümleyi 100 kez "öğrenmek" zorunda kalırsa,
+                    o zamanı başka örüntülere ayıramaz. İşte bu yüzden kopya kaldırma (deduplication)
+                    ve kalite filtreleme <em>ilk</em> değil, <strong>en önemli</strong> adımdır.
+                </p>
+                <p>
+                    Llama-3 ekibi veri hazırlamaya aylar harcadı: URL seviyesinde kopya kaldırma,
+                    satır seviyesinde tekrar temizliği, kişisel veri (PII) filtreleme, dil tespiti (176 dil!),
+                    ve DistilRoBERTa tabanlı "kod/mantık" sınıflandırıcıları. Bu emek boşa gitmedi —
+                    15T token ile (Llama-2'nin ~8 katı) eğitilen model, 8B parametreyle bile
+                    GPT-3.5 seviyesine yaklaştı.
                 </p>
             </div>
 
-            <h2>Hesaplama Maliyeti: FLOPs Matematiği</h2>
-
-            <pre><code class="language-python"># Pratik formül: eğitim FLOPs ≈ 6 × N × D
-# N = parametre sayısı, D = token sayısı
-# 6 = ileri geçiş (2N) + geriye yayılım (4N)
-
-N = 7e9        # 7 milyar parametre (küçük LLM)
-D = 1e12       # 1 trilyon token
-flops = 6 * N * D
-print(f"{flops:.2e} FLOPs")   # 4.2e22 FLOPs
-
-# A100 GPU: ~3e14 FLOP/saniye (FP16 ile)
-saniye = flops / 3e14
-gun = saniye / 86400
-print(f"1 A100 ile: {gun:.0f} gün")     # ~3800 gün — 10 yıl!
-print(f"1000 A100 ile: {gun/1000:.1f} gün")  # ~4 gün — yapılabilir
-# (Gerçekte verimlilik %40-50'dir; ~1 hafta-2 hafta sürer)</code></pre>
-
-            <h2>Ölçek Yasaları (Scaling Laws)</h2>
+            <h2>Hesaplama Maliyeti: FLOPs Matematiği — Basit Ama Güçlü</h2>
 
             <p>
-                2020'de OpenAI ekibi (Kaplan et al.) ve 2022'de DeepMind (Chinchilla) şunu keşfetti:
-                kayıp, model boyutu (N) ve veri miktarı (D) ile <strong>öngörülebilir güç yasası</strong> izler.
-                DeepMind'ın bulgusu: çoğu model az veriyle aşırı büyük eğitiliyordu —
-                <strong>optimum oran ~20 token/parametre</strong> (7B model için ~140B token).
+                "Bu model kaç ayda çıkar?" sorusunun cevabını tahmin etmek için derin öğrenme doktorası
+                gerekmez. Tek bir formül yeterli: <strong>FLOPs ≈ 6 × N × D</strong>.
+            </p>
+
+            <p>
+                Burada <strong>N</strong> = parametre sayısı (modelin "beyin hücreleri"), <strong>D</strong> = eğitim token sayısı.
+                "6" nereden geliyor? Her token için: <strong>2N</strong> FLOP ileri geçişte (tahmin),
+                <strong>4N</strong> FLOP geriye yayılımda (öğrenme). Toplam 6N.
+            </p>
+
+            <pre><code class="language-python"># Pratik hesap: 7 milyar parametre, 1 trilyon token
+# Bu "küçük" bir modern LLM'dir (Mistral-7B seviyesi)
+
+N = 7e9        # 7 milyar parametre
+D = 1e12       # 1 trilyon token (yaklaşık 7 milyon kitap)
+
+flops = 6 * N * D
+print(f"{flops:.2e} FLOPs")   # → 4.2e22 FLOPs
+                               # 42.000.000.000.000.000.000.000 işlem!
+
+# GPU hızı: A100 (FP16) ≈ 3e14 FLOP/saniye
+# Yani saniyede 300 trilyon işlem
+saniye = flops / 3e14
+gun = saniye / 86400
+print(f"1 A100 ile: {gun:.0f} gün")       # ~3800 gün ≈ 10.4 yıl
+
+# Bu yüzden binlerce GPU gereklidir:
+print(f"1000 A100 ile: {gun/1000:.1f} gün")  # ~3.8 gün — yapılabilir!
+
+# AMA: Pratikte verimlilik %40-50'dir (iletişim, disk I/O, hatalar)
+# Gerçekte ~8-10 gün sürer</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">🧠 DUSUN</span>
+                <p>
+                    <strong>"Neden tam 6N?"</strong> Ileri geçiş: her parametre bir çarpma+bir toplama
+                    yapar (2N). Geriye yayılım: hem ağırlıkların gradient'ini hem aktivasyonların
+                    gradient'ini hesaplar (toplam ~4N). 2N + 4N = 6N. Çok detaylı ama bilmenize gerek yok —
+                    formülü <em>kullanmayı</em> bilin yeter.
+                </p>
+            </div>
+
+            <h2>Ölçek Yasaları (Scaling Laws): Büyüdükçe Ne Olur?</h2>
+
+            <p>
+                2020'de OpenAI (Kaplan et al.) ve 2022'de DeepMind (Chinchilla makalesi) önemli bir
+                keşif yaptı: model kaybı, model boyutu ve veri miktarıyla <strong>öngörülebilir bir güç yasası</strong> izler.
+                Yani "daha büyük model + daha çok veri" her zaman daha iyidir — ama
+                <em>doğru oranla</em> büyütüldüğünde.
+            </p>
+
+            <p>
+                Chinchilla'nın devrimsel bulgusu: o dönemdeki modellerin çoğunun
+                <strong>fazla büyük, az veriyle eğitildiği</strong> idi. Kural basit:
+                <strong>her parametre için ~20 token</strong>. Yani 1 milyar parametreli model için
+                ~20 milyar token. 7B model için ~140 milyar token.
+            </p>
+
+            <div class="uyari-kutu">
+                <span class="etiket">⚠️ YAYGIN YANILGI</span>
+                <p>
+                    <strong>"Daha büyük model her zaman daha iyidir" — YANLIŞ.</strong> 70B model,
+                    Chinchilla-optimal 1.4T token yerine sadece 100B token ile eğitilirse, 7B model
+                    140B token'la ondan <em>daha iyi</em> performans gösterebilir. Boyut tek başına bir şey
+                    ifade etmez. Önemli olan oran.
+                </p>
+            </div>
+
+            <p>
+                <strong>Gerçek dünya örnekleri:</strong> Llama-3 8B, Chinchilla kuralının bile üstünde
+                (~15T token ≈ 1875 token/parametre!) eğitildi ve bu "aşırı eğitim" onu inanılmaz
+                güçlü yaptı. GPT-4 gibi dev modeller bile Chinchilla'ya göre <em>az-egitilmis</em> sayılır —
+                boyutlarına göre token başına daha az eğitim gördüler.
             </p>
 
             <div class="viz-kutu">
-                <div class="viz-baslik"><b>Ölçek Yasaları — Kayıp vs Model Boyutu / Veri</b></div>
-                <div class="viz-mount" id="viz-olcek" style="min-height:320px"></div>
+                <div class="viz-baslik"><b>Ölçek Yasaları — Kayıp vs Model Boyutu / Veri</b><br><small style="color:#9aa0b4">Model boyutunu (parametre) ve veri miktarını (token) değiştirerek kaybın nasıl değiştiğini görün</small></div>
+                <div class="viz-mount" id="viz-olcek" style="min-height:380px"></div>
             </div>
 
-            <h2>Kayıp Eğrisini Okumak</h2>
+            <h2>Kayıp Eğrisini Okumak: Modelin "Not Kâğıdı"</h2>
+
+            <p>
+                Kayıp (loss) eğrisi, eğitimin <strong>nabzını</strong> tutar. Sağlıklı bir eğitimde ne görmeniz
+                gerekir ve hangi sinyaller tehlike işaretidir?
+            </p>
 
             <ul>
-                <li><strong>Başlangıçta hızlı düşüş:</strong> Model dilbilgisi gibi "kolay" örüntüleri öğrenir.</li>
-                <li><strong>Uzun yavaş iniş:</strong> Dünya bilgisi ve mantık gibi zor örüntüler. İyileşme hiç bitmez, sadece yavaşlar.</li>
-                <li><strong>Ani yükseliş (spike):</strong> LR çok yüksek, bozuk veri batch'i veya donanım hatası. Checkpoint'ten geri dönülür.</li>
-                <li><strong>Düzlük:</strong> Daha fazla veri veya daha büyük model gerekir.</li>
+                <li><strong>Başlangıçta hızlı düşüş:</strong> Model dilbilgisi gibi "kolay" örüntüleri öğrenir: "the"dan sonra isim gelir, büyük harf cümle başında olur. Bu aşama saatler/günler sürer.</li>
+                <li><strong>Uzun, yavaş iniş:</strong> Dünya bilgisi ve mantık gibi "zor" örüntüler. İyileşme hiç bitmez — sadece <em>yavaşlar</em>. Eğri log-log ölçekte doğrusal iner.</li>
+                <li><strong>Ani yükseliş (spike):</strong> ⚠️ Tehlike! Nedenler: (a) öğrenme oranı çok yüksek, (b) bozuk veri batch'i (örn. bir sayfa 500 kez tekrar), (c) GPU/iletişim hatası. <strong>Çözüm: son sağlıklı checkpoint'e dönün.</strong></li>
+                <li><strong>Düzlük (plateau):</strong> Ya model kapasitesi dolmuş ya da veri çeşitliliği tükenmiştir. Çözüm: daha büyük model veya daha fazla kaliteli veri.</li>
             </ul>
 
             <div class="analoji-kutu">
                 <span class="etiket">💡 CHECKPOINT ANALOJİSİ</span>
                 <p>
-                    Haftalarca süren eğitimde model her N adımda diske kaydedilir (checkpoint).
-                    Kayıp patlaması yaşanırsa "son iyi duruma" dönülür. Llama-3 eğitiminde
-                    Meta ekibi donanım hatalarıyla (boğucu GPU kümelerinde günde ortalama birkaç arıza)
-                    başa çıkmak için otomatik kurtarma sistemleri geliştirdi.
+                    Haftalarca süren bir maraton düşünün. Her 5 kilometrede bir "check noktası"na ulaşıyorsunuz:
+                    "Buraya kadar sağlıklı geldim, bundan sonra bu noktadan devam edebilirim."
+                    Eğitimde de aynısı: her N adımda modelin ağırlıkları diske kaydedilir.
+                    Kayıp patlaması (spike) olursa "5 km gerideki sağlıklı noktaya" dönülür.
+                    <strong>Kayıt edilmemiş hafta = kaybedilmiş hafta.</strong>
+                </p>
+                <p>
+                    Llama-3 eğitiminde Meta, 16.000 GPU'luk kümede <strong>günde ortalama birkaç donanım arızası</strong>
+                    ile karşılaştı (NVLink kopmaları, disk hataları, aşırı ısınma). Otomatik kurtarma sistemi
+                    bu olmadan eğitim <em>bitirilemezdi bile</em>.
+                </p>
+            </div>
+
+            <h2>Pratik Senaryo: Kendi Bütçenizle Ne Yapabilirsiniz?</h2>
+
+            <p>
+                Farzedin bir araştırma laboratuvarındasınız ve 8×A100 GPU'nuz (toplam ~2.4e15 FLOP/s)
+                var. Ne ölçekte model eğitebilirsiniz?
+            </p>
+
+            <pre><code class="language-python"># Kendi eğitim planınızı yapma alıştırması
+toplam_gpu_sn = 8 * 30 * 24 * 3600     # 8 GPU × 30 gün = saniye cinsinden
+butce_flops = toplam_gpu_sn * 3e14 * 0.5  # %50 verimlilik
+
+print(f"Toplam bütçe: {butce_flops:.2e} FLOPs")
+# → ~3.1e21 FLOPs
+
+# Chinchilla-optimal model boyutu:
+# FLOPs = 6 × N × D  ve  D = 20 × N  (20 token/parametre)
+# → FLOPs = 6 × N × 20N = 120 × N²
+# → N = sqrt(FLOPs / 120)
+N = (butce_flops / 120) ** 0.5
+print(f"Optimal model boyutu: ~{N/1e9:.1f}B parametre")
+# → ~5.1B parametre, D = 20 × 5.1B ≈ 100B token!
+
+# Yani 8 GPU ile 30 günde Chinchilla-optimal ~5B model eğitebilirsiniz.
+# Bu, GPT-2 Large (774M) ve OPT-6.7B arası boyut — ciddi bir model.</code></pre>
+
+            <div class="ipucu-kutu">
+                <span class="etiket">💡 PRATİK İPUCU</span>
+                <p>
+                    Evde/okulda böyle bir kümeniz olmasa da <strong>pretraining'i deneyimlemek</strong> mümkün:
+                    karpathy/nanoGPT ile Colab'da (ücretsiz GPU) Shakespeare külliyatında karakter-seviyesinde
+                    mini-GPT eğitebilirsiniz. 10 dakikada anlamlı metin üretmeye başlar — aynı matematik,
+                    milyonlarca kez küçük ölçekte.
                 </p>
             </div>
 
             <h2>Pretraining Sonrası Temel Model Nasıl Davranır?</h2>
 
-            <pre><code class="language-python"># Temel model (fine-tuning'siz) davranışı:
-prompt = "Türkiye'nin başkenti nedir?"
-# → "Türkiye'nin başkenti nedir? Sınav sorusu. A) İstanbul B) Ankara..."
-# Metni SÜRDÜRÜR, soruya CEVAP VERMEZ. Asistan değildir (henüz).
+            <pre><code class="language-python"># Temel model (pretraining sonrası, fine-tuning'siz) davranışı:
 
-# Bu yüzden bir sonraki ders kritiktir: SFT ile bu ham güce
-# "talimatları izle ve soruları yanıtla" davranışı öğretilir.</code></pre>
+soru = "Türkiye'nin başkenti nedir?"
+
+# BEKLENEN (asistan davranışı — HENÜZ YOK):
+# → "Türkiye'nin başkenti Ankara'dır."
+
+# GERÇEKTE OLAN (temel model):
+# → "Türkiye'nin başkenti nedir? Sınav sorusu. A) İstanbul B) Ankara C) İzmir
+#    D) Bursa. Doğru cevap B seçeneğidir. Benzer sorular: Türkiye'nin en kalabalık
+#    şehri nedir? Türkiye'nin para birimi nedir?..."
+#
+# Neden? Çünkü internette bu sorunun ardından genellikle sınav seçenekleri,
+# benzer sorular, forum tartışmaları gelir. Model bunu "öğrendi" — soruyu
+# YANITLAMAK yerine METNI SÜRDÜRÜR.</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">🧠 DUSUN</span>
+                <p>
+                    Bu davranış hatadır mı? Hayır! Büyükannenin tarif defterine dönelim: siz "unu ekleyin"
+                    gördüğünüzde bir sonraki satırı tahmin ediyorsunuz — "fırına verin" demek zorunda değilsiniz,
+                    "elendikten sonra kabartma tozu ile karıştırın" da diyebilirsiniz. İkisine de "doğru"
+                    diyebilirsiniz çünkü defterde <em>gerçekten de öyle yazmış olabilir</em>.
+                </p>
+                <p>
+                    <strong>Asistan davranışı</strong> (soruyu anla, kısa ve net yanıt ver) ayrıca öğretilmesi gereken
+                    bir davranıştır. İşte bu yüzden bir sonraki ders (SFT — L7) kritiktir: bu ham güce
+                    "sen bir asistansın" rolünü öğretir.
+                </p>
+            </div>
 
             <h2>Kaynaklar</h2>
 
@@ -141,10 +314,13 @@ prompt = "Türkiye'nin başkenti nedir?"
                 <ol>
                     <li>Kaplan, J. et al. (2020). <em>"Scaling Laws for Neural Language Models."</em> <a href="https://arxiv.org/abs/2001.08361" target="_blank">arXiv:2001.08361</a> — Ölçek yasalarının kurucu makalesi.</li>
                     <li>Hoffmann, J. et al. (2022). <em>"Training Compute-Optimal Large Language Models"</em> (Chinchilla). <a href="https://arxiv.org/abs/2203.15556" target="_blank">arXiv:2203.15556</a> — 20 token/parametre kuralı.</li>
-                    <li>Meta AI (2024). <em>"The Llama 3 Herd of Models."</em> <a href="https://arxiv.org/abs/2407.21783" target="_blank">arXiv:2407.21783</a> — Endüstriyel ölçekte pretraining'in mühendislik detayları.</li>
+                    <li>Meta AI (2024). <em>"The Llama 3 Herd of Models."</em> <a href="https://arxiv.org/abs/2407.21783" target="_blank">arXiv:2407.21783</a> — Endüstriyel ölçekte pretraining'in mühendislik detayları. Veri karıştırma, 16K GPU yönetimi, GQA mimarisi, günlük donanım arızalarıyla başa çıkma.</li>
                     <li>Raschka, S. (2024). <em>Build a Large Language Model (From Scratch)</em>. Bölüm 5 — Pretraining. <a href="https://github.com/rasbt/LLMs-from-scratch" target="_blank">GitHub</a>.</li>
-                    <li>Penedo, G. et al. (2023). <em>"The RefinedWeb Dataset."</em> NeurIPS Datasets. — Veri kalitesi araştırması.</li>
-                    <li>Karpathy, A. (2024). <em>llm.c — Let's reproduce GPT-2</em>. <a href="https://github.com/karpathy/llm.c" target="_blank">github.com/karpathy/llm.c</a> — Pretraining mühendisliğini C'de görmek için.</li>
+                    <li>Penedo, G. et al. (2023). <em>"The RefinedWeb Dataset."</em> NeurIPS Datasets — Web verisinden kaliteli LLM verisi elde etme.</li>
+                    <li>Choshen, L. et al. (ICML 2025). <em>"How to Build AI Scaling Laws for Efficient LLM Training"</em> — Binlerce scaling law'ın meta-analizi. 5 model yeterlidir, intermediate checkpoint'ler kullanılabilir, %4 ARE erişilebilir doğruluk. <a href="https://news.mit.edu/2025/how-build-ai-scaling-laws-efficient-llm-training-budget-maximization-0916" target="_blank">MIT News</a>.</li>
+                    <li>Hugging Face (2024). <em>"FineWeb &amp; FineWeb-Edu"</em> — Açık kaynaklı, 15T token'lık web verisi + eğitsel kalite filtreleme. <a href="https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu" target="_blank">Hugging Face Datasets</a>.</li>
+                    <li>Karpathy, A. (2024). <em>llm.c — Let's reproduce GPT-2</em>. <a href="https://github.com/karpathy/llm.c" target="_blank">github.com/karpathy/llm.c</a> — Pretraining mühendisliğini C'de, PyTorch'suz görmek için.</li>
+                    <li>EleutherAI. <em>Pythia Scaling Suite</em> — Aynı mimaride 16 farklı boyutta (70M–12B) tam checkpoint'ler, scaling laws araştırmak için. <a href="https://github.com/EleutherAI/pythia" target="_blank">GitHub</a>.</li>
                 </ol>
             </div>
 
