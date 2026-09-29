@@ -37,23 +37,27 @@ import torch
 
 # 32-bit float (FP32): 1 sign + 8 exponent + 23 mantissa
 x = np.float32(3.14159)
-# Bitler: 01000000010010010000111111011010
-# İşaret: 0 (+), Üs: 10000000 (2^1), Ondalık: 0.5707...
-# Değer: (-1)^0 × 2^(128-127) × 1.5707 = 3.14159
+print(x.view(np.uint32))  # 0x40490FD0 →
+# Bitler: 01000000010010010000111111010000
+# İşaret: 0 (+), Üs: 10000000 (2^1), Ondalık: ~0.5708
+# Değer: (-1)^0 × 2^(128-127) × 1.5708 ≈ 3.14159
 
-# FP16: 1+5+10 → exponent aralığı dar [2^-14, 2^15]
-# BF16: 1+8+7  → FP32'nin exponent aralığında (brain float) ama az mantissa
-# FP16 daha hassas küçük sayılarda, BF16 daha geniş aralıkta güvenli
+# FP16: 1+5+10 → üs aralığı dar [2^-14, 2^15], mantissa 10 bit
+# BF16: 1+8+7  → FP32'nin üs aralığı, mantissa 7 bit
+# FP16: dar aralıkta daha hassas (ince çözünürlük)
+# BF16: çok daha geniş aralık ama daha kaba; küçük değerlerde underflow'a düşmez
 print(torch.tensor(1e5, dtype=torch.float16))  # inf (taşma!)
-print(torch.tensor(1e5, dtype=torch.bfloat16)) # 100352.0 (idare eder)</code></pre>
+print(torch.tensor(1e5, dtype=torch.bfloat16)) # 100352.0 (idare eder)
+print(torch.tensor(1e-8, dtype=torch.float16)) # 0.0 (alttan taşma!)
+print(torch.tensor(1e-8, dtype=torch.bfloat16))# 1e-08 (korunur)</code></pre>
 
             <div class="analoji-kutu">
                 <span class="etiket">💡 ANALOJİ</span>
                 <p>
-                    FP32 = santimetreli cetvel (hassas ama uzun), FP16 = yarım santimetre,
-                    INT8 = 0-255 arası sadece tam sayılar — "hassasiyet kaybı" mantığını görün.
-                    Quantization, devasa cetveldeki okumayı en yakın tam sayı çizgilerine oturtmaktır.
-                    Her model katmanının kabul edebileceği kayıp farklıdır.
+                    FP32 = milimetre bölmeli cetvel, FP16 = santimetre bölmeli cetvel,
+                    INT8 = sadece 256 tam sayı çizgisi (-128..127 işaretli; 0..255 işaretsiz).
+                    Quantization, ince cetveldeki okumayı en yakın kaba çizgiye oturtmaktır —
+                    adımlar büyüdükçe ayrıntı kaybolur. Her model katmanının kabul edebileceği kayıp farklıdır.
                 </p>
             </div>
 
@@ -61,18 +65,23 @@ print(torch.tensor(1e5, dtype=torch.bfloat16)) # 100352.0 (idare eder)</code></p
 
             <pre><code class="language-python"># Simetrik: sıfır noktası 0'a sabitlenir (ağırlıklar genelde sıfır merkezli)
 def simetrik_quant(x, bit=8):
-    maks = torch.abs(x).max()
-    olcek = maks / (2 ** (bit - 1) - 1)  # -127..127
-    return torch.clamp(torch.round(x / olcek), -127, 127), olcek
+    qmax = 2 ** (bit - 1) - 1            # 8-bit → 127, 4-bit → 7
+    maks = torch.abs(x).max().clamp(min=1e-8)  # sıfıra bölmeyi önle
+    olcek = maks / qmax
+    q = torch.clamp(torch.round(x / olcek), -qmax, qmax)
+    return q.to(torch.int8), olcek       # bit≤8 için int8 yeterli
 
 # Asimetrik: min-max arasına eşler (aktivasyonlar tek yönlü olabilir: ReLU ≥ 0)
 def asimetrik_quant(x, bit=8):
+    qmax = 2 ** bit - 1                  # 8-bit → 255, 4-bit → 15
     mn, mx = x.min(), x.max()
-    olcek = (mx - mn) / (2 ** bit - 1)
-    sifir_noktasi = torch.round(-mn / olcek)
-    return torch.clamp(torch.round(x / olcek + sifir_noktasi), 0, 255), olcek, sifir_noktasi
+    olcek = ((mx - mn) / qmax).clamp(min=1e-8)
+    sifir_noktasi = torch.clamp(torch.round(-mn / olcek), 0, qmax)
+    q = torch.clamp(torch.round(x / olcek + sifir_noktasi), 0, qmax)
+    return q.to(torch.uint8), olcek, sifir_noktasi
 
-# W8A8 = ağırlık 8-bit + aktivasyon 8-bit (simetrik × asimetrik kombinasyonu)</code></pre>
+# W8A8 = ağırlıklar 8-bit + aktivasyonlar 8-bit
+# (simetrik/asimetrik şema seçimi W8A8 tanımından bağımsız, ayrı bir karardır)</code></pre>
 
             <h2>Kalibrasyon: Hangi Ölçek?</h2>
 
@@ -84,8 +93,13 @@ def asimetrik_quant(x, bit=8):
                 <li><strong>Min-Max:</strong> Gözlenen en uç değerlerle ölçek — aykırı değerler (outlier) aralığı şişirir, çözünürlük düşer.</li>
                 <li><strong>Percentile (99.9):</strong> Aykırıları kırp — çoğu değer için daha iyi çözünürlük.</li>
                 <li><strong>KL Divergence (TensorRT):</strong> Orijinal ve quantize dağılım arasındaki farkı minimize et.</li>
-                <li><strong>Per-channel:</strong> Her çıkış kanalına ayrı ölçek — büyük modellerde standart (per-tensor'dan çok daha iyi).</li>
+                <li><strong>Per-channel:</strong> Her çıkış kanalına ayrı ölçek — ağırlıklarda standart (per-tensor'dan genelde daha iyi, fark modele ve bit genişliğine bağlıdır). Aktivasyonlar akışkandır; her girdide ölçek yeniden hesaplanacağı için per-channel aktivasyon pratikte nadirdir, genelde per-tensor (dinamik) kullanılır.</li>
             </ul>
+
+            <p>
+                Not: Bu kalibrasyon yöntemleri <strong>aktivasyon ölçeklerini</strong> belirlemek içindir;
+                ağırlık ölçekleri doğrudan ağırlık istatistiklerinden hesaplanabilir, veri gerekmez.
+            </p>
 
             <h2>PTQ vs QAT</h2>
 
@@ -94,12 +108,15 @@ def asimetrik_quant(x, bit=8):
 # Eksileri: INT4'te ciddi kalite kaybı olabilir
 
 # QAT (Quantization-Aware Training) — sahte quantization'ı eğitime dahil et:
-class SahteQuant(torch.nn.Module):
-    def forward(self, x):
-        olcek = ...  # öğrenilen
-        x_q = torch.round(x / olcek) * olcek
-        return x + (x_q - x).detach()  # Straight-Through Estimator (STE)
-        # forward: quantize, backward: gradyan kırılmadan geçer</code></pre>
+def sahte_quant(x, olcek, qmax=127):
+    q = torch.clamp(torch.round(x / olcek), -qmax, qmax)
+    x_q = q * olcek
+    return x + (x_q - x).detach()   # Straight-Through Estimator (STE)
+    # forward: quantize edilmiş değer
+    # backward: gradyan sabitlik bölgesinde "atlar" (türev=1 varsayılır),
+    # clamp edilen (doygun) bölgede ise sıfırlanmalıdır (pass-through maskesi)
+# Not: Bu formülle olcek'e giden gradyan detach ile KESİLİR — ölçek öğrenmez.
+# Ölçeğin öğrenilmesi için LSQ (Learned Step Size) gibi özel türev gerekir.</code></pre>
 
             <h2>GGUF Format Ailesi: İsimlendirmenin Şifresi</h2>
 
@@ -110,49 +127,59 @@ class SahteQuant(torch.nn.Module):
                     <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Strateji</th>
                     <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Kullanım</th></tr></thead>
                 <tbody>
-                    <tr><td style="padding:0.5rem"><b>Q2_K</b></td><td style="padding:0.5rem">~2.6</td><td style="padding:0.5rem">Blok + k-mean benzeri kodlama</td><td style="padding:0.5rem">Deneysel — kalite düşük</td></tr>
-                    <tr><td style="padding:0.5rem"><b>Q4_K_M</b></td><td style="padding:0.5rem">~4.8</td><td style="padding:0.5rem">Blok, bazı katmanlar 6-bit</td><td style="padding:0.5rem;color:#8fd94a">⭐ Önerilen standart</td></tr>
-                    <tr><td style="padding:0.5rem"><b>Q5_K_M</b></td><td style="padding:0.5rem">~5.7</td><td style="padding:0.5rem">Blok, daha iyi çözünürlük</td><td style="padding:0.5rem">Kalite kritikse</td></tr>
-                    <tr><td style="padding:0.5rem"><b>Q6_K</b></td><td style="padding:0.5rem">~6.6</td><td style="padding:0.5rem">Blok 6-bit</td><td style="padding:0.5rem">Q5'ten pek farkı yok (genelde Q5 tercih)</td></tr>
-                    <tr><td style="padding:0.5rem"><b>Q8_0</b></td><td style="padding:0.5rem">8.5</td><td style="padding:0.5rem">Düz INT8</td><td style="padding:0.5rem">Neredeyse kayıpsız</td></tr>
+                    <tr><td style="padding:0.5rem"><b>Q2_K</b></td><td style="padding:0.5rem">~2.6</td><td style="padding:0.5rem">Süper-blok + blok başına quantize edilmiş ölçek/min</td><td style="padding:0.5rem">Deneysel — kalite düşük</td></tr>
+                    <tr><td style="padding:0.5rem"><b>Q4_K_M</b></td><td style="padding:0.5rem">~4.8</td><td style="padding:0.5rem">Süper-blok, karışık hassasiyet</td><td style="padding:0.5rem;color:#8fd94a">⭐ Önerilen standart</td></tr>
+                    <tr><td style="padding:0.5rem"><b>Q5_K_M</b></td><td style="padding:0.5rem">~5.7</td><td style="padding:0.5rem">Süper-blok, daha iyi çözünürlük</td><td style="padding:0.5rem">Kalite kritikse</td></tr>
+                    <tr><td style="padding:0.5rem"><b>Q6_K</b></td><td style="padding:0.5rem">~6.6</td><td style="padding:0.5rem">Süper-blok 6-bit</td><td style="padding:0.5rem">Q8_0'a çok yakın kalite</td></tr>
+                    <tr><td style="padding:0.5rem"><b>Q8_0</b></td><td style="padding:0.5rem">8.5</td><td style="padding:0.5rem">Düz bloklu INT8</td><td style="padding:0.5rem">Neredeyse kayıpsız</td></tr>
                 </tbody>
             </table>
 
             <pre><code class="language-python"># isim şifresi: Q4_K_M
 # Q4  = ortalama ~4 bit/parametre
-# K   = "k-quants" (süper-blok yapısı — IQ/XS/XXS varyantları daha agresif)
-# M   = Medium: attention/output katmanları 6-bit, geri kalanı 4-bit (Mixed)
-# S   = Small: her şey 4-bit
+# K   = "k-quants": ağırlıklar süper-bloklara bölünür; her blok kendi
+#       ölçeğini/min'ini saklar, bu ölçekler de ayrıca quantize edilir.
+#       (k-means KULLANILMAZ. IQ/IQ4_XS gibi önekler ayrı "i-quants"
+#       ailesidir; kodkitabı/lookup tabanlı, daha agresif sıkıştırma.)
+# M   = Medium (karışık): attn_v ve ffn_down tensörlerinin yarısı Q6_K,
+#       geri kalanı çoğunlukla Q4_K
+# S   = Small: neredeyse her şey Q4_K (bazı küçük tensör istisnalarıyla)
 
 # 7B model için dosya boyutları:
 # FP16: 13.5 GB | Q8_0: 7.2 GB | Q6_K: 5.5 GB | Q4_K_M: 4.1 GB | Q2_K: 2.7 GB</code></pre>
 
-            <h2>GPTQ ve AWQ: LLM'de PTQ'nun Zirvesi</h2>
+            <h2>GPTQ ve AWQ: LLM'lere Özel PTQ Yöntemleri</h2>
 
             <ul>
                 <li><strong>GPTQ:</strong> Katman katman, Hessian (2. türev) bilgisini kullanarak quantization hatasını telafi edecek şekilde diğer ağırlıkları ayarlar.</li>
-                <li><strong>AWQ:</strong> "Ağırlıkların sadece ~%1'i önemlidir" bulgusu — kritik ağırlıkları koruyup gerisini quantize eder. Ölçeklendirme ile.</li>
-                <li>Her ikisi de 4-bit'te Q4_K_M'den belirgin daha iyi kalite verir ama GPU inference odaklıdır.</li>
+                <li><strong>AWQ:</strong> "Ağırlıkların sadece ~%1'i kalite için kritiktir" bulgusu — bu kritik (salient) kanallar ağırlık büyüklüğüne değil <em>aktivasyon istatistiklerine</em> göre belirlenir. AWQ onları FP16'da tutmak yerine (karma hassasiyet donanımda verimsizdir), önemli kanalları ölçekleyerek quantization hatasını azaltır — bütün matris hâlâ homojen 4-bit kalır.</li>
+                <li>Kalite: Q4_K_M karışık hassasiyet kullandığı için perplexity olarak GPTQ/AWQ 4-bit ile benzer düzeydedir; "belirgin üstünlük" iddiası genellenemez. Asıl fark <strong>dağıtım ortamıdır</strong>: GPTQ/AWQ GPU çekirdekleriyle (vLLM vb.) yüksek hız verir, GGUF ise CPU / Apple Silicon / karma çıkarımda güçlüdür.</li>
             </ul>
 
             <h2>İnteraktif: FP32→INT4 Dağılım Haritası</h2>
 
-            <div class="viz-kutu">
-                <div class="viz-baslik"><b>Ağırlık Dağılımı Quantization Öncesi/Sonrası</b></div>
-                <div class="viz-mount" id="viz-quant" style="min-height:320px"></div>
             </div>
 
-            <h2>Kaynaklar</h2>
+            <h2>Bu Derste Yer Almayan İleri Konular</h2>
+
+            <p>
+                Bu derste yer bulamayan ama uzman seviyesi için önemli konular:
+                aktivasyon outlier'ları ve çözümleri (<em>LLM.int8()</em>, SmoothQuant),
+                NF4 ve QLoRA ile 4-bit fine-tuning, FP8 formatları,
+                KV-cache quantization, per-group (grup başına ölçek) quantization
+                ve "sahte (fake) quantization" ile gerçek tam sayı çıkarımı arasındaki fark.
+                İlgilenenler kaynakçadaki Nagel et al. derlemesinden başlayabilir.
+            </p>
 
             <div class="kaynaklar-kutu">
                 <h2>📚 Kaynaklar</h2>
                 <ol>
-                    <li>Frantar, E. et al. (2022). <em>"GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers."</em> ICLR. <a href="https://arxiv.org/abs/2210.17323" target="_blank">arXiv:2210.17323</a>.</li>
-                    <li>Lin, J. et al. (2024). <em>"AWQ: Activation-aware Weight Quantization for On-Device LLM Compression."</em> MLSys. <a href="https://arxiv.org/abs/2306.00978" target="_blank">arXiv:2306.00978</a>.</li>
-                    <li>Dettmers, T. et al. (2023). <em>"The Case for 4-bit Precision: k-bit Inference Scaling Laws."</em> ICML — Neden 4-bit altın nokta.</li>
-                    <li>Jacob, B. et al. (2018). <em>"Quantization and Training of Neural Networks for Efficient Integer-Arithmetic-Only Inference."</em> CVPR. <a href="https://arxiv.org/abs/1712.05877" target="_blank">arXiv:1712.05877</a> — QAT ve STE'nin temeli.</li>
+                    <li>Frantar, E. et al. (2023). <em>"GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers."</em> ICLR. <a href="https://arxiv.org/abs/2210.17323" target="_blank">arXiv:2210.17323</a>.</li>
+                    <li>Lin, J. et al. (2024). <em>"AWQ: Activation-aware Weight Quantization for On-Device LLM Compression and Acceleration."</em> MLSys. <a href="https://arxiv.org/abs/2306.00978" target="_blank">arXiv:2306.00978</a>.</li>
+                    <li>Dettmers, T. et al. (2023). <em>"The Case for 4-bit Precision: k-bit Inference Scaling Laws."</em> ICML. <a href="https://arxiv.org/abs/2212.09720" target="_blank">arXiv:2212.09720</a> — Neden 4-bit altın nokta.</li>
+                    <li>Jacob, B. et al. (2018). <em>"Quantization and Training of Neural Networks for Efficient Integer-Arithmetic-Only Inference."</em> CVPR. <a href="https://arxiv.org/abs/1712.05877" target="_blank">arXiv:1712.05877</a> — QAT'ın ve quantization'da STE kullanımının temel referansı (STE'nin kendisi Bengio et al., 2013'e dayanır).</li>
                     <li>Nagel, M. et al. (2021). <em>"A White Paper on Neural Network Quantization."</em> <a href="https://arxiv.org/abs/2106.08295" target="_blank">arXiv:2106.08295</a>.</li>
-                    <li>llama.cpp GGUF şartnamesi. <a href="https://github.com/ggerganov/ggml/blob/master/docs/gguf.md" target="_blank">github.com/ggerganov/ggml</a>.</li>
+                    <li>GGUF şartnamesi. <a href="https://github.com/ggml-org/ggml/blob/master/docs/gguf.md" target="_blank">github.com/ggml-org/ggml</a> (eski adres ggerganov/ggml, otomatik yönlendirilir).</li>
                 </ol>
             </div>
 
