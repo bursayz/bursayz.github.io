@@ -94,6 +94,6 @@ window.DERS_VIZ["2d-quant"] = function () {
         }
     }
 
-    VizHelpers.adimKontrol("viz-quant", FORMATLAR.length, ciz);
-    window.addEventListener("resize", () => ciz(document.querySelectorAll(".viz-kutu").length ? 3 : 3));
+    const kontrol = VizHelpers.adimKontrol("viz-quant", FORMATLAR.length, ciz);
+    window.addEventListener("resize", () => hv.redraw());
 };

@@ -158,6 +158,14 @@ def sahte_quant(x, olcek, qmax=127):
 
             <h2>İnteraktif: FP32→INT4 Dağılım Haritası</h2>
 
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Ağırlık Dağılımı Quantization Öncesi/Sonrası</b></div>
+                <div class="viz-mount" id="viz-quant" style="min-height:320px"></div>
+                <noscript><p style="padding:1rem;color:var(--edu-text-dim)">
+                    Bu grafik JavaScript ile çiziliyor. Özet: normal dağılan ağırlıklar (FP32) sürekli bir
+                    tepe çizer; INT8 256 basamaklı kaba bir histogram, INT4 ise yalnızca 16 basamaklı
+                    belirgin bir "merdiven" üretir — dağılımın genel şekli korunur, ayrıntı kaybolur.
+                </p></noscript>
             </div>
 
             <h2>Bu Derste Yer Almayan İleri Konular</h2>
