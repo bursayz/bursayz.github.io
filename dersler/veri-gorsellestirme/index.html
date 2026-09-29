@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Veri Görselleştirme — Bursa Yapay Zeka Geliştiricileri Topluluğu</title>
+    <meta name="description" content="Matplotlib ile grafikler, ısı haritaları ve veriyi doğru okuma. Modelin ne öğrendiğini görmek için Görselleştirme dersi.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/veri-gorsellestirme/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-temel" data-ders-slug="veri-gorsellestirme">
+
+    <nav class="edu-topbar">
+        <div class="edu-container">
+            <a href="../../index.html" class="edu-logo">
+                <img src="../../assets/icon.webp" alt="Bursa YZGT">
+                <span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span>
+                <span class="short">Bursa YZGT</span>
+            </a>
+            <div class="edu-nav">
+                <a href="../../index.html">Eğitimler</a>
+                <a href="../../topluluk.html">Topluluk</a>
+                <span id="auth-slot"></span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+
+        <div class="ders-baslik-blogu">
+            <h1>Veri Görselleştirme</h1>
+            <div class="ders-meta">
+                <span>📚 T5 · Temel Serisi</span>
+                <span>⏱ ~20 dakika</span>
+            </div>
+        </div>
+
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong>
+            Matplotlib ile çizgi/sütun/dağılım grafikleri, ısı haritası, eksen ve etiket okuryazarlığı,
+            ve en önemlisi: <em>veriyi doğru okumak</em> — çünkü modele bakmadan önce veriye bakmanız gerekir.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Neden Görselleştirme?</h2>
+
+            <p>
+                Sayı tablosuna bakarak veriyi anlamak neredeyse imkansızdır. Ama aynı veriyi grafik olarak
+                görürseniz örüntüler, aykırı değerler ve sorunlar gözünüze çarpar. Yapay zeka mühendisinin
+                ilk refleksi: <em>modele başlamadan önce veriyi görselleştir.</em>
+            </p>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Sayı tablosu, bir hastalığın <em>kan tahlil sonuçları</em> gibidir — doktora bakmadan anlayamazsınız.
+                    Görselleştirme ise doktorun size gösterdiği <em>röntgen veya grafik</em>tir:
+                    "İşte burada bir anormallik var" dersiniz, hemen görürsünüz.
+                </p>
+            </div>
+
+            <h2>Matplotlib: Python'ın Çizim Aracı</h2>
+
+            <pre><code class="language-python">import matplotlib.pyplot as plt
+import numpy as np
+
+# Basit çizgi grafiği
+x = np.linspace(0, 10, 100)         # 0-10 arası 100 nokta
+y = np.sin(x)
+
+plt.plot(x, y)
+plt.title("Sinüs Dalgası")
+plt.xlabel("X ekseni")
+plt.ylabel("Y ekseni")
+plt.grid(True)
+plt.show()</code></pre>
+
+            <h2>Yaygın Grafik Türleri</h2>
+
+            <pre><code class="language-python"># 1. Çizgi grafiği — zaman serisi, eğitim eğrileri
+plt.plot(epochs, train_loss, label="Eğitim")
+plt.plot(epochs, val_loss, label="Doğrulama")
+plt.legend()
+# → Overfitting'i burada görürsünüz!
+
+# 2. Sütun grafiği — kategori karşılaştırma
+modeller = ["LLaMA", "Qwen", "Mistral"]
+skorlar  = [87, 85, 83]
+plt.bar(modeller, skorlar)
+
+# 3. Dağılım grafiği — ilişki analizi
+plt.scatter(boylar, agirliklar, alpha=0.5)
+
+# 4. Isı haritası (heatmap) — confusion matrix, attention
+plt.imshow(conf_matrisi, cmap="Blues")
+plt.colorbar()</code></pre>
+
+            <h2>Isı Haritası: Confusion Matrix ve Attention</h2>
+
+            <p>
+                Yapay zekada en çok göreceğiniz görselleştirme <strong>ısı haritasıdır</strong>:
+                her hücre bir sayı, rengin sıcaklığı sayıyı temsil eder.
+            </p>
+
+            <pre><code class="language-python"># Confusion matrix: model hangi sınıfı hangi sınıfla karıştırıyor?
+# Örnek: 3 sınıflı bir model (kedi, köpek, kuş)
+conf = np.array([
+    [45, 3,  2],     # Gerçek kedi → 45 doğru, 3 köpek tahmin, 2 kuş tahmin
+    [2,  38, 5],     # Gerçek köpek → 2 kedi, 38 doğru, 5 kuş
+    [1,  2,  42]     # Gerçek kuş → 1 kedi, 2 köpek, 42 doğru
+])
+
+plt.imshow(conf, cmap="Blues")
+plt.xticks([0,1,2], ["Kedi", "Köpek", "Kuş"])
+plt.yticks([0,1,2], ["Kedi", "Köpek", "Kuş"])
+plt.colorbar(label="Tahmin Sayısı")
+plt.show()</code></pre>
+
+            <div class="dikkat-kutu">
+                <span class="etiket">⚠️ Yanıltıcı Grafikler</span>
+                <p>
+                    Eksenleri oynayarak aynı veriyi tamamen farklı gösterebilirsiniz:
+                    Y eksenini 0'dan başlatmayan bir grafik, küçük farkları dramatik gösterir.
+                    Grafik okurken her zaman eksen aralıklarını kontrol edin.
+                    Kendi grafiklerinizde dürüst olun — eksenleri 0'dan başlatın.
+                </p>
+            </div>
+
+            <h2>İnteraktif: Farklı Görselleştirme Türleri</h2>
+
+            <p>
+                Aşağıda aynı veri setinin üç farklı görselleştirmesini görüyorsunuz.
+                Her birinin hangi soruyu yanıtladığını inceleyin.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Veri Görselleştirme Türleri — Canlı Örnek</b></div>
+                <div class="viz-mount" id="viz-grafik" style="min-height:320px"></div>
+            </div>
+
+            <h2>Eğitim Sürecini Görselleştirmek</h2>
+
+            <pre><code class="language-python"># Overfitting tespiti:
+# Eğitim kaybı düşerken doğrulama kaybı yükseliyorsa → overfit!
+plt.figure(figsize=(10, 4))
+
+plt.subplot(1, 2, 1)
+plt.plot(train_losses, label="Eğitim Kaybı")
+plt.plot(val_losses, label="Doğrulama Kaybı")
+plt.legend()
+plt.title("Kayıp Eğrileri")
+
+plt.subplot(1, 2, 2)
+plt.plot(train_accs, label="Eğitim Doğruluk")
+plt.plot(val_accs, label="Doğrulama Doğruluk")
+plt.legend()
+plt.title("Doğruluk Eğrileri")
+
+plt.tight_layout()
+plt.show()</code></pre>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Matplotlib Resmi Tutorial. <a href="https://matplotlib.org/stable/tutorials/index.html" target="_blank">matplotlib.org</a>.</li>
+                    <li>Seaborn (daha şık istatistik grafikleri). <a href="https://seaborn.pydata.org/" target="_blank">seaborn.pydata.org</a>.</li>
+                    <li>Tufte, E. R. (2001). <em>The Visual Display of Quantitative Information</em>. — Görselleştirme etiği ve tasarımı klasiği.</li>
+                    <li>Cairo, A. (2016). <em>The Truthful Art</em>. — Yanıltıcı grafiklerden kaçınma rehberi.</li>
+                    <li>Kaggle. <em>"Data Visualization"</em> ücretsiz kurs — <a href="https://www.kaggle.com/learn/data-visualization" target="_blank">kaggle.com</a>.</li>
+                    <li>Plotly (interaktif grafikler). <a href="https://plotly.com/python/" target="_blank">plotly.com/python</a>.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir">
+                <img src="../../assets/icon.webp" alt="">
+                <span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span>
+            </div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/grafik.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

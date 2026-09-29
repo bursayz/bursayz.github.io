@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Yapay Zeka Nedir? — Bursa Yapay Zeka Geliştiricileri Topluluğu</title>
+    <meta name="description" content="Yapay zekanın tanımı, tarihçesi, dar ve geniş yapay zeka ayrımı, model geliştirme yaşam döngüsü. Sıfırdan başlayanlar için Türkçe, ücretsiz eğitim.">
+    <meta name="keywords" content="yapay zeka nedir, yapay zeka eğitimi, makine öğrenmesi, derin öğrenme, dar yapay zeka, genel yapay zeka">
+    <meta name="author" content="Bursa Yapay Zeka Geliştiricileri Topluluğu">
+    <meta name="robots" content="index, follow">
+
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Yapay Zeka Nedir? — Bursa YZGT Eğitimleri">
+    <meta property="og:description" content="Yapay zekanın tanımı, tarihçesi ve model yaşam döngüsü. Sıfırdan.">
+    <meta property="og:image" content="https://bursayz.github.io/assets/logo.jpg">
+
+    <link rel="canonical" href="https://bursayz.github.io/dersler/yapay-zeka-nedir/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-temel" data-ders-slug="yapay-zeka-nedir">
+
+    <!-- Üst Bar -->
+    <nav class="edu-topbar">
+        <div class="edu-container">
+            <a href="../../index.html" class="edu-logo">
+                <img src="../../assets/icon.webp" alt="Bursa YZGT">
+                <span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span>
+                <span class="short">Bursa YZGT</span>
+            </a>
+            <div class="edu-nav">
+                <a href="../../index.html">Eğitimler</a>
+                <a href="../../topluluk.html">Topluluk</a>
+                <span id="auth-slot"></span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="edu-container">
+
+        <!-- Breadcrumb -->
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+
+        <!-- Ders Başlığı -->
+        <div class="ders-baslik-blogu">
+            <h1>Yapay Zeka Nedir?</h1>
+            <div class="ders-meta">
+                <span>📚 T1 · Temel Serisi</span>
+                <span>⏱ ~15 dakika</span>
+                <span>👶 Sıfırdan Başlayanlar</span>
+            </div>
+        </div>
+
+        <!-- Kapsam Notu -->
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong>
+            Yapay zekanın ne olduğu, tarihsel yolculuğu, dar ve genel yapay zeka arasındaki fark,
+            bir modelin "input → işlem → output" yaşam döngüsü. Bu ders, platformun geri kalanının temelini oluşturur.
+        </div>
+
+        <!-- İçerik -->
+        <article class="ders-icerik">
+
+            <h2>Basit Bir Tanım</h2>
+
+            <p>
+                <strong>Yapay zeka (AI)</strong>, bilgisayarların insan zekâsı gerektiren işleri yapabilmesini sağlayan teknolojidir.
+                "İnsan zekâsı gerektiren iş" derken ne kastediyoruz? Örneğin bir fotoğraftaki kedi ile köpeği ayırt etmek,
+                bir metnin dilini anlamak, satrançta iyi hamle önermek veya bir soruya mantıklı cevap vermek.
+            </p>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Günlük Hayat Analojisi</span>
+                <p>
+                    Bir bebeğe "bu kedi, bu köpek" diyerek onlarca fotoğraf gösterirsiniz; bebek zamanla kendi kafasında
+                    "kedi" ve "köpek" kavramlarını oluşturur. Yapay zeka da aynı şekilde çalışır: ona çok sayıda örnek gösteririz,
+                    o da örüntüleri (pattern) öğrenir. Bebeğin beyni yerine matematiksel bir model kullanırız —
+                    ama temel fikir aynıdır: <em>deneyimden öğrenme</em>.
+                </p>
+            </div>
+
+            <h2>Kısa Tarihçe</h2>
+
+            <ul>
+                <li><strong>1950 — Alan Turing:</strong> "Makineler düşünebilir mi?" sorusunu ortaya attı, Turing Test'i önerdi.</li>
+                <li><strong>1956 — Dartmouth Konferansı:</strong> "Yapay zeka" terimi ilk kez kullanıldı. John McCarthy ve arkadaşları bunun bir bilim dalı olabileceğini savundu.</li>
+                <li><strong>1997 — Deep Blue:</strong> IBM'in satranç bilgisayarı, dünya şampiyonu Garry Kasparov'u yendi. Ama bu, kurallarla programlanmış bir "dar" zekâydı.</li>
+                <li><strong>2012 — AlexNet:</strong> Derin öğrenmenin altın çağı başladı. Görüntü tanımayı kökten değiştiren yapay sinir ağı, ImageNet yarışmasını ezici farkla kazandı.</li>
+                <li><strong>2017 — Transformer:</strong> "Attention is All You Need" makalesiyle dil modellerinin temeli atıldı.</li>
+                <li><strong>2022 — ChatGPT:</strong> Yapay zeka ilk kez milyonların günlük hayatına girdi.</li>
+            </ul>
+
+            <h2>Dar Yapay Zeka vs Genel Yapay Zeka</h2>
+
+            <p>
+                Şu anda var olan **tüm** yapay zeka sistemleri "dar yapay zeka" (narrow AI) sınıfındadır:
+                tek bir işte (veya dar bir iş grubunda) çok iyidirler ama genel akıl yürütme, bilinç veya duygu göstermezler.
+            </p>
+
+            <ul>
+                <li><strong>Dar YZ:</strong> Yüz tanıma, çeviri, öneri sistemleri, satranç, ChatGPT — hepsi belirli bir görevde uzman.</li>
+                <li><strong>Genel YZ (AGI):</strong> Bir insanın yapabildiği her türlü entelektüel işi yapabilen sistem. Henüz yok; araştırma aşamasında.</li>
+                <li><strong>Süper YZ (ASI):</strong> İnsan zekâsını her alanda aşan varsayımsal sistem. Spekülatif.</li>
+            </ul>
+
+            <div class="dikkat-kutu">
+                <span class="etiket">⚠️ Önemli Farkındalık</span>
+                <p>
+                    ChatGPT gibi modeller "anlıyormuş gibi" davranır ama aslında istatistiksel örüntüleri takip eder.
+                    Kendi metinlerini "anlayarak" yazmazlar; bir sonraki en olası kelimeyi tahmin ederler.
+                    Bu ayrım, ileride model geliştirdiğinizde karşılaşacağınız hataları (halüsinasyon gibi) anlamak için kritiktir.
+                </p>
+            </div>
+
+            <h2>Bir Modelin Yaşam Döngüsü: Input → Model → Output</h2>
+
+            <p>
+                Yapay zeka modeli geliştirmenin temel döngüsü her yerde aynıdır: bir girdi (input) alırsınız,
+                model onu işleyerek bir çıktı (output) üretir. Modeli "eğitmek", bu çıktının doğru çıkması için
+                modelin içindeki milyonlarca küçük ayar düğmesini (ağırlıkları) doğru konumlandırmaktır.
+            </p>
+
+            <div class="io-akis">
+                <div class="io-kutu">
+                    <div class="io-baslik">Input</div>
+                    <div class="io-icerik">"Bu resimde kedi var mı?"<br>veya bir cümle, bir metin, bir ses kaydı</div>
+                </div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu">
+                    <div class="io-baslik">Model</div>
+                    <div class="io-icerik">Milyonlarca ağırlıktan oluşan matematiksel fonksiyon. Öğrendiği örüntüleri uygular.</div>
+                </div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu">
+                    <div class="io-baslik">Output</div>
+                    <div class="io-icerik">"Evet, %98 kedi"<br>veya bir metin tahmini, bir sınıflandırma etiketi</div>
+                </div>
+            </div>
+
+            <p>
+                İlerideki derslerde bu üç kutuyu birer birer açacağız: input'un sayılara nasıl dönüştürüldüğünü (tokenization),
+                modelin içinde neler olduğunu (sinir ağları, transformer, diffusion), ve output'u nasıl değerlendirdiğimizi
+                (metrikler, sınavlar) detaylıca göreceğiz.
+            </p>
+
+            <h2>Bu Platformda Nasıl İlerleyeceksiniz?</h2>
+
+            <p>
+                Bu platformun amacı size yapay zekayı <em>kullanmayı</em> değil, <em>geliştirmeyi</em> öğretmektir.
+                Yani bir sonraki derste "ChatGPT'ye şunu yazarsanız şu çıkar" demeyeceğiz;
+                "bunun arkasındaki modeli sıfırdan nasıl yazarsınız" diyeceğiz.
+            </p>
+
+            <ul>
+                <li>Her ders bir öncekinin üzerine inşa edilir — sıralı takip önerilir.</li>
+                <li>Her dersin sonunda kısa bir sınav var. Sınavı geçince sonraki derste "tamamlandı" rozeti kazanırsınız.</li>
+                <li>Sıkışırsanız <a href="https://discord.gg/FvhCkCc7cS" target="_blank">Discord topluluğumuza</a> gelip sorabilirsiniz — herkes bir dönem sıfırdan başladı.</li>
+            </ul>
+
+            <h2>İnteraktif: Input → Model → Output Akışı</h2>
+
+            <p>
+                Aşağıdaki simülasyon, bir yapay zeka modelinin genel yaşam döngüsünü adım adım gösterir.
+                "Oynat" butonuna basarak izleyebilir veya adım adım ilerleyebilirsiniz.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Bir YZ Modelinin Yaşam Döngüsü</b></div>
+                <div class="viz-mount" id="viz-io-akis" style="min-height:300px"></div>
+            </div>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Turing, A. M. (1950). <em>"Computing Machinery and Intelligence."</em> Mind, 59(236), 433–460. — Yapay zekanın kuramsal temeli.</li>
+                    <li>Russell, S. & Norvig, P. (2021). <em>Artificial Intelligence: A Modern Approach</em> (4th ed.). Pearson. — Alanın standart ders kitabı.</li>
+                    <li>McCarthy, J., Minsky, M., Rochester, N., & Shannon, C. (1955). <em>"A Proposal for the Dartmouth Summer Research Project on Artificial Intelligence."</em> — "Yapay zeka" teriminin doğduğu belge.</li>
+                    <li>Krizhevsky, A., Sutskever, I., & Hinton, G. (2012). <em>"ImageNet Classification with Deep Convolutional Neural Networks."</em> NeurIPS. — AlexNet makalesi.</li>
+                    <li>Vaswani, A. et al. (2017). <em>"Attention Is All You Need."</em> NeurIPS. <a href="https://arxiv.org/abs/1706.03762" target="_blank">arXiv:1706.03762</a> — Transformer mimarisinin tanıtıldığı makale.</li>
+                    <li>DeepMind (2016). <em>"AlphaGo"</em> — <a href="https://www.deepmind.com/research/highlighted-research/alphago" target="_blank">deepmind.com</a></li>
+                </ol>
+            </div>
+
+        </article>
+
+        <!-- Quiz Kapsayıcı -->
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+
+        <!-- Alt Navigasyon -->
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir">
+                <img src="../../assets/icon.webp" alt="">
+                <span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span>
+            </div>
+            <p>
+                <a href="../../index.html">Tüm Eğitimler</a> ·
+                <a href="../../topluluk.html">Topluluk</a> ·
+                <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a> ·
+                <a href="https://github.com/bursayz" target="_blank" rel="noopener">GitHub</a>
+            </p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <!-- Ortak Scriptler -->
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+
+    <!-- Bu Dersin Görselleştirmesi -->
+    <script src="viz/io-akis.js"></script>
+
+    <!-- Quiz Verisi -->
+    <script src="quiz.js"></script>
+
+    <script src="../../js/edu/lesson.js"></script>
+
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

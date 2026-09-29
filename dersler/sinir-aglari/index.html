@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sinir Ağları ve Derin Öğrenme — Bursa YZGT</title>
+    <meta name="description" content="Yapay nöron, ağırlık, bias, aktivasyon fonksiyonları ve ileri yayılım. 3D interaktif görselleştirme ile sinir ağlarına giriş.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/sinir-aglari/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-mldl" data-ders-slug="sinir-aglari">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu">
+            <h1>Sinir Ağları ve Derin Öğrenme</h1>
+            <div class="ders-meta"><span>📚 M2 · ML/DL Serisi</span><span>⏱ ~30 dakika</span><span>🧊 3D İnteraktif</span></div>
+        </div>
+
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Yapay nöron nasıl çalışır, ağırlık ve bias nedir,
+            aktivasyon fonksiyonları neden gereklidir, ileri yayılım (forward pass) nasıl hesaplanır.
+            Bu dersi bitince sinir ağının içini görebileceksiniz.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Biyolojiden Matematiğe: Yapay Nöron</h2>
+
+            <p>
+                Beyindeki nöron, diğer nöronlardan sinyal alır, toplar ve eşiği aşarsa ateşlenir
+                (sonraki nörona sinyal gönderir). Yapay nöron da aynı fikrin matematiğidir:
+            </p>
+
+            <div class="io-akis">
+                <div class="io-kutu"><div class="io-baslik">Girdiler</div><div class="io-icerik">x₁, x₂, x₃<br>Her biri bir sinyal</div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">Ağırlıklı Toplam</div><div class="io-icerik">z = x₁·w₁ + x₂·w₂ + x₃·w₃ + b<br>(ağırlık + bias)</div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">Aktivasyon</div><div class="io-icerik">a = f(z)<br>(ReLU, sigmoid...)</div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">Çıktı</div><div class="io-icerik">Bir sonraki katmana sinyal</div></div>
+            </div>
+
+            <pre><code class="language-python">import numpy as np
+
+def noron(girdiler, agirliklar, bias):
+    z = np.dot(girdiler, agirliklar) + bias   # Ağırlıklı toplam
+    return max(0, z)  # ReLU aktivasyonu
+
+# Örnek:
+girdiler  = np.array([0.5, -0.2, 0.8])
+agirliklar = np.array([0.4, 0.9, -0.3])
+bias = 0.1
+
+cikti = noron(girdiler, agirliklar, bias)
+print(cikti)  # 0.5*0.4 + (-0.2)*0.9 + 0.8*(-0.3) + 0.1 = 0.0 + 0.1 = 0.1</code></pre>
+
+            <h2>Ağırlık ve Bias: Ayar Düğmeleri</h2>
+
+            <ul>
+                <li><strong>Ağırlık (w):</strong> Her girdinin "önemini" ayarlar. Büyük w → o girdi kararı daha çok etkiler.</li>
+                <li><strong>Bias (b):</strong> Modelin "genel eğilimini" kaydırır. Nöronun temel eşiğini ayarlar.</li>
+            </ul>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Bir müzik stüdyosundaki <strong>mikseri</strong> düşünün: her kanalın ses düğmesi (ağırlık),
+                    bir de "master volume" (bias). İyi müzik = tüm düğmelerin doğru ayarı.
+                    Sinir ağı eğitimi = milyonlarca mikser düğmesinin doğru konumunu bulmaktır.
+                </p>
+            </div>
+
+            <h2>Aktivasyon Fonksiyonları: Neden Gereklidir?</h2>
+
+            <p>
+                Aktivasyon fonksiyonu olmazda, kaç katman dizeseniz de sonuç yine tek bir doğrusal
+                fonksiyon gibi davranır — yani öğrenebileceği örüntüler sınırlı kalır.
+                Aktivasyon fonksiyonu <strong>doğrusallığı kırar</strong> ve karmaşık şekilleri öğrenmeyi mümkün kılar.
+            </p>
+
+            <h3>ReLU (Rectified Linear Unit)</h3>
+            <pre><code class="language-python">def relu(x):
+    return max(0, x)   # Negatifse 0, pozitifse kendisi
+
+relu(-3)   # 0
+relu(5)    # 5
+# Günümüzün en yaygın aktivasyonu — basit ve etkili</code></pre>
+
+            <h3>Sigmoid</h3>
+            <pre><code class="language-python">def sigmoid(x):
+    return 1 / (1 + np.exp(-x))   # 0 ile 1 arasına sıkıştırır
+
+sigmoid(0)     # 0.5
+sigmoid(10)    # ≈ 1.0
+sigmoid(-10)   # ≈ 0.0
+# "Evet/Hayır" kararları için; ama gradyanları küçülür — büyük ağlarda tercih edilmez</code></pre>
+
+            <h3>Softmax (Çıkış Katmanı İçin)</h3>
+            <pre><code class="language-python">def softmax(x):
+    exp = np.exp(x - np.max(x))   # Stabilite için
+    return exp / exp.sum()
+
+softmax(np.array([2.0, 1.0, 0.1]))
+# [0.659, 0.242, 0.099] → "%66 kedi, %24 köpek, %9 kuş"</code></pre>
+
+            <h2>İleri Yayılım (Forward Pass): Sinyalin Yolculuğu</h2>
+
+            <pre><code class="language-python"># 2 katmanlı küçük bir sinir ağı — sıfırdan
+import numpy as np
+
+class MiniAg:
+    def __init__(self):
+        self.W1 = np.random.randn(3, 4) * 0.1   # Girdi: 3, Gizli: 4
+        self.b1 = np.zeros(4)
+        self.W2 = np.random.randn(4, 2) * 0.1   # Gizli: 4, Çıktı: 2
+        self.b2 = np.zeros(2)
+
+    def relu(self, x): return np.maximum(0, x)
+    def softmax(self, x):
+        e = np.exp(x - np.max(x))
+        return e / e.sum()
+
+    def ileri(self, x):
+        # Katman 1
+        z1 = x @ self.W1 + self.b1    # Matris çarpımı + bias
+        a1 = self.relu(z1)            # Aktivasyon
+        # Katman 2 (çıktı)
+        z2 = a1 @ self.W2 + self.b2
+        return self.softmax(z2)       # Olasılık dağılımı
+
+# Test
+ag = MiniAg()
+x = np.array([0.5, 0.8, -0.2])
+cikti = ag.ileri(x)
+print(cikti)  # [0.52, 0.48] → iki sınıf için olasılıklar</code></pre>
+
+            <h2>İnteraktif: 3D Sinir Ağı Sinyal Akışı</h2>
+
+            <p>
+                Aşağıdaki 3D model, bir sinir ağındaki sinyalin girişten çıkışa nasıl aktığını gösterir.
+                Nöronlar aktive oldukça parlar, bağlantıların kalınlığı ağırlığı temsil eder.
+                Sürükleyerek döndürebilirsiniz.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik">
+                    <b>3D Sinir Ağı — İleri Yayılım Simülasyonu</b>
+                    <span style="font-size:0.75rem">↔ Sürükleyerek döndürün</span>
+                </div>
+                <div class="viz-mount" id="viz-sinir-agi" style="min-height:380px"></div>
+            </div>
+
+            <h2>Katman Sayısı ve Derinlik</h2>
+
+            <ul>
+                <li><strong>1 gizli katman:</strong> Basit doğrusal sınırlar öğrenir.</li>
+                <li><strong>2-3 gizli katman:</strong> Karmaşık eğri sınırlar, soyut örüntüler.</li>
+                <li><strong>Onlarca katman (Derin Öğrenme):</strong> Kenar → şekil → parça → nesne gibi hiyerarşik öğrenme. ResNet-152: 152 katman!</li>
+            </ul>
+
+            <p>
+                Her katman bir öncekine kıyasla daha soyut özellikleri temsil eder.
+                İlk katman kenarları, ikinci katman şekilleri, sonraki katman nesneleri öğrenir.
+                Bu, "derin" kelimesinin anlamıdır — katman katman soyutlaşma.
+            </p>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>3Blue1Brown. <em>"But what is a neural network?"</em> (YouTube serisi). <a href="https://www.youtube.com/watch?v=aircAruvnKk" target="_blank">Bölüm 1</a> — En iyi görsel açıklama.</li>
+                    <li>Nielsen, M. A. (2015). <em>Neural Networks and Deep Learning</em>. <a href="http://neuralnetworksanddeeplearning.com/" target="_blank">neuralnetworksanddeeplearning.com</a> — Ücretsiz online kitap.</li>
+                    <li>Karpathy, A. (2023). <em>"Let's build GPT: from scratch, in code, spelled out"</em> (YouTube). — Transformer öncesi temel sinir ağı anlayışı.</li>
+                    <li>PyTorch Tutorials — Neural Networks. <a href="https://pytorch.org/tutorials/beginner/blitz/neural_networks_tutorial.html" target="_blank">pytorch.org</a>.</li>
+                    <li>Goodfellow, I., Bengio, Y., & Courville, A. (2016). <em>Deep Learning</em>. MIT Press. <a href="https://www.deeplearningbook.org/" target="_blank">deeplearningbook.org</a> — Ücretsiz online.</li>
+                    <li>TensorFlow Neural Network Playground. <a href="https://playground.tensorflow.org/" target="_blank">playground.tensorflow.org</a> — Tarayıcıda interaktif sinir ağı.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/sinir-agi.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

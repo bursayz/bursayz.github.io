@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Embedding: Kelimelerin Koordinatları — Bursa YZGT</title>
+    <meta name="description" content="One-hot vs dağıtık temsil, embedding matrisi, kosinüs benzerliği. Kelimelerin anlamsal haritası — 3D interaktif görselleştirme ile.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/embedding/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-llm" data-ders-slug="embedding">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu">
+            <h1>Embedding: Kelimelerin Koordinatları</h1>
+            <div class="ders-meta"><span>📚 L2 · LLM Serisi</span><span>⏱ ~25 dakika</span><span>🧊 3D İnteraktif</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Token ID'lerden anlamlı vektörlere geçiş,
+            kelime anlamsal benzerliği, kosinüs benzerliği ve pozisyon encoding.
+            LLM'in kelimeleri nasıl "hissettiğini" görün.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Token ID Yeterli Değil</h2>
+
+            <p>
+                Önceki derste metni <code>[15234, 8971, 245]</code> gibi sayılara çevirdik.
+                Ama bu sayılar aralarında <em>hiçbir anlamsal ilişki taşımaz</em>:
+                "kedi" ve "kopek" ID'leri arasındaki fark ile "kedi" ve "masa" ID'leri arasındaki fark
+                aynı matematiksel uzaklıktadır. Anlamı temsil etmek için başka bir şey gerekir: <strong>embedding</strong>.
+            </p>
+
+            <h2>One-Hot Encoding: İlk Deneme</h2>
+
+            <pre><code class="language-python"># Kelime haznesi: ["kedi", "köpek", "masa", "kuş"]
+# One-hot: her kelimeye, sadece kendi indeksinde 1 olan bir vektör
+kedi  = [1, 0, 0, 0]
+kopek = [0, 1, 0, 0]
+masa  = [0, 0, 1, 0]
+kus   = [0, 0, 0, 1]
+
+# Sorun: "kedi" ile "köpek" ne kadar benzer?
+# Dot product: 1*0 + 0*1 + 0*0 + 0*0 = 0
+# Hiç benzer değiller mi? Ama ikisi de hayvan!
+# One-hot'da TÜM kelimeler birbirine eşit uzaklıkta — anlamsal ilişki yok.</code></pre>
+
+            <h2>Embedding: Anlamı Sayılarla Kodlamak</h2>
+
+            <p>
+                Embedding, her kelimeyi yüzlerce boyutlu bir <em>sayı vektörüne</em> dönüştürür
+                ve bu vektörler eğitim sırasında öğrenilir. Benzer bağlamlarda geçen kelimeler
+                benzer vektörlere sahip olur.
+            </p>
+
+            <pre><code class="language-python"># Embedding matrisi: her satır bir kelimenin vektörü
+import torch
+import torch.nn as nn
+
+# 1000 kelimelik vocab, 64 boyutlu embedding
+embedding = nn.Embedding(
+    num_embeddings=1000,   # Kelime haznesi
+    embedding_dim=64       # Her kelime kaç boyutta temsil edilecek?
+)
+
+token_idler = torch.tensor([15234, 8971, 245])  # Tokenization çıktısı
+vektorler = embedding(token_idler)
+print(vektorler.shape)   # torch.Size([3, 64]) → 3 token × 64 boyut</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Dünya haritasında ülkelerin GPS koordinatları var. Ankara ve İstanbul birbirine yakın,
+                    Tokyo uzak. Embedding de böyle: "kedi" ve "köpek" kelime uzayında yakın konumda,
+                    "kedi" ve "bilgisayar" uzakta. <strong>Konum = anlam.</strong>
+                    Eğitim sırasında benzer bağlamlarda geçen kelimeler birbirine yaklaştırılır.
+                </p>
+            </div>
+
+            <h2>Kosinüs Benzerliği: İki Vektör Ne Kadar Aynı Yönde?</h2>
+
+            <pre><code class="language-python">import torch
+import torch.nn.functional as F
+
+kedi_vec  = embedding.weight[10]   # "kedi" embeddingi
+kopek_vec = embedding.weight[11]   # "köpek"
+masa_vec  = embedding.weight[50]   # "masa"
+
+# Kosinüs benzerliği: -1 (zıt) ile +1 (aynı) arasında
+benzerlik_kedi_kopek = F.cosine_similarity(kedi_vec, kopek_vec, dim=0)
+benzerlik_kedi_masa  = F.cosine_similarity(kedi_vec, masa_vec, dim=0)
+
+# Eğitimli modelde:
+# kedi-köpek: 0.82 (çok benzer)
+# kedi-masa:  0.14 (farklı)</code></pre>
+
+            <h2>Kelime Aritmetiği: Ünlü Örnek</h2>
+
+            <pre><code class="language-python"># Embedding'lerde doğrudan vektör aritmetiği yapılabilir:
+kral = embedding("kral")
+erkek = embedding("erkek")
+kadin = embedding("kadın")
+
+# Vektör aritmetiği: kral - erkek + kadın ≈ kraliçe!
+sonuc = kral - erkek + kadin
+
+# En yakın kelimeyi bul
+tum_embeddingler = embedding.weight  # tüm vocab
+benzerlikler = F.cosine_similarity(sonuc.unsqueeze(0), tum_embeddingler)
+en_yakin_idx = benzerlikler.argmax()
+# → "kraliçe" çıkar (eğitimli modelde)</code></pre>
+
+            <h2>Pozisyon Encoding: Kelimenin Nerede Olduğu</h2>
+
+            <p>
+                Transformer mimarisi kelimelerin sırasını doğuştan anlamaz —
+                "kedi köpek" ile "köpek kedi" aynı vektör setini üretir.
+                Sırayı eklemek için <strong>pozisyon encoding</strong> her tokenın vektörüne eklenir.
+            </p>
+
+            <pre><code class="language-python">import torch
+import torch.nn as nn
+
+kelime_emb = nn.Embedding(1000, 64)    # Anlam vektörü
+poz_emb    = nn.Embedding(512, 64)     # Pozisyon vektörü (max 512 token)
+
+x = torch.tensor([42, 17, 99])          # 3 token
+pozisyonlar = torch.arange(3)           # [0, 1, 2]
+
+# Anlam + Pozisyon = modelin gördüğü tam temsil
+girdi = kelime_emb(x) + poz_emb(pozisyonlar)
+print(girdi.shape)  # torch.Size([3, 64])</code></pre>
+
+            <h2>İnteraktif: 3D Kelime Uzayı</h2>
+
+            <p>
+                Aşağıda çeşitli kelimelerin embedding uzayındaki 3D konumlarını görüyorsunuz.
+                Benzer kelimelerin yakın kümeleştiğine dikkat edin. Sürükleyerek döndürün.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>3D Kelime Embedding Uzayı</b><span style="font-size:0.75rem">↔ Sürükleyin</span></div>
+                <div class="viz-mount" id="viz-embedding" style="min-height:380px"></div>
+            </div>
+
+            <h2>Embedding Boyutu Ne Kadar Olmalı?</h2>
+
+            <ul>
+                <li>GPT-2: 768 boyut | GPT-3: 12.288 boyut | Llama-2 70B: 8.192 boyut</li>
+                <li>Çok küçük boyut → kelimeler yeterince ayrışamaz</li>
+                <li>Çok büyük boyut → daha fazla parametre, daha yavaş, daha fazla veri gerektirir</li>
+            </ul>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Mikolov, T. et al. (2013). <em>"Efficient Estimation of Word Representations in Vector Space"</em> (Word2Vec). <a href="https://arxiv.org/abs/1301.3781" target="_blank">arXiv:1301.3781</a> — Embedding kavramının kurucu makalesi.</li>
+                    <li>Mikolov, T. et al. (2013). <em>"Linguistic Regularities in Continuous Space Word Representations."</em> NAACL. — "kral - erkek + kadın = kraliçe" örneğinin kaynağı.</li>
+                    <li>Pennington, J. et al. (2014). <em>"GloVe: Global Vectors for Word Representation."</em> EMNLP. — Alternatif embedding öğrenme yöntemi.</li>
+                    <li>Vaswani, A. et al. (2017). <em>"Attention Is All You Need"</em> — Positional encoding'in (sinüzoidal) tanıtımı. <a href="https://arxiv.org/abs/1706.03762" target="_blank">arXiv:1706.03762</a>.</li>
+                    <li>Karpathy, A. <em>makemore</em> GitHub. <a href="https://github.com/karpathy/makemore" target="_blank">github.com/karpathy/makemore</a> — Embedding'leri sıfırdan kodlamak için.</li>
+                    <li>TensorFlow Embedding Projector. <a href="https://projector.tensorflow.org/" target="_blank">projector.tensorflow.org</a> — Kelime uzayını tarayıcıda 3D keşfedin.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/embedding.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

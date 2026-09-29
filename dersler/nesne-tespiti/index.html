@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nesne Tespiti (Object Detection) — Bursa YZGT</title>
+    <meta name="description" content="Bounding box, IoU, YOLO mimarisi ve NMS. Görüntüde 'ne var?'dan 'nerede?' sorusuna geçiş — sıfırdan object detection.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/nesne-tespiti/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-goruntu" data-ders-slug="nesne-tespiti">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu"><h1>Nesne Tespiti (Object Detection)</h1>
+            <div class="ders-meta"><span>📚 G4 · Görüntü Serisi</span><span>⏱ ~35 dakika</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Sınıflandırma ile tespit farkı, bounding box gösterimi,
+            IoU metriği, tek-aşamalı (YOLO) mimarinin mantığı ve Non-Maximum Suppression (NMS) ile tahminleri temizleme.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Sınıflandırma vs Tespit</h2>
+
+            <div class="io-akis">
+                <div class="io-kutu"><div class="io-baslik">Sınıflandırma</div><div class="io-icerik">"Bu resimde kedi var" (%98)</div></div>
+                <div class="io-ok">≠</div>
+                <div class="io-kutu"><div class="io-baslik">Tespit</div><div class="io-icerik">"Kedi (50,120)-(300,280) bölgesinde, köpek (320,90)-(500,300) bölgesinde"</div></div>
+            </div>
+
+            <p>
+                Sınıflandırıcı tek cevap verir; gerçek görüntülerde birden çok nesne olabilir.
+                Tespit modeli her nesne için <strong>konum</strong> (bounding box) + <strong>sınıf</strong> + <strong>güven skoru</strong> üretir.
+            </p>
+
+            <h2>Bounding Box Formatı</h2>
+
+            <pre><code class="language-python"># İki yaygın format (dikkat: kütüphaneler arasında fark!):
+bbox_xyxy = [x1, y1, x2, y2]           # Sol-üst köşe + sağ-alt köşe
+bbox_cxywh = [cx, cy, w, h]            # Merkez + genişlik/yükseklik (YOLO kullanır)
+bbox_xywh  = [x,  y, w, h]             # Sol-üst + boyut (COCO kullanır)
+
+# Örnek: kedi kutusu
+kedi = [50, 120, 250, 160]  # (x1, y1, genişlik=250, yükseklik=160) → COCO formatı</code></pre>
+
+            <h2>IoU: Kutuların Ne Kadar Üst Üste Bindiği</h2>
+
+            <pre><code class="language-python"># Intersection over Union — en kritik metrik:
+# tahmin kutusu ile gerçek kutunun kesişimi / birleşimi
+
+def iou(kutu_a, kutu_b):
+    x1 = max(kutu_a[0], kutu_b[0]); y1 = max(kutu_a[1], kutu_b[1])
+    x2 = min(kutu_a[2], kutu_b[2]); y2 = min(kutu_a[3], kutu_b[3])
+    kesisim = max(0, x2 - x1) * max(0, y2 - y1)
+    alan_a = (kutu_a[2]-kutu_a[0]) * (kutu_a[3]-kutu_a[1])
+    alan_b = (kutu_b[2]-kutu_b[0]) * (kutu_b[3]-kutu_b[1])
+    return kesisim / (alan_a + alan_b - kesisim)
+
+# IoU > 0.5 → "doğru tespit" (standart eşik)
+# mAP@0.5 = tüm sınıfların ortalama hassasiyeti (IoU=0.5'te)</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    İki kart kutusunu üst üste koyun. Kesişim alanı (ortak kısım) ne kadar büyükse o kadar "öngörüsü" doğru.
+                    IoU=1 → mükemmel örtüşme; IoU=0 → hiç temas yok. Model, milyonlarca kutuyu doğru IoU'ya yaklaştırmayı öğrenir.
+                </p>
+            </div>
+
+            <h2>YOLO: Tek Geçişte Her Yeri Tara</h2>
+
+            <p>
+                YOLO ("You Only Look Once") görüntüyü ızgara hücrelerine böler; her hücre
+                kendi bölgesindeki nesneleri <strong>tek seferde</strong> tahmin eder.
+                İki aşamalı yöntemler (R-CNN ailesi: önce "burada bir şey var mı?" bölge önerir,
+                sonra sınıflandırır) daha yavaş ama geleneksel olarak daha hassastır.
+            </p>
+
+            <pre><code class="language-python"># YOLO çıktısı: her grid hücresi için vektör:
+# [nesne_olasılığı, x, y, w, h, sınıf_olasılıkları...]
+# 7×7 grid × 2 kutu/hücre × (5 + 20 sınıf) = dev çıktı tensörü
+
+# Ultralytics ile pratik (kurulum: pip install ultralytics)
+from ultralytics import YOLO
+model = YOLO("yolov8n.pt")   # Hazır eğitilmiş en küçük YOLOv8
+sonuclar = model("kedi_kopek.jpg")
+for kutu in sonuclar[0].boxes:
+    print(f"Sınıf {int(kutu.cls)}: {kutu.xyxy} (güven: {kutu.conf:.2f})")</code></pre>
+
+            <h2>NMS: Aynı Nesne İçin 5 Kutu Varsa…</h2>
+
+            <p>
+                Model aynı kediye 5 farklı kutu önerebilir (biraz kaymış versiyonları).
+                <strong>NMS (Non-Maximum Suppression)</strong> ile tek kutuya indirgenir:
+            </p>
+
+            <ol>
+                <li>Güven skoru en yüksek kutuyu tut</li>
+                <li>Onunla IoU > 0.5 olan diğer kutuları sil (aynı nesne demektir)</li>
+                <li>Kalanlardan tekrarla</li>
+            </ol>
+
+            <h2>İnteraktif: Bounding Box ve NMS</h2>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>NMS Animasyonu — Çoklu Tahminlerden Tek Kutuya</b></div>
+                <div class="viz-mount" id="viz-bbox" style="min-height:340px"></div>
+            </div>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Redmon, J. et al. (2016). <em>"You Only Look Once: Unified, Real-Time Object Detection"</em> (YOLO). CVPR. <a href="https://arxiv.org/abs/1506.02640" target="_blank">arXiv:1506.02640</a>.</li>
+                    <li>Girshick, R. et al. (2014). <em>"Rich feature hierarchies for accurate object detection"</em> (R-CNN). CVPR — İki aşamalı yaklaşımın temeli.</li>
+                    <li>Ultralytics YOLOv8 Docs. <a href="https://docs.ultralytics.com/" target="_blank">docs.ultralytics.com</a> — Pratik kullanım ve eğitim.</li>
+                    <li>Neubeck, A., & Van Gool, L. (2006). <em>"Efficient non-maximum suppression"</em> ICPR — NMS algoritmasının temeli.</li>
+                    <li>Lin, T. et al. (2014). <em>"Microsoft COCO: Common Objects in Context."</em> ECCV. — Detection benchmark veri seti.</li>
+                    <li>Lin, T. et al. (2017). <em>"Focal Loss for Dense Object Detection"</em> (RetinaNet). <a href="https://arxiv.org/abs/1708.02002" target="_blank">arXiv:1708.02002</a>.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/bbox.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

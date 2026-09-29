@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tespit Modeli İnce Ayarı — Bursa YZGT</title>
+    <meta name="description" content="Etiketleme araçları, YOLO veri formatı ve Ultralytics ile eğitim. Kendi nesne detektörünüzü eğitin.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/tespit-ince-ayar/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-goruntu" data-ders-slug="tespit-ince-ayar">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu"><h1>Tespit Modeli İnce Ayarı</h1>
+            <div class="ders-meta"><span>📚 G5 · Görüntü Serisi</span><span>⏱ ~35 dakika</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> CVAT/Roboflow ile veri etiketleme, YOLO veri formatı,
+            Ultralytics ile kendi nesne detektörünüzü eğitmek ve augmentation stratejileri.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Veri Toplama ve Etiketleme</h2>
+
+            <p>
+                Tespit için her resimde nesnenin <strong>koordinatları</strong> gereklidir.
+                Etiketleme manuelliği projenin en çok zaman alan kısmıdır — ama kritiktir:
+            </p>
+
+            <ul>
+                <li><strong>CVAT</strong> — ücretsiz, açık kaynak</li>
+                <li><strong>Roboflow</strong> — bulut tabanlı, otomatik augmentation</li>
+                <li><strong>Label Studio</strong> — çok yönlü</li>
+            </ul>
+
+            <div class="dikkat-kutu">
+                <span class="etiket">⚠️ Etiketleme Kalitesi Kuralı</span>
+                <p>
+                    Kutu nesnenin tamamını içermeli ama fazla boşluk bırakmamalı.
+                    Tek bir etiketleme standardı (örn. "sadece yüz") tüm ekibe uygulanmalı —
+                    tutarsız etiketleme modelin IoU hedefini kararsız kılar.
+                </p>
+            </div>
+
+            <h2>YOLO Veri Formatı ve dataset.yaml</h2>
+
+            <pre><code class="language-text"># labels/resim1.txt — her satır bir nesne (normalize koordinatlar 0-1):
+# sinif_id merkez_x merkez_y genislik yukseklik
+0 0.45 0.51 0.30 0.42
+1 0.72 0.30 0.18 0.25
+
+# dataset.yaml:
+path: ./veri
+train: images/train
+val: images/val
+names: {0: kedi, 1: kopek}</code></pre>
+
+            <h2>Ultralytics ile Eğitim (Colab'da)</h2>
+
+            <pre><code class="language-python"># pip install ultralytics
+from ultralytics import YOLO
+
+model = YOLO("yolov8n.pt")  # Hazır COCO ağırlıklarından başla (transfer learning!)
+
+sonuclar = model.train(
+    data="dataset.yaml",
+    epochs=50,
+    imgsz=640,
+    batch=16,
+    lr0=1e-3,
+    augment=True,      # flip, rotation, mosaic, mixup otomatik
+    patience=10        # erken durdurma
+)
+
+model.val()                     # mAP@0.5 raporlar
+model.predict("test/resim.jpg", save=True)</code></pre>
+
+            <h2>Augmentation Stratejileri (Tespit İçin)</h2>
+
+            <ul>
+                <li><strong>Mosaic:</strong> 4 resmi birleştir — nesneyi farklı ölçeklerde gösterir. Son 10 epoch'ta kapatılır (close_mosaic).</li>
+                <li><strong>Copy-paste:</strong> Nadir sınıfı artırmada etkili — nesneyi kesip başka resme yapıştır.</li>
+                <li><strong>Yatay çevirme:</strong> Güvenli; yön-duyarlı nesnelerde (trafik işaretleri) kullanmayın.</li>
+                <li><strong>Renk jitter:</strong> Aydınlatma koşullarına dayanıklılık.</li>
+            </ul>
+
+            <h2>İnteraktif: Augmentation Galerisi</h2>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Veri Artırma Örnekleri — 4 Varyasyon</b></div>
+                <div class="viz-mount" id="viz-augment" style="min-height:300px"></div>
+            </div>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Ultralytics YOLO Eğitim Belgeleri. <a href="https://docs.ultralytics.com/modes/train/" target="_blank">docs.ultralytics.com</a>.</li>
+                    <li>Lin, T. et al. (2014). <em>Microsoft COCO</em>. ECCV. <a href="https://cocodataset.org/" target="_blank">cocodataset.org</a>.</li>
+                    <li>Bochkovskiy, A. et al. (2020). <em>YOLOv4</em>. <a href="https://arxiv.org/abs/2004.10934" target="_blank">arXiv:2004.10934</a> — Mosaic dahil eğitim hileleri.</li>
+                    <li>Zoph, B. et al. (2020). <em>"Learning Data Augmentation Strategies for Object Detection"</em>. ECCV.</li>
+                    <li>CVAT. <a href="https://docs.cvat.ai/" target="_blank">docs.cvat.ai</a>.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/augment.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

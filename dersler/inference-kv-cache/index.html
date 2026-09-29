@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inference: KV-Cache ve Quantization — Bursa YZGT</title>
+    <meta name="description" content="Autoregressive üretim maliyeti, KV-cache, prefill/decode ayrımı ve FP16/INT8/INT4. Modeli hızlı çalıştırmanın mühendisliği.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/inference-kv-cache/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-llm" data-ders-slug="inference-kv-cache">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu"><h1>Inference: KV-Cache ve Quantization</h1>
+            <div class="ders-meta"><span>📚 L10 · LLM Serisi</span><span>⏱ ~30 dakika</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Model üretiminin asıl maliyeti nedir,
+            KV-cache nasıl çalışır, prefill ve decode aşamaları arasındaki fark,
+            ve FP16/INT8/INT4 hassasiyetleri. Modeli hızlı ve verimli çalıştırmak.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Inference'ın Gizli Maliyeti</h2>
+
+            <p>
+                Metin üretimi (autoregressive) token-token çalışır: her yeni token için modelin
+                <strong>tüm katmanları</strong> çalışır. 1000 token üretmek = 1000 kez full forward pass.
+                Ham haliyle bu kabul edilemez yavaşlıktır. İki kritik optimizasyon bunu çözer: KV-cache ve quantization.
+            </p>
+
+            <h2>KV-Cache: Tekrar Etme, Sakla</h2>
+
+            <p>
+                Self-attention'da her token için K (Key) ve V (Value) vektörleri hesaplanır.
+                Token 10'u hesaplarken, token 1-9'un K ve V'leri asla değişmez —
+                çünkü causal masking sayesinde geçmiş, geleceğe bağlı değildir.
+                <strong>KV-cache</strong> bunları saklar, tekrar hesaplamaz.
+            </p>
+
+            <pre><code class="language-python"># KV-cache olmadan (yavaş):
+for t in range(1000):
+    logits = model(tum_metin)       # Tüm metni baştan işle! O(T²) maliyet
+
+# KV-cache ile (hızlı): sadece yeni token işlenir, geçmiş önbellekten okunur
+past_key_values = None
+for t in range(1000):
+    logits, past_key_values = model(yeni_token, past_key_values=past_key_values, use_cache=True)
+    # past_key_values: her katman için (1, n_head, t, head_dim) boyutunda
+    # Bellek maliyeti: 7B model, 4K bağlamda ~1-2 GB (FP16'da)</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    KV-cache'siz model, bir romanı her yeni cümle için <em>en baştan okuyan</em> yazara benzer.
+                    KV-cache ise not alır: "önceki 500 kelime şunlardı" — sadece yeni cümleyi düşünür.
+                    Üretim hızını 10-50x artırır, maliyet bellek kullanımıdır.
+                </p>
+            </div>
+
+            <h2>Prefill vs Decode: İki Farklı Aşama</h2>
+
+            <div class="io-akis">
+                <div class="io-kutu"><div class="io-baslik">Prefill</div><div class="io-icerik">Prompt işlenir (tüm tokenlar paralel)<br>GPU hesaplama yoğun<br>KV-cache doldurulur</div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">Decode</div><div class="io-icerik">Her adımda 1 token üretilir<br>Bellek bant genişliği sınırlı<br>KV-cache okunur ve genişler</div></div>
+            </div>
+
+            <ul>
+                <li><strong>Prefill hızı = TTFT (Time to First Token):</strong> Kullanıcı ilk kelimeyi ne kadar hızlı görür?</li>
+                <li><strong>Decode hızı = token/saniye:</strong> Metin ne kadar akıcı akar? Bellek bant genişliği (model boyutu / bellek hızı) belirler.</li>
+            </ul>
+
+            <h2>Quantization: Daha Az Bit, Daha Az Bellek</h2>
+
+            <pre><code class="language-python"># Bellek = parametre sayısı × bit/parametre / 8 (byte)
+# 7B model için:
+# FP16: 7e9 × 16 bit = 14 GB
+# INT8: 7e9 × 8 bit  = 7 GB
+# INT4: 7e9 × 4 bit  = 3.5 GB   ← Telefonda bile çalışabilir!
+
+# GGUF (LLM.cpp) quantization formatları:
+# Q4_K_M: 4-bit, karma (mixed) strateji, en iyi kalite/hız dengesi
+# Q5_K_M: 5-bit, biraz daha iyi kalite
+# Q8_0:   8-bit, neredeyse kayıpsız ama en büyük dosya
+
+from transformers import AutoModelForCausalLM, BitsAndBytesConfig
+import torch
+
+bnb = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4")
+model = AutoModelForCausalLM.from_pretrained("meta-llama/Meta-Llama-3-8B", quantization_config=bnb)
+# Bellek: ~5 GB (14 GB yerine)</code></pre>
+
+            <h2>İnteraktif: KV-Cache Büyümesi</h2>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>KV-Cache Mekanizması — Token Üretimi Sırasında Bellek Büyümesi</b></div>
+                <div class="viz-mount" id="viz-kvcache" style="min-height:320px"></div>
+            </div>
+
+            <h2>Hız — Bellek — Doğruluk Üçgeni</h2>
+
+            <ul>
+                <li><strong>Hız:</strong> Düşük bit = hızlı (bellek bant genişliği sınırını aşmak için). Decode hızı ≈ bellek_bant_genişliği / model_boyutu.</li>
+                <li><strong>Bellek:</strong> INT4 = FP16'nın 1/4'ü. 70B model FP16'da 140 GB, Q4_K_M'de ~40 GB.</li>
+                <li><strong>Doğruluk:</strong> Q4_K_M ≈ FP16'nın %97-99'u; INT8 %99+. Ama Q2 (2-bit) önemli kalite kaybı yaşatır.</li>
+                <li><strong>Altın kural:</strong> 7B ve üstü için Q4_K_M en iyi denge. Kritik uygulamalar için Q8. Deneysel için Q5.</li>
+            </ul>
+
+            <h2>VLLM ve Ollama: Üretim Altyapısı</h2>
+
+            <pre><code class="language-python"># vLLM: yüksek verimli LLM servisi (PagedAttention ile)
+# pip install vllm
+from vllm import LLM, SamplingParams
+
+llm = LLM(model="meta-llama/Meta-Llama-3-8B-Instruct")
+sampling = SamplingParams(temperature=0.7, top_p=0.9, max_tokens=512)
+ciktilar = llm.generate(["Bursa'da yapay zeka topluluğu hakkında yaz: "], sampling)
+print(ciktilar[0].outputs[0].text)
+
+# Ollama: tek komutla yerel çalıştırma (GGUF + quantization)
+# ollama run llama3.1:8b — tek komut, indirir ve çalıştırır</code></pre>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Pope, R. et al. (2023). <em>"Efficiently Scaling Transformer Inference."</em> MLSys. <a href="https://arxiv.org/abs/2211.05102" target="_blank">arXiv:2211.05102</a> — Prefill/decode ve inference optimizasyonu.</li>
+                    <li>vLLM Contributors. <em>"vLLM"</em>. <a href="https://github.com/vllm-project/vllm" target="_blank">github.com/vllm-project/vllm</a> — PagedAttention mimarisi.</li>
+                    <li>Gerganov, G. <em>llama.cpp ve GGUF</em>. <a href="https://github.com/ggerganov/llama.cpp" target="_blank">github.com/ggerganov/llama.cpp</a>.</li>
+                    <li>Dettmers, T. <em>bitsandbytes</em>. <a href="https://github.com/bitsandbytes-foundation/bitsandbytes" target="_blank">GitHub</a> — NF4/quantization.</li>
+                    <li>Raschka, S. <em>"KV Cache from Scratch"</em>. <a href="https://sebastianraschka.com/llms-from-scratch/" target="_blank">sebastianraschka.com</a>.</li>
+                    <li>Turing Pi. <em>"RK3588 LLM Benchmarks: GGUF Quantization Compared"</em>. <a href="https://turingpi.com/llm-inference-benchmarks-rk3588-gguf-quantization/" target="_blank">turingpi.com</a> — Gerçek cihazda Q4_K_M vs Q8 karşılaştırması.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/kvcache.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

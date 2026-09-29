@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Görüntü Düzenleme Modeli Yapımı (Inpainting) — Bursa YZGT</title>
+    <meta name="description" content="Maskeleme, InstructPix2Pix yaklaşımı ve metinle düzenleme. Görüntünün bir bölgesini akıllıca değiştirmek — sıfırdan.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/goruntu-duzenleme/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-goruntu" data-ders-slug="goruntu-duzenleme">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu"><h1>Görüntü Düzenleme Modeli Yapımı</h1>
+            <div class="ders-meta"><span>📚 G7 · Görüntü Serisi</span><span>⏱ ~35 dakika</span><span>🖥 İnteraktif Demo</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Maskeleme (inpainting) mantığı, Stable Diffusion Inpainting'in
+            nasıl çalıştığı, InstructPix2Pix ile metin komutuyla düzenleme ve düzenleme veri seti hazırlama.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Inpainting Nedir?</h2>
+
+            <p>
+                Görüntünün belirli bir bölgesini maskeleyip (örneğin nesneyi işaretleyip) modele
+                "burayı yeniden oluştur" demek. Diffusion modeli hem <em>maskeyi</em> hem <em>orijinal latent'i</em>
+                alır, maskeli bölgeyi bağlama uygun yeniden üretir.
+            </p>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Ressam bir tabloda yanlış çizdiği yeri boyar ve üstünü yeniden boyar:
+                    üst katman maskelediğiniz alan, alt katman tablonun geri kalanı.
+                    Diffusion modeli bu iki katmanı birlikte görür: alt katmanı <em>korur</em>,
+                    üst katmanı <em>yeniden yazar</em> — ve kenarları yumuşatarak birleştirir.
+                </p>
+            </div>
+
+            <h2>SD Inpainting: Diffusion'un Maskeli Hali</h2>
+
+            <pre><code class="language-python"># Diffusers ile SD Inpainting kullanımı
+from diffusers import StableDiffusionInpaintPipeline
+import torch
+from PIL import Image
+
+pipe = StableDiffusionInpaintPipeline.from_pretrained(
+    "stable-diffusion-v1-5/stable-diffusion-inpainting",
+    torch_dtype=torch.float16
+).to("cuda")
+
+resim = Image.open("bursa_sahil.jpg").resize((512, 512))
+maske = Image.open("maske.png").resize((512, 512))   # Beyaz=değiştir, siyah=koru
+
+sonuc = pipe(
+    prompt="gün batımında deniz kenarı, fotoğraf gerçekçi",
+    image=resim,
+    mask_image=maske,
+    num_inference_steps=50,
+    guidance_scale=7.5     # Prompt'a ne kadar bağlı kalınacak (CFG)
+).images[0]
+sonuc.save("duzenlenmis.jpg")</code></pre>
+
+            <h2>CFG (Classifier-Free Guidance): Prompta Ne Kadar Bağlı?</h2>
+
+            <ul>
+                <li><strong>guidance_scale=1:</strong> Promptu görmezden gelir — saf diffusion üretimi.</li>
+                <li><strong>guidance_scale=7.5 (tipik):</strong> Prompt + görsel bağlam dengesi.</li>
+                <li><strong>guidance_scale=20:</strong> Prompt'a aşırı sadakat — doygun, "rüya gibi" görüntüler.</li>
+            </ul>
+
+            <pre><code class="language-python"># CFG mantığı: iki tahmin hesaplanır
+# eps_kosulsuz = model(x_t, t)           # Prompt'suz
+# eps_kosullu  = model(x_t, t, prompt)   # Prompt'lu
+# Sonuç = eps_kosulsuz + scale × (eps_kosullu - eps_kosulsuz)
+# Fark vektörü büyütülür → yönlendirme güçlenir</code></pre>
+
+            <h2>InstructPix2Pix: "Bunu Değiştir" Komutları</h2>
+
+            <pre><code class="language-python">from diffusers import StableDiffusionInstructPix2PixPipeline
+
+pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(
+    "timbrooks/instruct-pix2pix").to("cuda")
+
+# Maske YOK — doğal dil komutu:
+sonuc = pipe(
+    prompt="kırmızı arabayı mavi yap",
+    image=resim,
+    num_inference_steps=50,
+    image_guidance_scale=1.5,   # Orijinal görüntüye sadakat
+    guidance_scale=7.0
+).images[0]</code></pre>
+
+            <p>
+                InstructPix2Pix veri seti GPT-3 tarafından üretilen (talimat, öncesi, sonrası) üçlülerinden oluşur:
+                <em>("bulutları kaldır", bulutlu resim, açık gökyüzü)</em> gibi.
+                Milyonlarca yapay düzenleme örneği sentetik olarak üretilip gerçek diffusion modeliyle oluşturuldu.
+            </p>
+
+            <h2>İnteraktif: Maskeleme ve Inpainting Öncesi/Sonrası</h2>
+
+            <p>
+                Aşağıda beyaz alanı (maske) fırçayla boyayın; model maskeli bölgeyi nasıl
+                yeniden ürettiğini (basitleştirilmiş simülasyon) izleyin.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>İnteraktif Inpainting Demo — Maskeyi Boyayın</b></div>
+                <div class="viz-mount" id="viz-inpaint" style="min-height:340px"></div>
+            </div>
+
+            <h2>Düzenleme Veri Seti Hazırlama</h2>
+
+            <p>
+                Kendi InstructPix2Pix tarzı modelinizi eğitmek isterseniz:
+            </p>
+
+            <ol>
+                <li>Bir dizi orijinal resim toplayın (binlerce)</li>
+                <li>GPT-4 gibi bir LLM ile "düzenleme talimatları" üretin: "gözlüğü kaldır", "saçı kızıla boya"...</li>
+                <li>Her talimat için hedef resmi diffusion ile üretin (talimat + orijinal → düzenlenmiş)</li>
+                <li>InstructPix2Pix örneğindeki gibi (talimat, input_latent, output_latent) üçlüleriyle eğitin</li>
+            </ol>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Brooks, T., Holynski, A., & Efros, A. A. (2023). <em>"InstructPix2Pix: Learning to Follow Image Editing Instructions."</em> CVPR. <a href="https://arxiv.org/abs/2211.09800" target="_blank">arXiv:2211.09800</a> — Metinle düzenleme makalesi.</li>
+                    <li>Lugmayr, A. et al. (2022). <em>"RePaint: Inpainting using Denoising Diffusion Probabilistic Models."</em> CVPR. <a href="https://arxiv.org/abs/2201.09865" target="_blank">arXiv:2201.09865</a> — Inpainting'e teorik temel.</li>
+                    <li>Ho, J., & Salimans, T. (2022). <em>"Classifier-Free Diffusion Guidance."</em> NeurIPS Workshop. <a href="https://arxiv.org/abs/2207.12598" target="_blank">arXiv:2207.12598</a> — CFG mekanizması.</li>
+                    <li>Hugging Face Diffusers Docs. <em>"Inpainting"</em>. <a href="https://huggingface.co/docs/diffusers/using-diffusers/inpaint" target="_blank">huggingface.co/docs/diffusers</a>.</li>
+                    <li>Radford, A. et al. (2021). <em>"Learning Transferable Visual Models From Natural Language Supervision"</em> (CLIP). ICML — Metin+görüntü embedding'lerinin ortak uzayı.</li>
+                    <li>SDXL Turbo / SD 1.5 Inpainting modelleri. <a href="https://huggingface.co/runwayml/stable-diffusion-inpainting" target="_blank">Hugging Face</a>.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/inpaint.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

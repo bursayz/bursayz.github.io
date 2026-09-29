@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LoRA ve QLoRA — Bursa YZGT</title>
+    <meta name="description" content="Parametre verimli ince ayar: düşük rank ayrışımı, rank/alpha/target modüller, NF4 quantization ve QLoRA. Tek tüketici GPU'sunda milyar parametrelik model eğitmek.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/lora-qlora/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-llm" data-ders-slug="lora-qlora">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu"><h1>LoRA ve QLoRA</h1>
+            <div class="ders-meta"><span>📚 L8 · LLM Serisi</span><span>⏱ ~40 dakika</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Neden tüm ağırlıkları eğitmek gereksiz?
+            Düşük rank ayrışımı (A×B), LoRA'nın matematiği, QLoRA ile 4-bit quantization birleşimi
+            ve tek bir tüketici GPU'sunda 7B model eğitimi. Modern YZ mühendisliğinin en değerli becerisi.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Problem: Tam Fine-Tuning Çok Pahalı</h2>
+
+            <p>
+                7 milyar parametreli bir modelin tüm ağırlıklarını eğitmek isterseniz,
+                sadece ağırlıklar 14 GB (FP16) yer tutar — bir de gradyanlar ve optimizer durumları eklenir:
+                gerçek gereksinim ~80-100 GB VRAM. Bu, veri merkezi GPU'su demektir.
+                <strong>LoRA bu sorunu kökten çözer</strong> ve oyunun kurallarını değiştirir.
+            </p>
+
+            <h2>LoRA'nın Temel İçgörüsü</h2>
+
+            <p>
+                Araştırmacılar şunu fark etti: fine-tuning sırasında ağırlık matrislerindeki değişim (ΔW) aslında
+                "düşük ranklı"dır — yani devasa matrisi güncellemenin yerine, bu değişimi
+                <strong>iki küçük matrisin çarpımıyla</strong> ifade edebilirsiniz:
+            </p>
+
+            <pre><code class="language-python"># Normal: W (4096 × 4096) = 16.8 milyon parametre, hepsini eğitmek gerekiyor
+# LoRA: ΔW = A × B
+#   A: (4096 × r)   — r = 16 olsun → 65.536 parametre
+#   B: (r × 4096)   — r = 16 olsun → 65.536 parametre
+# Toplam: ~131K parametre — 16.8M yerine! %99.2 daha az!
+
+# İleri geçişte:
+# Eski:  y = W @ x
+# LoRA:  y = W @ x + (B @ A) @ x     # W donmuş, sadece A ve B eğitilir</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Tam fine-tuning evi <em>yıkıp yeniden inşa etmektir</em>. LoRA ise sadece <em>oda boyamak</em>tır:
+                    evin iskeleti (W) aynen durur, üzerine ince bir katman (A×B) sürersiniz.
+                    Sonuçta odayı tamamen dönüştürürsünüz ama taşınmazın değerine dokunmamış olursunuz.
+                    Bir gün rengi beğenmezseniz, boyayı siler eski eve dönersiniz (adaptörü çıkarmak yeterli).
+                </p>
+            </div>
+
+            <h2>LoRA Hiperparametreleri</h2>
+
+            <ul>
+                <li><strong>rank (r):</strong> Düşük boyutun genişliği. 8-64 arası tipik. Küçük r = daha az parametre, daha az ifade gücü. Karmaşık görevlerde 32-64 deneyin.</li>
+                <li><strong>alpha (α):</strong> Ölçekleme faktörü; effective LR α/r oranıyla belirlenir. α = 2r başlangıç için iyidir.</li>
+                <li><strong>target_modules:</strong> Hangi katmanlara LoRA ekleneceği. Tipik: attention'daki q, k, v, o projeksiyonları (bazen FFN'e de eklenir).</li>
+            </ul>
+
+            <h2>QLoRA: Dondurucuya İnanılmaz Sıkıştırma</h2>
+
+            <pre><code class="language-python"># QLoRA = LoRA + NF4 quantization
+# Temel model ağırlıkları 4-bit'e sıkıştırılır (NormalFloat4 — LLM ağırlık
+# dağılımına uygun), LoRA adaptörleri bf16'da eğitilir.
+# Sonuç: 7B modeli RTX 3060 (12GB) ile eğitebilirsiniz!
+
+from transformers import AutoModelForCausalLM, BitsAndBytesConfig
+import torch
+
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",          # NormalFloat4
+    bnb_4bit_compute_dtype=torch.bfloat16,
+    bnb_4bit_use_double_quant=True,     # Double quantization: +0.4 bit/param tasarruf
+)
+
+model = AutoModelForCausalLM.from_pretrained(
+    "Qwen/Qwen2.5-7B-Instruct",
+    quantization_config=bnb_config,
+    device_map="auto"
+)
+
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+
+model = prepare_model_for_kbit_training(model)  # Gradyan checkpointing vs.
+lora_config = LoraConfig(
+    r=16, lora_alpha=32,
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+    lora_dropout=0.05,
+    bias="none",
+    task_type="CAUSAL_LM"
+)
+model = get_peft_model(model, lora_config)
+model.print_trainable_parameters()
+# "trainable params: 33,554,432 || all params: 7,649,480,704 || trainable: 0.44%"</code></pre>
+
+            <h2>İnteraktif: LoRA Matris Ayrışımı</h2>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>LoRA Mekanizması — Büyük Matris vs A×B Ayrışımı</b></div>
+                <div class="viz-mount" id="viz-lora" style="min-height:320px"></div>
+            </div>
+
+            <h2>Eğitim Sonrası: Adaptörleri Birleştir</h2>
+
+            <pre><code class="language-python"># Eğitim bitince iki seçenek:
+# 1. Adaptör ayrı kalsın (hızlı değişim, disk tasarrufu):
+model.save_pretrained("./lora-adaptorum")
+# 2. Birleştir (deployment için — çıktı normal modeldir):
+model = model.merge_and_unload()
+model.save_pretrained("./final-model")  # W + A×B birleşik, ek yük yok</code></pre>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Hu, E. et al. (2021). <em>"LoRA: Low-Rank Adaptation of Large Language Models."</em> ICLR. <a href="https://arxiv.org/abs/2106.09685" target="_blank">arXiv:2106.09685</a> — LoRA'nın orijinal makalesi.</li>
+                    <li>Dettmers, T. et al. (2023). <em>"QLoRA: Efficient Finetuning of Quantized LLMs."</em> NeurIPS. <a href="https://arxiv.org/abs/2305.14314" target="_blank">arXiv:2305.14314</a> — QLoRA ve NF4.</li>
+                    <li>Hugging Face PEFT Docs. <a href="https://huggingface.co/docs/peft" target="_blank">huggingface.co/docs/peft</a> — LoRA implementasyonu.</li>
+                    <li>Unsloth. <a href="https://github.com/unslothai/unsloth" target="_blank">github.com/unslothai/unsloth</a> — 2-5x hızlı, %70 daha az bellek ile QLoRA.</li>
+                    <li>Raschka, S. <em>"LoRA and DoRA from Scratch"</em>. <a href="https://sebastianraschka.com/llms-from-scratch/" target="_blank">sebastianraschka.com</a> — Elle kodlama için.</li>
+                    <li>Zhou, C. et al. (2023). <em>"LIMA: Less Is More for Alignment."</em> NeurIPS. — Az veri + LoRA'nın şaşırtıcı etkinliği.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/lora.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Distillation — Bursa YZGT</title>
+    <meta name="description" content="Öğretmen-öğrenci mimarisi, yumuşak hedefler ve sıcaklık parametresi. Küçük modele büyük modelin bilgisini aktarmak.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/knowledge-distillation/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-uzman" data-ders-slug="knowledge-distillation">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu"><h1>Knowledge Distillation</h1>
+            <div class="ders-meta"><span>📚 U3 · Uzman Serisi</span><span>⏱ ~30 dakika</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Öğretmen-öğrenci (teacher-student) mimarisi,
+            yumuşak hedefler ve sıcaklık parametresi, "karanlık bilgi" (dark knowledge) kavramı ve
+            DistilBERT/DeepSeek-R1-Distill gibi gerçek dünya örnekleri.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Sıkıştırmanın Üçüncü Yolu: Yeni Küçük Model Eğitmek</h2>
+
+            <p>
+                Quantization ağırlıkları sıkıştırır, pruning bağlantıları siler.
+                <strong>Distillation</strong> farklıdır: büyük model dokunmadan kalır; onun <em>davranışını</em>
+                taklit eden küçük bir model eğitilir. DeepSeek-R1'in 1.5B'lık distile modeli,
+                671B'lık R1'in akıl yürütme kalıplarını bu şekilde öğrenmiştir.
+            </p>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Ünlü bir şefin tarif defterini tek tek kopyalamak yerine,
+                    çırak şefin yanında çalışır: şef her yemeği tadıp "bu biraz tuzlu, sunumu böyle"
+                    der (yumuşak geri bildirim). Çırak hem sonucu görür hem de şefin *gerekçesini* hisseder.
+                    Distillation'da "gerekçe", öğretmenin olasılık dağılımıdır.
+                </p>
+            </div>
+
+            <h2>Yumuşak Hedefler ve Sıcaklık (Temperature)</h2>
+
+            <pre><code class="language-python">import torch
+import torch.nn.functional as F
+
+# Sert hedef (klasik eğitim): one-hot → [0, 0, 1, 0, 0]
+# Yumuşak hedef (distillation): öğretmenin olasılık dağılımı
+
+T = 4.0  # Sıcaklık — yüksek = daha yumuşak dağılım
+
+ogretmen_logit = torch.tensor([2.5, 0.8, 3.1, 0.4, 0.2])
+ogrenci_logit  = torch.tensor([1.9, 1.4, 2.2, 1.1, 0.9])
+
+# Sıcaklıkla yumuşatma: softmax(logit / T)
+p_ogretmen = F.softmax(ogretmen_logit / T, dim=-1)
+p_ogrenci  = F.softmax(ogrenci_logit / T, dim=-1)
+print(p_ogretmen)  # [0.25, 0.16, 0.30, 0.15, 0.14] — sınıf ilişkileri görünür!
+
+# Distillation kaybı: KL divergence (öğretmen || öğrenci)
+kayip_distill = F.kl_div(p_ogrenci.log(), p_ogretmen, reduction="batchmean") * T**2
+
+# Toplam kayıp: hem gerçek etiketle hem öğretmenle uyum
+kayip = 0.3 * kayip_sert + 0.7 * kayip_distill   # α dengesi</code></pre>
+
+            <h2>"Karanlık Bilgi" (Dark Knowledge)</h2>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Temel İçgörü (Hinton, 2015)</span>
+                <p>
+                    Öğretmen "kedi" resmine %80 kedi, %18 köpek, %2 tilki der. Bu dağılım,
+                    etikette olmayan bilgiyi taşır: <em>kediler köpeklere tilkilerden daha çok benzer</em>.
+                    Öğrenci sadece "kedi"yi değil, sınıflar arası <strong>benzerlik geometrisini</strong> öğrenir.
+                    Az veriyle bile küçük model öğretmene şaşırtıcı yakınlıkta performans gösterebilir.
+                </p>
+            </div>
+
+            <h2>LLM Distillation: DeepSeek-R1 Örneği</h2>
+
+            <ul>
+                <li><strong>DeepSeek-R1-Distill-Qwen-1.5B:</strong> R1'in 800K uzun akıl yürütme zinciri (Chain-of-Thought) ile küçük Qwen modeli SFT eğitildi. Matematik benchmarklarında kendi boyutunun çok üstünde.</li>
+                <li><strong>DistilBERT:</strong> BERT'in %40 daha küçük, %60 daha hızlı versiyonu, %97 performans korundu.</li>
+                <li><strong>Sequence-level distillation:</strong> Öğretmenin ürettiği metinler doğrudan öğrencinin eğitim verisi olur (LLM'de fiilen SFT formatında).</li>
+                <li><strong>Logit distillation:</strong> Vocab boyutunda yumuşak dağılımlar eşleştirilir (daha zengin ama aynı tokenizer gerekir).</li>
+            </ul>
+
+            <h2>Distillation Ne Zaman Pruning/Quantization'dan İyi?</h2>
+
+            <ul>
+                <li>✅ Çok daha küçük mimari gerekiyorsa (7B → 1.5B gibi) — quantization tek başına buraya ulaşamaz.</li>
+                <li>✅ Öğrencinin farklı yetenek profili isteniyorsa (örn. sadece matematik odaklı).</li>
+                <li>❌ Eğitim maliyeti yüksektir (öğretmen inference + öğrenci eğitimi) — hız için quantization önce denenmeli.</li>
+                <li>❌ Öğretmenin hataları ve yanlılıkları öğrenciye aktarılır (bias mirası — U5 dersi).</li>
+            </ul>
+
+            <h2>İnteraktif: Öğretmen→Öğrenci Bilgi Akışı</h2>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Distillation Akışı — Dağılımın Aktarımı</b></div>
+                <div class="viz-mount" id="viz-distill" style="min-height:320px"></div>
+            </div>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Hinton, G., Vinyals, O., & Dean, J. (2015). <em>"Distilling the Knowledge in a Neural Network."</em> NeurIPS DL Workshop. <a href="https://arxiv.org/abs/1503.02531" target="_blank">arXiv:1503.02531</a> — Alanın kurucu makalesi.</li>
+                    <li>Sanh, V. et al. (2019). <em>"DistilBERT, a distilled version of BERT."</em> NeurIPS Workshops. <a href="https://arxiv.org/abs/1910.01108" target="_blank">arXiv:1910.01108</a>.</li>
+                    <li>DeepSeek-AI (2025). <em>"DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning."</em> <a href="https://arxiv.org/abs/2501.12948" target="_blank">arXiv:2501.12948</a> — R1-Distill modellerinin eğitim protokolü.</li>
+                    <li>Kim, Y., & Rush, A. M. (2016). <em>"Sequence-Level Knowledge Distillation."</em> EMNLP — LLM distillation'ın temeli.</li>
+                    <li>Gou, J. et al. (2021). <em>"Knowledge Distillation: A Survey."</em> IJCV. — Kapsamlı derleme.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/distill.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

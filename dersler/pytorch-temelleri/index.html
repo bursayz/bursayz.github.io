@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyTorch Temelleri — Bursa Yapay Zeka Geliştiricileri Topluluğu</title>
+    <meta name="description" content="Tensor, autograd, nn.Module ve DataLoader ile PyTorch'a giriş. Modern yapay zeka geliştirmenin standart aracını öğrenin.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/pytorch-temelleri/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-mldl" data-ders-slug="pytorch-temelleri">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu">
+            <h1>PyTorch Temelleri</h1>
+            <div class="ders-meta"><span>📚 M3 · ML/DL Serisi</span><span>⏱ ~30 dakika</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Tensor nedir, PyTorch ile temel işlemler, autograd (otomatik türev),
+            nn.Module ile model sınıfı yazma ve DataLoader ile veri besleme. İlk gerçek model kodunuzu yazacaksınız.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>PyTorch Nedir ve Neden Tercih Ediliyor?</h2>
+
+            <p>
+                PyTorch, Meta (Facebook) tarafından geliştirilen, günümüzde akademik araştırmanın ve
+                endüstrinin en yaygın derin öğrenme kütüphanesidir. TensorFlow ile karşılaştırıldığında
+                Python ile daha doğal hisseden API'si ve dinamik hesap grafiği sayesinde
+                araştırma dünyasında standart hale geldi.
+            </p>
+
+            <pre><code class="language-python"># Kurulum: pip install torch
+import torch
+print(torch.__version__)           # 2.x.x
+print(torch.cuda.is_available())   # True ise GPU var!</code></pre>
+
+            <h2>Tensor: PyTorch'un Veri Yapısı</h2>
+
+            <p>
+                Tensor, NumPy array'inin PyTorch karşılığıdır — ama ekstra
+                <strong>autograd</strong> (türev takibi) ve <strong>GPU desteği</strong> sunar.
+            </p>
+
+            <pre><code class="language-python">import torch
+
+# Tensor oluşturma
+x = torch.tensor([1.0, 2.0, 3.0])                    # 1D
+y = torch.tensor([[1, 2], [3, 4]], dtype=torch.float32)  # 2D
+z = torch.zeros(3, 4)                                  # Sıfırlarla dolu
+r = torch.randn(2, 3)                                  # Normal dağılımdan rastgele
+
+# Temel özellikler
+print(x.shape)       # torch.Size([3])
+print(y.dtype)       # torch.float32
+print(x.device)      # cpu veya cuda
+
+# NumPy ile dönüşüm
+import numpy as np
+arr = np.array([1, 2, 3])
+t = torch.from_numpy(arr)   # Numpy → Tensor
+arr2 = t.numpy()            # Tensor → Numpy</code></pre>
+
+            <h2>Temel İşlemler — NumPy ile Neredeyse Aynı</h2>
+
+            <pre><code class="language-python">a = torch.tensor([1.0, 2.0, 3.0])
+b = torch.tensor([4.0, 5.0, 6.0])
+
+print(a + b)      # [5, 7, 9]
+print(a * b)      # Eleman-eleman: [4, 10, 18]
+print(a @ b)      # Dot product: 32.0 (= 4+10+18)
+print(a.mean())   # 2.0
+print(a.sum())    # 6.0
+
+# CPU → GPU (varsa)
+if torch.cuda.is_available():
+    a = a.to("cuda")
+    print(a.device)   # cuda:0</code></pre>
+
+            <h2>Autograd: Otomatik Türev</h2>
+
+            <p>
+                PyTorch, her tensor'da yapılan işlemleri izler ve <code>backward()</code> çağrıldığında
+                tüm parametrelerin gradyanlarını (türevlerini) otomatik hesaplar.
+                Bu, sinir ağı eğitiminin motorudur.
+            </p>
+
+            <pre><code class="language-python"># requires_grad=True ile türev takibini aç
+x = torch.tensor(3.0, requires_grad=True)
+
+y = x**2 + 2*x    # y = x² + 2x
+
+# y'nin x'e göre türevi: dy/dx = 2x + 2
+y.backward()      # Türevi hesapla
+
+print(x.grad)     # x=3 için: 2(3) + 2 = 8.0</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Autograd, bir <strong>hikaye anlatıcısı</strong> gibi çalışır: siz fonksiyonu yazarsınız,
+                    PyTorch her işlemi not alır. "Geri dön" dediğinizde, notları ters sırayla okuyarak
+                    her parametrenin hataya katkısını hesaplar. Siz zincir kuralını manuel uygulamak zorunda kalmazsınız.
+                </p>
+            </div>
+
+            <h2>nn.Module ile Model Yazma</h2>
+
+            <pre><code class="language-python">import torch
+import torch.nn as nn
+
+class BasitSiniflandirici(nn.Module):
+    def __init__(self, giris_boyutu, gizli_boyut, sinif_sayisi):
+        super().__init__()
+        self.katman1 = nn.Linear(giris_boyutu, gizli_boyut)
+        self.aktivasyon = nn.ReLU()
+        self.katman2 = nn.Linear(gizli_boyut, sinif_sayisi)
+
+    def forward(self, x):
+        x = self.katman1(x)
+        x = self.aktivasyon(x)
+        x = self.katman2(x)
+        return x   # Softmax uygulamıyoruz — CrossEntropyLoss kendisi halleder
+
+model = BasitSiniflandirici(784, 128, 10)  # MNIST: 784 piksel → 10 sınıf
+print(model)
+# BasitSiniflandirici(
+#   (katman1): Linear(in_features=784, out_features=128, bias=True)
+#   (katman2): Linear(in_features=128, out_features=10, bias=True)
+# )
+
+# Kullanım
+x = torch.randn(32, 784)   # 32 resim, 784 özellik (28×28)
+cikti = model(x)
+print(cikti.shape)   # [32, 10] → her resim için 10 sınıf skoru</code></pre>
+
+            <h2>DataLoader: Veriyi Modele Beslemek</h2>
+
+            <pre><code class="language-python">from torch.utils.data import TensorDataset, DataLoader
+
+X = torch.randn(1000, 784)   # 1000 örnek
+y = torch.randint(0, 10, (1000,))  # Etiketler 0-9
+
+dataset = TensorDataset(X, y)
+loader = DataLoader(dataset, batch_size=32, shuffle=True)
+
+# Eğitim döngüsünde kullanım:
+for batch_X, batch_y in loader:
+    # batch_X: [32, 784], batch_y: [32]
+    tahmin = model(batch_X)
+    # ... kayıp hesapla, backward, step
+    pass</code></pre>
+
+            <h2>İnteraktif: Hesap Grafiği</h2>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Autograd Hesap Grafiği — İşlemlerin Zinciri</b></div>
+                <div class="viz-mount" id="viz-autograd" style="min-height:280px"></div>
+            </div>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>PyTorch Resmi Tutorials. <a href="https://pytorch.org/tutorials/" target="_blank">pytorch.org/tutorials</a> — "60 Minute Blitz" ile başlayın.</li>
+                    <li>PyTorch Autograd Docs. <a href="https://pytorch.org/docs/stable/autograd.html" target="_blank">pytorch.org/docs/autograd</a>.</li>
+                    <li>Karpathy, A. (2023). <em>"Zero to Hero"</em> YouTube serisi — micrograd bölümü ile autograd'ın nasıl çalıştığını kodlayarak öğrenin.</li>
+                    <li>Stevens, E., Antiga, L., & Viehmann, T. (2020). <em>Deep Learning with PyTorch</em>. Manning. <a href="https://pytorch.org/assets/deep-learning/Deep-Learning-with-PyTorch.pdf" target="_blank">Ücretsiz PDF</a>.</li>
+                    <li>Fast.ai. <em>Practical Deep Learning for Coders</em>. <a href="https://course.fast.ai/" target="_blank">course.fast.ai</a> — PyTorch tabanlı ücretsiz kurs.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/autograd.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

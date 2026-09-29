@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Düzenleme Modeli İnce Ayarı (DreamBooth/LoRA) — Bursa YZGT</title>
+    <meta name="description" content="DreamBooth ve LoRA ile diffusion modeli kişiselleştirme: kendi yüzünüzü, stilinizi veya nesnenizi öğretin.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/duzenleme-ince-ayar/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-goruntu" data-ders-slug="duzenleme-ince-ayar">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu"><h1>Düzenleme Modeli İnce Ayarı</h1>
+            <div class="ders-meta"><span>📚 G8 · Görüntü Serisi</span><span>⏱ ~30 dakika</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> DreamBooth ile bir kavramı (kişi, nesne, stil)
+            Stable Diffusion'a nasıl öğretirsiniz, LoRA ile adaptör eğitme ve veri gereksinimleri.
+            Öznel görsel kimlik oluşturmanın teknik temeli.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>DreamBooth: "Benim Kedim" Dersi</h2>
+
+            <p>
+                Stable Diffusion bilgisi geneldir: "kedi" yazarsanız genel bir kedi çıkar.
+                <strong>DreamBooth</strong> 3-5 fotoğrafla kendi nesnenizi/kişinizi öğretir.
+            </p>
+
+            <pre><code class="language-python"># DreamBooth ile LoRA eğitimi (diffusers ile)
+# Veri: 3-20 fotoğraf, her biri konuyu farklı açıdan göstermeli
+# Önemli: tek ve tutarlı bir "tetikleyici token" kullanın: "sks kedi" (nadir kelime)
+
+from diffusers import StableDiffusionPipeline
+import torch
+
+# Temel mod + LoRA adaptörü yükle
+boru = StableDiffusionPipeline.from_pretrained(
+    "runwayml/stable-diffusion-v1-5", torch_dtype=torch.float16
+).to("cuda")
+boru.load_lora_weights("./kedim_lora.safetensors")
+
+# Artık tetikleyici kelime kendi nesnenizi çağırır:
+sonuc = boru("sks kedim Sahilde güneşleniyor, fotoğraf gerçekçi").images[0]</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    SD genel bir ressamdır: "kedi yap" derseniz <em>herhangi bir</em> kedi yapar.
+                    DreamBooth, ressama sizin kedinizin 20 fotoğrafını gösterir ve
+                    "bu özel noktayı not et" dersiniz. Artık "sks kedim" dediğinizde
+                    sizin kedinizi çizer. LoRA bunu 16 MB'lık adaptör dosyasıyla yapar —
+                    tüm SD modeli (2+ GB) değişmez.
+                </p>
+            </div>
+
+            <h2>Neden Tetikleyici Token (Trigger Word)?</h2>
+
+            <p>
+                "sks" gibi nadir bir token seçmek, modelin var olan "kedi" bilgisini ezmeden
+                sizin nesnesi için yeni bir "kimlik yuvası" oluşturur. Gerçek kelime kullanırsanız
+                (örn. "kedi") modelin genel kedi bilgisi bozulabilir (overfitting riski).
+            </p>
+
+            <h2>LoRA Uygulaması (LLM'den Farkı)</h2>
+
+            <pre><code class="language-python"># Diffusion'da LoRA hedefi: UNet'in attention katmanları (to_q, to_k, to_v)
+# ve cross-attention Q projeksiyonları (metin bağlantısı)
+from peft import LoraConfig
+
+lora_config = LoraConfig(
+    r=8,                      # Küçük rank yeterli — stil/konsept basit
+    lora_alpha=16,
+    target_modules=["to_q", "to_k", "to_v", "to_out.0"],
+    lora_dropout=0.05
+)
+# Eğitim verisi: 3-20 fotoğraf + aynı caption: "sks kedi fotoğrafı"
+# Overfitting koruyucu: class images (diğer kedilerin resimleri) eklenir</code></pre>
+
+            <h2>Veri Rehberi: Kaç Resim?</h2>
+
+            <ul>
+                <li><strong>Nesne (kedi, araba modeli):</strong> 5-10 fotoğraf, farklı açılar, farklı arka planlar</li>
+                <li><strong>Yüz (kişi):</strong> 10-20 fotoğraf, farklı ifadeler/ışıklar</li>
+                <li><strong>Stil (örn. Van Gogh):</strong> 20-50 eser, aynı stil</li>
+                <li><strong>Kural:</strong> Arka planda çeşitlilik sağlayın, konu tutarlı kalsın. Aynı arka plan = model onu da öğrenir.</li>
+            </ul>
+
+            <h2>İnteraktif: LoRA'nın Diffusion Katmanlarına Eklenmesi</h2>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>LoRA Adaptörleri — UNet'e Ekleme Şeması</b></div>
+                <div class="viz-mount" id="viz-dreambooth" style="min-height:320px"></div>
+            </div>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Ruiz, N. et al. (2023). <em>"DreamBooth: Fine Tuning Text-to-Image Diffusion Models for Subject-Driven Generation."</em> CVPR. <a href="https://arxiv.org/abs/2208.12242" target="_blank">arXiv:2208.12242</a>.</li>
+                    <li>Kohya-ss. <em>kohya_ss</em> GUI. <a href="https://github.com/kohya-ss/sd-scripts" target="_blank">github.com/kohya-ss/sd-scripts</a> — SD LoRA eğitiminin standart aracı.</li>
+                    <li>Hugging Face. <em>"Training with LoRA"</em> Diffusers Docs. <a href="https://huggingface.co/docs/diffusers/training/lora" target="_blank">huggingface.co/docs/diffusers</a>.</li>
+                    <li>Gal, R. et al. (2023). <em>"Textual Inversion"</em> ICLR. <a href="https://arxiv.org/abs/2208.01618" target="_blank">arXiv:2208.01618</a> — Alternatif: sadece embedding öğrenme.</li>
+                    <li>Civitai. <a href="https://civitai.com/" target="_blank">civitai.com</a> — Topluluk tarafından paylaşılan binlerce LoRA adaptörü.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/dreambooth.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

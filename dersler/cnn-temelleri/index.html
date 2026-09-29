@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CNN Temelleri — Bursa YZGT</title>
+    <meta name="description" content="Piksel matrisi, evrişim filtresi, stride/padding, pooling ve feature map. Görüntü modellerinin temel taşı CNN'i sıfırdan öğrenin.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/cnn-temelleri/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-goruntu" data-ders-slug="cnn-temelleri">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu"><h1>CNN Temelleri</h1>
+            <div class="ders-meta"><span>📚 G1 · Görüntü Serisi</span><span>⏱ ~30 dakika</span><span>🖥 İnteraktif</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Görüntülerin sayısal doğası, evrişim (convolution) işlemi,
+            stride ve padding, pooling katmanları ve CNN'lerin hiyerarşik olarak nasıl "gördüğü".
+            LeNet'ten ResNet'e uzanan evrimin temeli burada.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Görüntü = Sayı Matrisi</h2>
+
+            <p>
+                Bilgisayar için bir resim, dev bir sayı tablosudur. Gri tonlamalı resimde her hücre
+                0-255 arası bir parlaklık değeridir; renkli resimde bu 3 tabaka (RGB) hâlindedir.
+            </p>
+
+            <pre><code class="language-python">import numpy as np
+
+# 8x8 gri resmin matrisi (kedi resminin minik parçası)
+resim = np.array([
+    [ 12,  14, 100, 200, 200,  50,  10,   8],
+    [ 15,  18, 180, 220, 210,  45,  12,  10],
+    [ 10,  25, 210, 235, 225,  40,  15,  12],
+    [ ... ]
+])
+print(resim.shape)  # (8, 8) — gri
+# Renkli olsaydı: (8, 8, 3) — RGB</code></pre>
+
+            <h2>Evrişim (Convolution): Desen Dedektörü</h2>
+
+            <p>
+                Tam bağlı katmanla görüntü işlemeye kalkarsanız 784 nöronu tek tek bağlarsınız — verimsiz ve
+                görüntünün <strong>uzamsal yapısını</strong> göz ardı eder. Evrişim farklıdır: küçük bir
+                <strong>filtre (kernel)</strong>, görüntü üzerinde kayarak her bölgeyi tarar.
+            </p>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Büyüteçle harita taradığınızı düşünün. Büyüteç hep aynı boyutta (3×3) ama haritanın her
+                    köşesine gidiyorsunuz. Dikey kenar filtresi haritada "dikey çizgi nerede var?" diye sorar.
+                    96 farklı filtre = 96 farklı dedektör: biri kenar, biri doku, biri renk geçişi arar.
+                </p>
+            </div>
+
+            <pre><code class="language-python">import torch
+import torch.nn as nn
+
+# Conv2d: kanal sayısı 1 (gri), 16 filtre, her biri 3x3
+conv = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1)
+
+x = torch.randn(1, 1, 28, 28)   # (batch=1, kanal=1, yükseklik=28, genişlik=28)
+y = conv(x)
+print(y.shape)  # (1, 16, 28, 28) — 16 farklı "özellik haritası" (feature map)</code></pre>
+
+            <h2>Stride ve Padding</h2>
+
+            <ul>
+                <li><strong>Stride (adım):</strong> Filtrenin her seferinde kaç piksel kaydığı. stride=1 → her piksel; stride=2 → atlayarak, boyut yarıya iner.</li>
+                <li><strong>Padding (dolgu):</strong> Kenarlara sıfır eklemek. padding=1 → çıktı boyutu girişle aynı kalır (3×3 kernel için). Yoksa kenar bilgisi kaybolur.</li>
+            </ul>
+
+            <pre><code class="language-python"># Çıktı boyutu formülü:
+# çıktı = (giriş + 2×padding - kernel) / stride + 1
+# 28+2-3 / 1 + 1 = 28 → boyut korunur ✓</code></pre>
+
+            <h2>Pooling: Özetleme</h2>
+
+            <pre><code class="language-python"># Max pooling: 2x2 bölgeden en büyüğü al → özeti çıkar
+pool = nn.MaxPool2d(kernel_size=2, stride=2)
+# (1, 16, 28, 28) → (1, 16, 14, 14) — boyut yarıya, bilgi yoğunlaşır
+
+# Neden? (1) Hesaplama azalır, (2) Küçük kaydırmalara dayanıklılık artar
+# (kedinin kafası 2 piksel sağa kaymış da olsa aynı özellik algılanır)</code></pre>
+
+            <h2>Hiyerarşik Görme: Katman Katman Soyutlaşma</h2>
+
+            <ul>
+                <li><strong>Katman 1-2:</strong> Kenarlar, renk geçişleri, dokular (düşük seviye)</li>
+                <li><strong>Katman 3-4:</strong> Şekiller, desenler — "göz", "kulak" gibi parçalar</li>
+                <li><strong>Katman 5+:</strong> Nesneler — "kedi yüzü", "araba tekerleği" (yüksek seviye)</li>
+            </ul>
+
+            <h2>İnteraktif: 2D Convolution Simülasyonu</h2>
+
+            <p>
+                Aşağıda verilen basit resim üzerinde farklı filtreleri (kenar detektörü, bulanıklaştırma, keskinleştirme)
+                deneyin. Kernel'ın nasıl kayıp her bölgeyi hesapladığını izleyin.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Canlı Convolution — Filtre Görüntü Üzerinde Kayar</b></div>
+                <div class="viz-mount" id="viz-conv" style="min-height:320px"></div>
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;padding-top:0.6rem" id="conv-filtre-butonlari"></div>
+            </div>
+
+            <h2>Klasik Mimariler Kronolojisi</h2>
+
+            <ul>
+                <li><strong>LeNet-5 (1998):</strong> Yann LeCun — el yazısı rakam tanıma, 7 katman. CNN'in atası.</li>
+                <li><strong>AlexNet (2012):</strong> GPU devrimi, ImageNet zaferi.</li>
+                <li><strong>VGG (2014):</strong> Sadece 3×3 filtrelerle derin ağ.</li>
+                <li><strong>ResNet (2015):</strong> Residual bağlantılar (L4 dersindeki aynı fikir!) 152 katmanı mümkün kıldı.</li>
+                <li><strong>EfficientNet (2019):</strong> Ölçeklendirme optimize edildi.</li>
+                <li><strong>Vision Transformer (2020):</strong> Görüntüyü patch'lere böler, transformer uygular (L4 dersi!).</li>
+            </ul>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>LeCun, Y., Bengio, Y., & Hinton, G. (2015). <em>"Deep Learning."</em> Nature, 521, 436–444. — CNN'lerin derin öğrenmedeki yerini konumlandıran derleme.</li>
+                    <li>LeCun, Y. et al. (1998). <em>"Gradient-Based Learning Applied to Document Recognition"</em> (LeNet). <a href="http://yann.lecun.com/exdb/publis/pdf/lecun-98.pdf" target="_blank">PDF</a>.</li>
+                    <li>Krizhevsky, A. et al. (2012). <em>"ImageNet Classification with Deep Convolutional Neural Networks"</em> (AlexNet). NeurIPS.</li>
+                    <li>He, K. et al. (2015). <em>"Deep Residual Learning for Image Recognition"</em> (ResNet). <a href="https://arxiv.org/abs/1512.03385" target="_blank">arXiv:1512.03385</a>.</li>
+                    <li>Olah, C. et al. (2017). <em>"Feature Visualization"</em> Distill. <a href="https://distill.pub/2017/feature-visualization/" target="_blank">distill.pub</a> — CNN katmanları ne öğrenir?</li>
+                    <li>IBM. <em>What are Convolutional Neural Networks?</em> <a href="https://www.ibm.com/topics/convolutional-neural-networks" target="_blank">ibm.com</a>.</li>
+                    <li>3Blue1Brown. <em>"But what is a convolution?"</em> (YouTube). — Evrişimin matematiksel-geometrik sezgisi.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/conv.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

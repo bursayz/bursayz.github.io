@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Makine Öğrenmesi Temelleri — Bursa Yapay Zeka Geliştiricileri Topluluğu</title>
+    <meta name="description" content="Denetimli/denetimsiz öğrenme, özellik ve etiket, eğitim-test ayrımı, doğrusal regresyon ve kayıp kavramı. ML'e sıfırdan giriş.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/makine-ogrenmesi-temelleri/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-mldl" data-ders-slug="makine-ogrenmesi-temelleri">
+
+    <nav class="edu-topbar">
+        <div class="edu-container">
+            <a href="../../index.html" class="edu-logo">
+                <img src="../../assets/icon.webp" alt="Bursa YZGT">
+                <span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span>
+                <span class="short">Bursa YZGT</span>
+            </a>
+            <div class="edu-nav">
+                <a href="../../index.html">Eğitimler</a>
+                <a href="../../topluluk.html">Topluluk</a>
+                <span id="auth-slot"></span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+
+        <div class="ders-baslik-blogu">
+            <h1>Makine Öğrenmesi Temelleri</h1>
+            <div class="ders-meta">
+                <span>📚 M1 · ML/DL Serisi</span>
+                <span>⏱ ~25 dakika</span>
+            </div>
+        </div>
+
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong>
+            Denetimli/denetimsiz/pekiştirmeli öğrenme ayrımı, özellik (feature) ve etiket (label) kavramları,
+            eğitim-test ayrımı, doğrusal regresyon ve kayıp (loss) fonksiyonu. Yapay zekanın "öğrenme" dediği şeyin temeli.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Makine Öğrenmesi Nedir?</h2>
+
+            <p>
+                <strong>Makine öğrenmesi (ML)</strong>, kuralları elle yazmak yerine bilgisayara örnekler göstererek
+                bu kuralları kendiliğinden öğrenmesini sağlamaktır. Geleneksel programlama: <em>kural yaz → veri ver → sonuç al</em>.
+                Makine öğrenmesi: <em>örnekler ver + doğru cevapları ver → kural öğrenilir</em>.
+            </p>
+
+            <div class="io-akis">
+                <div class="io-kutu"><div class="io-baslik">Geleneksel</div><div class="io-icerik">Sen kuralları yazarsın<br>if yağmur: şemsiye al</div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">Makine Öğrenmesi</div><div class="io-icerik">Model örneklerden kuralları öğrenir<br>(10.000 hava durumu kaydı)</div></div>
+            </div>
+
+            <h2>Üç Öğrenme Türü</h2>
+
+            <h3>1. Denetimli Öğrenme (Supervised Learning)</h3>
+            <p>
+                Her örnek için <strong>doğru cevabı da veriyoruz</strong>: (girdi → etiket).
+                "Bu resim kedi, bu resim köpek" diyerek binlerce etiketli örnek gösteririz.
+                Model, girdiden etiketi tahmin etmeyi öğrenir.
+            </p>
+            <ul>
+                <li>📸 Görüntü sınıflandırma: resim → "kedi" / "köpek"</li>
+                <li>📧 Spam filtreleme: e-posta → "spam" / "değil"</li>
+                <li>📈 Ev fiyat tahmini: [m², konum, oda] → fiyat</li>
+            </ul>
+
+            <h3>2. Denetimsiz Öğrenme (Unsupervised Learning)</h3>
+            <p>
+                Etiket vermiyoruz, verinin <strong>kendi iç yapısını</strong> keşfetmesini istiyoruz.
+                "Bu müşterileri grupla" dersiniz, model benzer müşterileri kümelere ayırır — ama kümelerin adını siz koyarsınız.
+            </p>
+
+            <h3>3. Pekiştirmeli Öğrenme (Reinforcement Learning)</h3>
+            <p>
+                Model bir <strong>ajan</strong> olarak çevreyle etkileşir, iyi davranışlar ödüllendirilir,
+                kötüler cezalandırılır. Satranç oynayan, robotik kol kontrol eden sistemler böyle eğitilir.
+                <em>RLHF (RL from Human Feedback) dersinde LLM'lere uygulanışını göreceğiz.</em>
+            </p>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Öğrenme Türleri Analojisi</span>
+                <p>
+                    <strong>Denetimli:</strong> Öğretmen çözerken öğrenci izler — her sorunun doğru cevabı verilir.<br>
+                    <strong>Denetimsiz:</strong> Kütüphaneciye tüm kitapları verirsiniz, "kategorize et" dersiniz — kategorileri kendi bulur.<br>
+                    <strong>Pekiştirmeli:</strong> Köpeğe numara öğretirsiniz — doğru yapınca ödül, yanlış yapınca olumsuz tepki.
+                </p>
+            </div>
+
+            <h2>Özellik (Feature) ve Etiket (Label)</h2>
+
+            <p>
+                Model girişine <strong>özellik</strong> (feature), model çıktısına <strong>etiket</strong> (label) denir.
+            </p>
+
+            <pre><code class="language-python"># Ev fiyatı tahmin örneği
+# X = özellikler (input), y = etiket (output — doğru cevap)
+
+X = [  # Her satır bir ev, her sütun bir özellik
+    [85, 15, "Bursa"],   # m², yaş, şehir
+    [120, 5, "Bursa"],
+    [60, 30, "Bursa"],
+]
+y = [2_100_000, 3_400_000, 1_200_000]  # Gerçek satış fiyatları</code></pre>
+
+            <h2>Eğitim/Test Ayrımı</h2>
+
+            <p>
+                Verinin tamamıyla eğitirseniz model ezberler. Bu yüzden veriyi ikiye ayırırız:
+                <strong>eğitim seti</strong>yle modeli öğretiriz, <strong>test seti</strong>yle adil sınav yaparız.
+            </p>
+
+            <pre><code class="language-python">from sklearn.model_selection import train_test_split
+
+# %80 eğitim, %20 test — en yaygın oran
+X_egitim, X_test, y_egitim, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# İyi model = TEST setinde de iyi performans gösteren modeldir
+# Train'de %99 ama test'te %60 → overfitting (ezberleme)!</code></pre>
+
+            <h2>Doğrusal Regresyon: En Basit Model</h2>
+
+            <p>
+                En basit ML modeli tek bir doğru çizmektir: "veriye en iyi uyan doğru nedir?"
+                Bu doğru, m² ile fiyat arasındaki ilişkiyi temsil eder.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Doğrusal Regresyon — Veriye En İyi Oturan Doğru</b></div>
+                <div class="viz-mount" id="viz-regresyon" style="min-height:320px"></div>
+            </div>
+
+            <h2>Kayıp (Loss) Fonksiyonu</h2>
+
+            <p>
+                Modelin ne kadar <em>yanlış</em> olduğunu ölçen sayıya <strong>kayıp (loss)</strong> denir.
+                Amaç: kaybı minimize etmek. En yaygın kayıp fonksiyonu, MSE (Mean Squared Error):
+            </p>
+
+            <pre><code class="language-python"># MSE: her tahminin hataya karesini al, ortalamasını hesapla
+tahminler = [2.0, 2.5, 1.8]     # Model tahminleri
+gercekler = [2.1, 2.3, 2.0]     # Gerçek değerler
+
+hatalar = [(t - g)**2 for t, g in zip(tahminler, gercekler)]
+mse = sum(hatalar) / len(hatalar)
+print(f"MSE: {mse:.4f}")  # Küçük olması iyi
+
+# Hata karesi almanın nedeni: negatif-pozitif hatalar birbirini götürmesin,
+# büyük hatalar daha ağır cezalandırılsın.</code></pre>
+
+            <h2>Model Eğitiminin Genel Döngüsü</h2>
+
+            <pre><code class="language-python"># Tüm modellerde aynı döngü — 10 satırda:
+for epoch in range(10):
+    # 1. İleri geçiş: tahmin üret
+    tahmin = model(X_egitim)
+
+    # 2. Kayıp hesapla: ne kadar yanıldık?
+    kayip = loss_fonksiyonu(tahmin, y_egitim)
+
+    # 3. Geriye yayılım: hangi ağırlık ne kadar hatalıydı?
+    kayip.backward()    # PyTorch bu türevi otomatik hesaplar
+
+    # 4. Ağırlıkları güncelle: hataları azaltacak yönde az değiştir
+    optimizer.step()
+    optimizer.zero_grad()
+
+    print(f"Epoch {epoch}: kayıp = {kayip.item():.4f}")</code></pre>
+
+            <p>Bu döngüyü ileride milyarlarca parametreli modellere de aynen uygulayacağız — değişen sadece ölçek ve karmaşıklık olacak.</p>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Andrew Ng. <em>Machine Learning Specialization</em>. <a href="https://www.coursera.org/specializations/machine-learning-introduction" target="_blank">Coursera</a> — Alanın klasik başlangıç kursu.</li>
+                    <li>Scikit-learn Belgeleri. <a href="https://scikit-learn.org/stable/tutorial/basic/tutorial.html" target="_blank">scikit-learn.org</a> — train_test_split ve temel modeller için.</li>
+                    <li>StatQuest (Josh Starmer). <em>Machine Learning Fundamentals</em> (YouTube). — Görsel ve sezgisel açıklamalar.</li>
+                    <li>Mitchell, T. M. (1997). <em>Machine Learning</em>. McGraw-Hill — Alanın kurucu kitabı, temel kavramlar için.</li>
+                    <li>Kaggle. <em>Intro to Machine Learning</em>. <a href="https://www.kaggle.com/learn/intro-to-machine-learning" target="_blank">kaggle.com/learn</a> — Ücretsiz pratik kurs.</li>
+                    <li>Google. <em>Machine Learning Crash Course</em>. <a href="https://developers.google.com/machine-learning/crash-course" target="_blank">developers.google.com</a> — Ücretsiz, interaktif.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir">
+                <img src="../../assets/icon.webp" alt="">
+                <span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span>
+            </div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/regresyon.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

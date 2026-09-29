@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transfer Learning ve İnce Ayar — Bursa YZGT</title>
+    <meta name="description" content="ImageNet önceden eğitilmiş modelleri kullanma, son katman değiştirme ve freeze/unfreeze stratejileri. Az veriyle güçlü görüntü modelleri.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/transfer-learning/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-goruntu" data-ders-slug="transfer-learning">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu"><h1>Transfer Learning ve İnce Ayar</h1>
+            <div class="ders-meta"><span>📚 G3 · Görüntü Serisi</span><span>⏱ ~30 dakika</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Milyonlarca resimle eğitilmiş hazır modelleri kendi
+            az verinize nasıl adapte edersiniz? Özellik çıkarımı vs ince ayar, freeze/unfreeze stratejileri
+            ve ne zaman hangisini kullanmalısınız.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Sıfırdan Eğitim Çoğu Zaman Gereksiz</h2>
+
+            <p>
+                2024'te bir kedi-köpek sınıflandırıcısı yapmak için ImageNet'in (~14 milyon resim,
+                yüzlerce GPU saati) yeniden eğitilmesine gerek yok. <strong>Transfer learning</strong>
+                ile hazır bir "görme beyni"ni alıp kendi görevinize adapte edersiniz.
+            </p>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Tıp öğrencisi önce genel anatomi öğrenir (ImageNet — evrensel görme bilgisi),
+                    sonra uzmanlık seçer (sizin göreviniz — kardiyoloji gibi). Kimse kardiyolog olmak için
+                    anatomiyi yeniden keşfetmez. İlk katmanlar kenar/doku görmeyi öğrenmiş —
+                    bu bilgi kedi ile araba arasında paylaşılır.
+                </p>
+            </div>
+
+            <h2>İki Temel Strateji</h2>
+
+            <h3>1. Özellik Çıkarımı (Feature Extraction / Freeze)</h3>
+            <pre><code class="language-python">import torch
+import torch.nn as nn
+from torchvision import models
+
+model = models.resnet18(weights="IMAGENET1K_V1")
+
+# Tüm backbone'u dondur — ağırlıklar değişmez
+for p in model.parameters():
+    p.requires_grad = False
+
+# Sadece son katmanı değiştir (1000 ImageNet sınıfı → 2 sınıfımız)
+model.fc = nn.Linear(model.fc.in_features, 2)
+
+# Eğitimde sadece fc'nin ~1024 parametresi eğitilir
+print(len([p for p in model.parameters() if p.requires_grad]))  # 2</code></pre>
+
+            <p>✅ Avantajlar: az veri (yüzlerce örnek yeterli), hızlı, overfitting riski düşük.<br>
+               ❌ Dezavantaj: modelin "gördüğü" özellikler sizin görevinize tam uymayabilir.</p>
+
+            <h3>2. İnce Ayar (Fine-Tuning / Unfreeze)</h3>
+            <pre><code class="language-python"># Tüm katmanlar eğitilebilir, ama farklı LR ile
+for p in model.parameters():
+    p.requires_grad = True
+
+# İlk katmanlara küçük LR (ImageNet bilgisini koru),
+# son katmanlara büyük LR (yeni görevi öğren)
+optimizer = torch.optim.Adam([
+    {"params": model.layer1.parameters(), "lr": 1e-5},   # Genel özellikler
+    {"params": model.layer4.parameters(), "lr": 1e-4},   # Üst seviye
+    {"params": model.fc.parameters(),     "lr": 1e-3},   # Yeni başlık
+], lr=1e-3)</code></pre>
+
+            <p>✅ Avantajlar: en iyi performans, göreve tam adaptasyon.<br>
+               ❌ Dezavantaj: daha fazla veri gerekir (binlerce), overfitting riski, daha yavaş.</p>
+
+            <h2>Strateji Seçim Kılavuzu</h2>
+
+            <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin:1rem 0">
+                <thead><tr style="color:var(--edu-text-dim);font-size:0.75rem;text-align:left">
+                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Durum</th>
+                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Veri az + benzer görev</th>
+                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Veri az + farklı görev</th>
+                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Veri çok + benzer görev</th>
+                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Veri çok + farklı görev</th></tr></thead>
+                <tbody>
+                    <tr><td style="padding:0.5rem"><b>Strateji</b></td><td style="padding:0.5rem;color:#8fd94a">Freeze son katmanı</td><td style="padding:0.5rem;color:#f59e0b">Freeze son katman→sonra son 1-2 katman aç</td><td style="padding:0.5rem;color:#3b82f6">Tam fine-tuning</td><td style="padding:0.5rem;color:#a855f7">Tam fine-tuning (belki sıfırdan)</td></tr>
+                </tbody>
+            </table>
+
+            <h2>Pratik: Tam Kedi-Köpek İnce Ayar</h2>
+
+            <pre><code class="language-python">import torch
+from torchvision import models, transforms, datasets
+from torch.utils.data import DataLoader
+
+# Veri
+tf = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # ImageNet istatistikleri!
+])
+train = datasets.ImageFolder("veri/train", transform=tf)   # klasor/kedi/, klasor/kopek/
+loader = DataLoader(train, batch_size=32, shuffle=True)
+
+model = models.resnet18(weights="IMAGENET1K_V1")
+model.fc = nn.Linear(model.fc.in_features, 2)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model = model.to(device)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+loss_fn = nn.CrossEntropyLoss()
+
+for epoch in range(10):
+    model.train()
+    for X, y in loader:
+        X, y = X.to(device), y.to(device)
+        optimizer.zero_grad()
+        loss = loss_fn(model(X), y)
+        loss.backward()
+        optimizer.step()
+torch.save(model.state_dict(), "kedi_kopek.pt")</code></pre>
+
+            <div class="dikkat-kutu">
+                <span class="etiket">⚠️ ImageNet Normalizasyonu</span>
+                <p>
+                    Önceden eğitilmiş model, [0.485, 0.456, 0.406] ortalama ve [0.229, 0.224, 0.225] std ile
+                    eğitilmiştir. Kendi verinizi <strong>mutlaka aynı değerlerle</strong> normalize edin —
+                    yoksa modelin "beklediği girdi dağılımı" bozulur ve performans çökürür.
+                </p>
+            </div>
+
+            <h2>İnteraktif: Katman Dondurma/Çözme</h2>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>ResNet Katmanları — Hangisini Dondurmalısınız?</b></div>
+                <div class="viz-mount" id="viz-freeze" style="min-height:300px"></div>
+            </div>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Yosinski, J. et al. (2014). <em>"How transferable are features in deep neural networks?"</em> NeurIPS. <a href="https://arxiv.org/abs/1411.1792" target="_blank">arXiv:1411.1792</a> — Hangi katman ne kadar aktarılabilir?</li>
+                    <li>PyTorch Transfer Learning Tutorial. <a href="https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html" target="_blank">pytorch.org</a> — ResNet-18 ile tam örnek.</li>
+                    <li>Russakovsky, O. et al. (2015). <em>"ImageNet Large Scale Visual Recognition Challenge."</em> IJCV — ImageNet'in teknik belgesi.</li>
+                    <li>Fast.ai. <em>"Lesson 1: Transfer Learning"</em>. <a href="https://course.fast.ai/" target="_blank">course.fast.ai</a> — Pratik odaklı yaklaşım.</li>
+                    <li>Kornblith, S. et al. (2019). <em>"Do Better ImageNet Models Transfer Better?"</em> CVPR. <a href="https://arxiv.org/abs/1805.08974" target="_blank">arXiv:1805.08974</a>.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/freeze.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

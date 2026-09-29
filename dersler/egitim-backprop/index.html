@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nasıl Öğrenir? Geriye Yayılım ve Eğitim — Bursa YZGT</title>
+    <meta name="description" content="Kayıp fonksiyonu, gradyan inişi, öğrenme oranı ve backward pass. Modelin 'öğrenmesi' tam olarak ne demek — adım adım.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/egitim-backprop/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-mldl" data-ders-slug="egitim-backprop">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu">
+            <h1>Nasıl Öğrenir? Geriye Yayılım ve Eğitim</h1>
+            <div class="ders-meta"><span>📚 M4 · ML/DL Serisi</span><span>⏱ ~30 dakika</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Kayıp fonksiyonu, gradyan inişi (gradient descent),
+            öğrenme oranı, epoch ve batch kavramları ve geriye yayılım (backpropagation) — modelin "öğrenmesi" budur.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>"Model Öğreniyor" Demek Ne Demek?</h2>
+
+            <p>
+                Önceki derslerde modelin nasıl tahmin ürettiğini (ileri yayılım) gördük.
+                Eğitim, bu tahminlerin hatalarını kullanarak ağırlıkları sistemli olarak düzeltme sürecidir.
+                Ve bunu her zaman aynı 4 adımla yapar:
+            </p>
+
+            <div class="io-akis">
+                <div class="io-kutu"><div class="io-baslik">1. İleri</div><div class="io-icerik">Veriyi modele ver<br>Tahmin üret</div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">2. Kayıp</div><div class="io-icerik">Tahmin ile gerçeği karşılaştır<br>Hata skoru hesapla</div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">3. Geriye</div><div class="io-icerik">backward() ile<br>her ağırlığın hataya katkısını hesapla</div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">4. Güncelle</div><div class="io-icerik">Ağırlıkları hatayı azaltacak yönde<br>azıcık değiştir</div></div>
+            </div>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Gözünüz kapalı basketbolda serbest atış atıyorsunuz. Her atıştan sonra bir arkadaşınız
+                    size "sola kaydı", "kısa geldi" diyor. Siz de bir sonraki atışta hafifçe düzeltiyorsunuz.
+                    <strong>Gradyan = arkadaşınızın geri bildirimi</strong>; <strong>öğrenme oranı =
+                    her seferinde ne kadar büyük düzeltme yaptığınız.</strong>
+                </p>
+            </div>
+
+            <h2>Kayıp Fonksiyonu: Hatanın Ölçüsü</h2>
+
+            <pre><code class="language-python"># Sınıflandırma için: Cross Entropy (çok sınıflı)
+import torch
+import torch.nn as nn
+
+loss_fn = nn.CrossEntropyLoss()
+
+# Model çıktısı: 3 sınıf için ham skorlar (logits)
+tahmin = torch.tensor([[2.0, 0.5, -1.0]])   # "Çok güçlü kedi" dedi
+hedef  = torch.tensor([0])                   # Gerçek: sınıf 0 (kedi)
+
+kayip = loss_fn(tahmin, hedef)
+print(kayip.item())   # Küçük (0.27) — iyi tahmin
+
+# Yanlış tahmin olsaydı:
+tahmin2 = torch.tensor([[-2.0, 3.0, 0.5]])  # "Köpek" dedi ama gerçek "kedi"ydi
+kayip2 = loss_fn(tahmin2, hedef)
+print(kayip2.item())  # Büyük (3.13) — kötü tahmin, yüksek ceza</code></pre>
+
+            <h2>Gradyan İnişi (Gradient Descent): Vadiye İnmek</h2>
+
+            <p>
+                Tüm ağırlıkların oluşturduğu devasa boyutlu uzayda "kayıp fonksiyonu" bir arazidir.
+                Eğitim, bu arazide en alçak noktayı (minimum hata) bulmaktır.
+                Türev, o noktadaki eğimi gösterir: eğimin ters yönünde adım atarsanız aşağı inersiniz.
+            </p>
+
+            <pre><code class="language-python"># Mini gradyan inişi simülasyonu — elle, PyTorch'suz
+import numpy as np
+
+# Kayıp fonksiyonumuz çok basit: kayip(w) = (w - 5)²
+# Minimum w=5'te. Başlangıç: w=0
+w = 0.0
+ogrenme_orani = 0.1   # Her adımda eğimin %10'u kadar hareket
+
+for adim in range(30):
+    kayip = (w - 5)**2
+    gradyan = 2 * (w - 5)       # (w-5)²'nin türevi
+    w = w - ogrenme_orani * gradyan
+    print(f"Adım {adim}: w={w:.3f}, kayıp={kayip:.4f}")
+    # w zamanla 5'e yaklaşıyor, kayıp 0'a düşüyor!</code></pre>
+
+            <h2>Öğrenme Oranı (Learning Rate)</h2>
+
+            <ul>
+                <li><strong>Çok yüksek LR:</strong> Minimum'u sürekli atlar, "çalkantılı" eğitim, bazen diverge (patlama).</li>
+                <li><strong>Çok düşük LR:</strong> Çok yavaş, yerel minimumda takılma riski.</li>
+                <li><strong>İyi LR:</strong> Hızlı ama kararlı yakınsama. Genellikle 0.001 veya 0.0001 ile başlanır.</li>
+            </ul>
+
+            <div class="dikkat-kutu">
+                <span class="etiket">⚠️ Öğrenme Oranı Isınması (Warmup)</span>
+                <p>
+                    Modern LLM eğitiminde LR, eğitimin başında kademeli olarak artırılır (warmup),
+                    sonra yavaşça azaltılır (cosine schedule). Bu, ilk adımlarda modelin
+                    rastgele ağırlıkların yarattığı kargaşadan sağlıklı çıkmasını sağlar.
+                </p>
+            </div>
+
+            <h2>Epoch, Batch ve Mini-Batch SGD</h2>
+
+            <ul>
+                <li><strong>Epoch:</strong> Tüm veri setinin modelden bir kez geçirilmesi. 10 epoch = 10 tur.</li>
+                <li><strong>Batch:</strong> Her gradyan adımında kullanılan örnek grubu. Tüm veriyi tek seferde kullanmak belleğe sığmaz.</li>
+                <li><strong>SGD (Stochastic Gradient Descent):</strong> Rastgele küçük batch'lerle eğitime "sokaktik" (gürültülü) bir karakter kazandırır; bu gürültü yerel minimumlardan kaçmayı kolaylaştırır.</li>
+            </ul>
+
+            <pre><code class="language-python"># Tam eğitim döngüsü — PyTorch
+optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+loss_fn = nn.CrossEntropyLoss()
+
+for epoch in range(5):
+    epoch_kayip = 0
+    for batch_X, batch_y in train_loader:
+        optimizer.zero_grad()              # 1. Önceki gradyanları sıfırla
+        tahmin = model(batch_X)            # 2. İleri yayılım
+        kayip = loss_fn(tahmin, batch_y)   # 3. Kayıp hesapla
+        kayip.backward()                   # 4. Geriye yayılım — gradyanlar hesaplanır
+        optimizer.step()                   # 5. Ağırlıkları güncelle
+        epoch_kayip += kayip.item()
+
+    print(f"Epoch {epoch+1}: Ortalama Kayıp = {epoch_kayip/len(train_loader):.4f}")</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 optimizer.zero_grad() Neden Gerekli?</span>
+                <p>
+                    PyTorch gradyanları <strong>biriktirir</strong> (varsayılan davranış).
+                    Eğer sıfırlamazsanız, her adımda önceki adımların gradyanları üst üste eklenir
+                    ve model yanlış yönde güncellenir. Bunu unutmak, "bu model neden öğrenmiyor?"
+                    sorunsalının en yaygın nedenidir.
+                </p>
+            </div>
+
+            <h2>İnteraktif: Eğitim Simülasyonu</h2>
+
+            <p>
+                Aşağıdaki simülasyon, basit bir modelin epoch'lar boyunca nasıl öğrendiğini canlı gösterir.
+                Sol tarafta kayıp eğrisi, sağ tarafta modelin karar sınırını izleyin.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Eğitim Simülasyonu — Kayıp Düşüşü ve Karar Sınırı</b></div>
+                <div class="viz-mount" id="viz-egitim-sim" style="min-height:340px"></div>
+            </div>
+
+            <h2>Gradyan Patlaması ve Kaybolması</h2>
+
+            <p>
+                Derin ağlarda iki tehlike:
+            </p>
+            <ul>
+                <li><strong>Gradyan kaybolması (vanishing gradient):</strong> Sigmoid gibi aktivasyonlar zincirleme türevde gradyanı 4'e böler → 30 katmanda gradyan yok olur → ilk katmanlar öğrenemez. Çözüm: ReLU, BatchNorm, residual bağlantılar (skip connection).</li>
+                <li><strong>Gradyan patlaması (exploding gradient):</strong> Gradyanlar katlanarak büyür → ağırlıklar patlar. Çözüm: gradient clipping.</li>
+            </ul>
+
+            <pre><code class="language-python"># Gradient clipping — patlamayı önler
+torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+optimizer.step()</code></pre>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>3Blue1Brown. <em>"Gradient descent, how neural networks learn"</em> (YouTube). <a href="https://www.youtube.com/watch?v=IHZwWFHWa-w" target="_blank">izle</a>.</li>
+                    <li>Rumelhart, D. E., Hinton, G. E., & Williams, R. J. (1986). <em>"Learning representations by back-propagating errors."</em> Nature, 323, 533–536. — Geriye yayılım algoritmasının kurucu makalesi.</li>
+                    <li>Karpathy, A. (2023). <em>"Let's build micrograd"</em> (YouTube). — Sıfırdan autograd motoru kodlayarak geriye yayılımı anlamak için en iyi kaynak.</li>
+                    <li>Kingma, D. P., & Ba, J. (2015). <em>"Adam: A Method for Stochastic Optimization."</em> ICLR. <a href="https://arxiv.org/abs/1412.6980" target="_blank">arXiv:1412.6980</a> — Adam optimizer'ın orijinal makalesi.</li>
+                    <li>Sutskever, I. et al. (2013). <em>"On the importance of initialization and momentum in deep learning."</em> ICML. — Öğrenme oranı ve momentum hakkında.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/egitim-sim.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

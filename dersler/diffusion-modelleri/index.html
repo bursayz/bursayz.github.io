@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diffusion Modelleri: Gürültüden Görüntü — Bursa YZGT</title>
+    <meta name="description" content="İleri süreç (gürültü ekleme), geri süreç (denoising), UNet ve DDPM. DALL-E ve Stable Diffusion'ın arkasındaki sihir — sıfırdan.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/diffusion-modelleri/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-goruntu" data-ders-slug="diffusion-modelleri">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu"><h1>Diffusion Modelleri: Gürültüden Görüntü</h1>
+            <div class="ders-meta"><span>📚 G6 · Görüntü Serisi</span><span>⏱ ~40 dakika</span><span>🧊 3D İnteraktif</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Bir görüntünün nasıl saf gürültüye dönüştürüldüğü (ileri süreç),
+            bunu tersine çevirmeyi öğrenen model (geri süreç), UNet mimarisi ve DDPM.
+            Stable Diffusion ve DALL-E'nin çalışma mantığını çözün.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Şaşırtıcı Fikir: Gürültü Öğrenilebilir</h2>
+
+            <p>
+                2020'de Berkeley ekibi (DDPM makalesi) şaşırtıcı bir şeyi kanıtladı:
+                bir görüntüyü adım adım saf güssürültüye çevirirseniz, model bu <em>her adımı</em> öğrenebilir
+                ve sonra onu tersine çalıştırarak <strong>gürültüden yepyeni görüntüler</strong> üretebilirsiniz.
+            </p>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Kumsaldaki mükemmel bir kaleyi her gün biraz rüzgarla yıpratın. 1000 gün sonra geriye sadece
+                    rastgele kum kalır. Şimdi rüzgarın her adımını kaydetmiş olduğunuzu düşünün;
+                    bir "zaman makinesi" bu adımları tersine oynattığında kaleden geri kalan,
+                    orijinal olmayan ama yine de güzel bir kaledir. Diffusion modeli böyle bir zaman makinesidir.
+                </p>
+            </div>
+
+            <h2>İleri Süreç (Forward Diffusion): Gürültü Ekleme</h2>
+
+            <pre><code class="language-python">import torch
+
+# Her adımda biraz gürültü ekle. beta_t = o adımdaki gürültü miktarı
+betas = torch.linspace(0.0001, 0.02, 1000)   # 1000 adımlı program
+alphas = 1 - betas
+alphas_cumprod = torch.cumprod(alphas, dim=0)  # ᾱ_t = ∏ α_i
+
+def ileri_surec(x0, t):
+    """x0: orijinal resim, t: adım. Formül: x_t = √ᾱ_t · x0 + √(1-ᾱ_t) · ε"""
+    epsilon = torch.randn_like(x0)
+    a_cum = alphas_cumprod[t]
+    x_t = a_cum.sqrt() * x0 + (1 - a_cum).sqrt() * epsilon
+    return x_t, epsilon   # x_t: gürültülü resim, epsilon: eklenen gürültü
+
+# t=1000 → x_1000 ≈ saf gürültü (ε), x0 neredeyse silinmiş</code></pre>
+
+            <h2>Geri Süreç (Reverse Denoising): Modelin Öğrendiği Şey</h2>
+
+            <p>
+                Model şunu öğrenir: <em>"Bu gürültülü resimde, önceki adımda hangi gürültü vardı?"</em>
+                Bunu her adımda uygularsanız 1000 adımda gürültüden yepyeni bir resim doğar:
+            </p>
+
+            <pre><code class="language-python"># Eğitim: model, eklenen gürültüyü tahmin etmeyi öğrenir
+# loss = MSE(model(x_t, t), epsilon)
+# → Model "bu adımda hangi gürültü eklendi?" oyununu oynar
+
+# Üretim (sampling): t=999'dan t=0'a geriye doğru
+x = torch.randn(1, 3, 64, 64)   # Saf rastgele gürültüden başla
+for t in reversed(range(1000)):
+    tahmin_edilen_gurultu = model(x, t)
+    # Gürültüyü çıkar, biraz küçük rastgelelik ekle (t>0 ise)
+    x = (x - betas[t] * tahmin_edilen_gurultu) / alphas[t].sqrt()
+    if t > 0:
+        x = x + torch.randn_like(x) * betas[t].sqrt()
+# Sonuç: x artık orijinal dağılımdan yepyeni bir resim</code></pre>
+
+            <h2>UNet: Diffusion'un İş Atı</h2>
+
+            <p>
+                Diffusion modelinin tahmincisi genellikle UNet mimarisidir — "U" şeklinde:
+            </p>
+
+            <ul>
+                <li><strong>Aşağı yol:</strong> Resmi küçült (64×64 → 8×8), özellikleri genişlet — "ne var?"ı öğren</li>
+                <li><strong>Şişe boynu:</strong> En küçük ölçekte en soyut temsil + self-attention</li>
+                <li><strong>Yukarı yol:</strong> Geri büyüt — ama her seviyede aşağı yolun çıktısından "skip connection" al (detayları koru)</li>
+                <li><strong>Zaman embedding'i:</strong> Model "şu an t=742'deyim" bilgisini her katmana ekler</li>
+            </ul>
+
+            <h2>Metinle Yönlendirme: CLIP Entegrasyonu</h2>
+
+            <p>
+                Stable Diffusion, görüntüyü üretirken metni de işler: metin embedding'i (CLIP)
+                UNet'in attention katmanlarına "cross-attention" olarak beslenir.
+                Böylece "kumsalda kedi" dediğinizde attention kedi ve kumsal konseptlerine bağlanır.
+            </p>
+
+            <h2>İnteraktif: 3D Diffusion Animasyonu</h2>
+
+            <p>
+                Aşağıda 100 adımlık bir diffusion sürecinin görüntü uzayındaki izdüşümünü izleyin:
+                gürültü nokta bulutunun yavaş yavaş "anlamlı şekle" bürünmesi.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>3D Diffusion — Gürültüden Görüntüye Tersine Yolculuk</b><span style="font-size:0.75rem">↔ Sürükleyin</span></div>
+                <div class="viz-mount" id="viz-diffusion" style="min-height:400px"></div>
+            </div>
+
+            <h2>Latent Diffusion (Stable Diffusion'ın Numarası)</h2>
+
+            <p>
+                Piksel uzayında (örn. 512×512 = 262K piksel) çalışmak yavaştır. Stable Diffusion
+                görüntüyü önce küçük bir "latent" uzaya sıkıştırır (VAE encoder: 64×64),
+                diffusion'ı orada çalıştırır, sonra VAE decoder ile geri büyütür.
+                Hesaplama ~50 kat azalır, kalite korunur.
+            </p>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Ho, J., Jain, A., & Abbeel, P. (2020). <em>"Denoising Diffusion Probabilistic Models"</em> (DDPM). NeurIPS. <a href="https://arxiv.org/abs/2006.11239" target="_blank">arXiv:2006.11239</a> — Kurucu makale.</li>
+                    <li>Rombach, R. et al. (2022). <em>"High-Resolution Image Synthesis with Latent Diffusion Models"</em> (Stable Diffusion). CVPR. <a href="https://arxiv.org/abs/2112.10752" target="_blank">arXiv:2112.10752</a>.</li>
+                    <li>Hugging Face. <em>Diffusers Course — Unit 1</em>. <a href="https://huggingface.co/learn/diffusion-course" target="_blank">huggingface.co/learn/diffusion-course</a> — Ücretsiz, resmi kurs; sıfırdan DDPM kodlarıyla.</li>
+                    <li>Ronneberger, O. et al. (2015). <em>"U-Net: Convolutional Networks for Biomedical Image Segmentation"</em>. MICCAI — UNet'in doğuşu.</li>
+                    <li>Song, Y. et al. (2021). <em>"Score-Based Generative Modeling through Stochastic Differential Equations"</em> (Score SDE) — Diffusion'ın olasılık teorisi yorumu.</li>
+                    <li>AssemblyAI. <em>"Diffusion Models from scratch"</em> video. <a href="https://www.youtube.com/watch?v=a4Yfz2FxWiY" target="_blank">YouTube</a> — Sıfırdan kodlama.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/diffusion.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

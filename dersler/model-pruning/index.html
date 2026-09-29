@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pruning: Modeli Budamak — Bursa YZGT</title>
+    <meta name="description" content="Yapısal/yapısal olmayan pruning, önem skoru ve seyreklik. Gereksiz ağırlıkları atarak modeli küçültmek — elinizde 3D görselleştirme.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/model-pruning/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-uzman" data-ders-slug="model-pruning">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu"><h1>Pruning: Modeli Budamak</h1>
+            <div class="ders-meta"><span>📚 U2 · Uzman Serisi</span><span>⏱ ~30 dakika</span><span>🧊 3D İnteraktif</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Sinir ağlarının çoğu ağırlığı aslında "ölüdür" —
+            onları silmenin (pruning) mantığı, yapısal vs yapısal olmayan budama, önem skorlaması ve yeniden eğitim.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Şaşırtıcı Gerçek: Ağların Çoğu Gereksiz</h2>
+
+            <p>
+                1989'da LeCun (Optimal Brain Damage) ve 2015'te Han et al. (Deep Compression) gösterdi:
+                bir ağın ağırlıklarının <strong>%90'a kadarı</strong> silinebilir ve doğruluk neredeyse korunur.
+                Başarılı ağlar "fazla boyutludur" — içlerinde asıl işi yapan ince bir alt ağ saklıdır.
+                Bu, ünlü <strong>Lottery Ticket Hypothesis</strong>'in temelidir.
+            </p>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Bir heykeltıraş mermer bloğuna bakar ve "heykel zaten içindeydi, ben sadece
+                    fazla taşı kaldırdım" der. Pruning de budur: başta büyük ve fazla olan ağ eğitilir,
+                    sonra işe yaramayan bağlantılar kazınır. Geriye kalan "öz ağ" hem küçük hem hızlıdır.
+                </p>
+            </div>
+
+            <h2>Yapısal Olmayan (Unstructured) Pruning</h2>
+
+            <pre><code class="language-python">import torch
+import torch.nn.utils.prune as prune
+
+linear = torch.nn.Linear(512, 512)
+
+# Magnitude pruning: en küçük |ağırlık| %30'unu sıfırla
+prune.l1_unstructured(linear, name="weight", amount=0.3)
+
+# Artık weight matrisinin %30'u sıfır
+# Ama dikkat: seyrek matris de dense gibi saklanırsa hesaplama tasarrufu YOK
+# → CSR/COO gibi seyrek formatlar gerekir (donanım desteği sınırlı)</code></pre>
+
+            <h2>Yapısal (Structured) Pruning</h2>
+
+            <p>
+                Rastgele ağırlıklar yerine <strong>tüm kanalları/nöronları/başlıkları</strong> silmek —
+                çıktı boyutu küçülür, her donanım hız kazanır (seyrek format şartı yok):
+            </p>
+
+            <pre><code class="language-python"># Conv kanal budama: önemsiz filtrelerin tamamını kaldır
+prune.ln_structured(conv_layer, name="weight", amount=0.3, n=2, dim=0)
+# dim=0 → çıkış kanallarını buda; sonraki katmanın girişi de uyumlu küçülür
+
+# Transformer'da: attention head budama — 16 başlıktan 12'ye düşürmek
+# veya FFN genişliğini 3072'den 2048'e indirmek</code></pre>
+
+            <h2>Önem Skoru: Hangisi Kesilmeli?</h2>
+
+            <ul>
+                <li><strong>Magnitude (|w|):</strong> Küçük ağırlık = az etki. Basit ama şaşırtıcı derecede etkili.</li>
+                <li><strong>Taylor skoru:</strong> |∂Loss/∂w · w| — ağırlığın kayba katkısı. Daha doğru ama gradyan gerektirir.</li>
+                <li><strong>Hareketli ortalama (AWP benzeri):</strong> Eğitim boyunca önemi değişmeyenler hedeflenir.</li>
+            </ul>
+
+            <h2>İteratif Budama: Tek Seferde Değil, Aşama Aşama</h2>
+
+            <pre><code class="language-python"># Yanlış: tek seferde %90 budama → model çöker
+# Doğru: iteratif — buda, yeniden eğit (recover), tekrarla
+
+model = temel_model
+for tur in range(5):
+    hedef_seyreklik = 0.2 * (tur + 1)          # %20 → %40 → ... → %90+
+    her_katmana_uygula(model, hedef_seyreklik)  # Magnitude prune
+    kisa_ince_ayar(model, epochs=2)             # Kalan ağırlıklar telafi öğrenir
+    print(f"Seyreklik: %{hedef_seyreklik*100:.0f} — doğruluk: {degerlendir(model)}")</code></pre>
+
+            <div class="dikkat-kutu">
+                <span class="etiket">⚠️ LLM Pruning Zorluğu</span>
+                <p>
+                    Büyük dil modellerinde klasik budama zor bir problemi vardır: bilgi ağda <em>yoğun dağılmıştır</em>.
+                    Wanda (2023) ve SparseGPT (2023) gibi modern yöntemlerle ~%50 seyreklik makul kaliteyle mümkündür,
+                    ama LLM'de quantization (U1) genellikle budamadan daha güvenli ilk adımdır.
+                </p>
+            </div>
+
+            <h2>İnteraktif: 3D Ağırlık Budama Animasyonu</h2>
+
+            <p>
+                Aşağıda mini bir sinir ağının zayıf bağlantıları yavaş yavaş siliniyor.
+                Kalın bağlantılar "güçlü ağırlık", ince solanlar "budanan" demektir.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>3D Pruning Simülasyonu — Zayıf Bağlantıların Eliminasyonu</b><span style="font-size:0.75rem">↔ Sürükleyin</span></div>
+                <div class="viz-mount" id="viz-pruning" style="min-height:380px"></div>
+            </div>
+
+            <h2>Pruning vs Quantization vs Distillation</h2>
+
+            <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin:1rem 0">
+                <thead><tr style="color:var(--edu-text-dim);font-size:0.75rem;text-align:left">
+                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Teknik</th>
+                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Ne yapar</th>
+                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Ne zaman?</th></tr></thead>
+                <tbody>
+                    <tr><td style="padding:0.5rem"><b>Quantization</b></td><td style="padding:0.5rem">Her ağırlığın bitini azaltır</td><td style="padding:0.5rem">İlk tercih — kolay, güvenli, evrensel</td></tr>
+                    <tr><td style="padding:0.5rem"><b>Pruning</b></td><td style="padding:0.5rem">Ağırlıkları tamamen siler</td><td style="padding:0.5rem">Structured: her cihazda; Unstructured: seyrek donanım varsa</td></tr>
+                    <tr><td style="padding:0.5rem"><b>Distillation (U3)</b></td><td style="padding:0.5rem">Küçük yeni model eğitir</td><td style="padding:0.5rem">Çok daha küçük model gerekiyorsa</td></tr>
+                </tbody>
+            </table>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Han, S., Mao, H., & Dally, W. J. (2016). <em>"Deep Compression: Compressing Deep Neural Networks with Pruning, Trained Quantization and Huffman Coding."</em> ICLR. <a href="https://arxiv.org/abs/1510.00149" target="_blank">arXiv:1510.00149</a>.</li>
+                    <li>Frankle, J., & Carbin, M. (2019). <em>"The Lottery Ticket Hypothesis."</em> ICLR. <a href="https://arxiv.org/abs/1803.03635" target="_blank">arXiv:1803.03635</a> — "Ağların içinde kazanan biletler var" hipotezi.</li>
+                    <li>Sun, M. et al. (2023). <em>"A Simple and Effective Pruning Approach for Large Language Models"</em> (Wanda). ICLR 2024. <a href="https://arxiv.org/abs/2306.11695" target="_blank">arXiv:2306.11695</a>.</li>
+                    <li>Frantar, E., & Alistarh, D. (2023). <em>"SparseGPT: Massive Language Models Can be Accurately Pruned in One-Shot."</em> ICML. <a href="https://arxiv.org/abs/2301.00774" target="_blank">arXiv:2301.00774</a>.</li>
+                    <li>LeCun, Y., Denker, J., & Solla, S. (1989). <em>"Optimal Brain Damage."</em> NeurIPS — Alanın kurucu makalesi.</li>
+                    <li>PyTorch Pruning Tutorial. <a href="https://pytorch.org/tutorials/intermediate/pruning_tutorial.html" target="_blank">pytorch.org</a>.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/pruning.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

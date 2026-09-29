@@ -1,38 +1,49 @@
-# Bursa Yapay Zeka Topluluğu
+# Bursa Yapay Zeka Geliştiricileri Topluluğu
 
 Bursa'da yapay zeka ve makine öğrenmesi alanında çalışan, öğrenen ve üreten bir topluluk.
+**Ücretsiz, Türkçe, sıfırdan yapay zeka eğitim platformu.**
 
 ## Canlı Site
 
 🔗 [bursayz.github.io](https://bursayz.github.io/)
 
-## Etkinliklerimiz
+## Yapı
 
-- **Showcase #1** | 27 Haziran 2026 | Açık Atölye Tech & Hub
-- **Coffee Talk #1 & #2** | AIBursa iş birliğiyle
-- **Üye Söyleşisi** | Online YouTube canlı yayınları
+- `index.html` — Eğitim kataloğu (ana sayfa, 34 ders)
+- `topluluk.html` — Topluluk sayfası (etkinlikler, üyeler, sosyal medya)
+- `dersler/<slug>/` — Her ders ayrı klasör: `index.html` + `quiz.js` + `viz/*.js`
+- `mufredat.md` — Tüm konular ve tamamlanma durumları
+- `js/edu/` — Eğitim altyapısı (progress, quiz, auth, curriculum)
+- `css/edu.css` — Eğitim teması (seri bazlı renkler)
 
-## Sosyal Medya
+## Eğitim Serileri
 
-- [Discord](https://discord.gg/FvhCkCc7cS)
-- [Twitter / X](https://x.com/bursayz)
-- [YouTube](https://www.youtube.com/@bursayz)
-- [LinkedIn](https://www.linkedin.com/company/bursayz/)
-- [Instagram](https://www.instagram.com/bursayz)
-- [Luma Takvimi](https://luma.com/calendar/cal-2J8hnx4bDc5vOT0)
+| Seri | Konular | Seviye |
+|------|---------|--------|
+| 🟢 Temel | YZ nedir, matematik, Python, NumPy, görselleştirme | Sıfırdan |
+| 🟡 ML/DL | Regresyon, sinir ağları, PyTorch, backprop, overfitting | Orta |
+| 🟣 LLM | Tokenization→attention→transformer→GPT→SFT→LoRA→RLHF→inference | İleri |
+| 🔵 Görüntü | CNN→sınıflandırma→transfer learning→YOLO→diffusion→inpainting→quantization | İleri |
+| 🩶 Uzman | Quantization, pruning, distillation, edge AI, etik | Uzman |
+
+## Özellikler
+
+- ✅ 34 ders, her biri interaktif görselleştirme + sınav
+- ✅ %70 geçme eşiği ile ilerleme takibi
+- ✅ localStorage + GitHub Gist senkron (opsiyonel)
+- ✅ Three.js 3D görselleştirmeler (attention, diffusion, sinir ağı, transformer)
+- ✅ Mobil uyumlu, kaynakça bağlantılı
 
 ## Teknolojiler
 
-- HTML5
-- Tailwind CSS
-- Vanilla JavaScript
-- Lucide Icons
+- HTML5, Tailwind CSS, Vanilla JavaScript
+- Three.js (3D görselleştirme)
+- GitHub Device Flow OAuth (ilerleme senkronu)
+- Discord API (üye listesi senkronu)
 
 ## Geliştirme
 
-Yerel olarak çalıştırmak için:
-
-```bash
+```
 git clone https://github.com/bursayz/bursayz.github.io.git
 cd bursayz.github.io
 # index.html dosyasını tarayıcıda aç
@@ -40,4 +51,4 @@ cd bursayz.github.io
 
 ## Lisans
 
-© 2026 Bursa Yapay Zeka Topluluğu. Tüm hakları saklıdır.
+© 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu. Tüm hakları saklıdır.

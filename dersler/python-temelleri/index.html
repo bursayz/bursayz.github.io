@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python ile Programlama Temelleri — Bursa Yapay Zeka Geliştiricileri Topluluğu</title>
+    <meta name="description" content="Değişkenler, koşullar, döngüler, fonksiyonlar ve kütüphaneler. Yapay zeka geliştirmenin ana dili Python'a sıfırdan giriş.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/python-temelleri/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-temel" data-ders-slug="python-temelleri">
+
+    <nav class="edu-topbar">
+        <div class="edu-container">
+            <a href="../../index.html" class="edu-logo">
+                <img src="../../assets/icon.webp" alt="Bursa YZGT">
+                <span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span>
+                <span class="short">Bursa YZGT</span>
+            </a>
+            <div class="edu-nav">
+                <a href="../../index.html">Eğitimler</a>
+                <a href="../../topluluk.html">Topluluk</a>
+                <span id="auth-slot"></span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+
+        <div class="ders-baslik-blogu">
+            <h1>Python ile Programlama Temelleri</h1>
+            <div class="ders-meta">
+                <span>📚 T3 · Temel Serisi</span>
+                <span>⏱ ~30 dakika</span>
+            </div>
+        </div>
+
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong>
+            Değişkenler, veri tipleri, koşullar, döngüler, fonksiyonlar, listeler ve kütüphaneler.
+            Yapay zeka dünyasında her şey Python ile yazılır — bu ders, o dünyaya giriş biletiniz.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Neden Python?</h2>
+
+            <p>
+                Yapay zeka kütüphanelerinin neredeyse tamamı (PyTorch, TensorFlow, Hugging Face, scikit-learn) Python ile çalışır.
+                Python'un gücü: okunabilirliği ve devasa ekosistemi. Bir satırda yapay zeka modeli eğitmeye başlayabilirsiniz.
+            </p>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Programlama dilini bir <strong>mutfak dili</strong> gibi düşünün. Fransız mutfağı da lezzetli, Türk mutfağı da;
+                    ama hangi dilde tarif yazarsanız o dilde çalışan aşçılar size yardım eder. Yapay zeka mutfağında herkes Python konuşuyor.
+                </p>
+            </div>
+
+            <h2>Değişkenler: Etiketli Kutular</h2>
+
+            <p>
+                Bir <strong>değişken</strong>, bir değeri tutan etiketli kutudur. Değeri sonradan değiştirebilirsiniz.
+            </p>
+
+            <pre><code class="language-python"># Değişken tanımlama
+isim = "Zeynep"          # metin (string)
+yas = 16               # tam sayı (integer)
+boy = 1.68             # ondalıklı sayı (float)
+ogrenci_mi = True       # mantıksal (boolean: True/False)
+
+print(isim)             # Zeynep
+print(type(yas))        # &lt;class 'int'&gt;
+
+# Değişkenler üzerinde işlemler
+gelecek_yil = yas + 1   # 17
+print(gelecek_yil)</code></pre>
+
+            <h2>Koşullar: "Eğer... İse..." Kararları</h2>
+
+            <p>
+                <strong>Koşullar</strong> (if/else) programınıza karar verme yeteneği kazandırır:
+            </p>
+
+            <pre><code class="language-python">not_ = 85
+
+if not_ >= 70:
+    print("Geçti! 🎉")
+elif not_ >= 50:
+    print("Şartlı geçti")
+else:
+    print("Kaldı 😢")
+
+# Not: girinti (indentation) Python'da ZORUNLUDUR.
+# if'in içindeki satırlar sağa kaymış olmalı.</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 YZ Bağlantısı</span>
+                <p>
+                    Bir modelin karar vermesi aslında koşullar zinciridir: "eğer piksel yoğunluğu yüksekse → kenar var";
+                    "eğer kenarlar kapanıyorsa → şekil var"; "eğer şekil kediye benziyorsa → kedi".
+                    Milyonlarca minik koşuldan oluşan dev bir karar ağacı.
+                </p>
+            </div>
+
+            <h2>Döngüler: Tekrar Eden İşler</h2>
+
+            <pre><code class="language-python"># For döngüsü: listedeki her eleman için çalışır
+dersler = ["Matematik", "Python", "NumPy", "PyTorch"]
+for ders in dersler:
+    print(f"Bugün {ders} çalışıyorum")
+
+# 5 defa tekrarla
+for i in range(5):
+    print(f"Adım {i}")  # 0, 1, 2, 3, 4
+
+# While döngüsü: koşul doğru oldukça çalışır
+sayac = 0
+while sayac < 3:
+    print("Çalışıyorum...")
+    sayac += 1  # sayac = sayac + 1</code></pre>
+
+            <h2>Fonksiyonlar: Yeniden Kullanılabilir Araçlar</h2>
+
+            <p>
+                <strong>Fonksiyon</strong>, bir işi tanımlayıp tekrar tekrar çağırabileceğiniz araçtır.
+                Bir kez yazıp her yerde kullanırsınız.
+            </p>
+
+            <pre><code class="language-python">def kare_al(x):
+    """Verilen sayının karesini döndürür."""
+    return x * x
+
+def tahmin_yap(resim_pikselleri):
+    """Basit bir 'model' fonksiyonu — aslında bu, LLM'lerin içindeki dev fonksiyonun minik halidir."""
+    toplam = sum(resim_pikselleri)
+    if toplam > 500:
+        return "kedi"
+    else:
+        return "kedi değil"
+
+# Kullanım
+print(kare_al(5))                      # 25
+print(tahmin_yap([100, 200, 300]))     # kedi
+print(tahmin_yap([10, 20]))            # kedi değil</code></pre>
+
+            <h2>Listeler ve Sözlükler</h2>
+
+            <pre><code class="language-python"># Liste: sıralı öğeler
+puanlar = [85, 92, 78, 95, 88]
+print(puanlar[0])        # 85 (ilk öğe, indeks 0'dan başlar!)
+print(puanlar[-1])       # 88 (son öğe)
+print(len(puanlar))      # 5
+print(sum(puanlar) / len(puanlar))  # Ortalama: 87.6
+
+# Listeye ekleme
+puanlar.append(91)
+
+# Dilimleme (slicing)
+print(puanlar[1:3])      # [92, 78]
+
+# Sözlük: anahtar-değer çiftleri (JSON'un temeli!)
+ogrenci = {
+    "isim": "Zeynep",
+    "yas": 16,
+    "notlar": [85, 92]
+}
+print(ogrenci["isim"])   # Zeynep — anahtarla erişim
+
+# LLM derslerinde API yanıtları hep bu formattadır!
+# {"messages": [{"role": "user", "content": "Merhaba"}]}</code></pre>
+
+            <h2>Kütüphaneler: Başkalarının Yazdığı Süper Güçler</h2>
+
+            <pre><code class="language-python"># pip install numpy ile kurulur
+import numpy as np
+
+# NumPy'ın gücü: milyonlarca sayıyı saniyede işler
+a = np.array([1, 2, 3, 4, 5])
+print(a * 2)       # [2 4 6 8 10] — tüm listeyi tek seferde!
+
+# Python listesi ile aynı işi yapmak:
+b = [1, 2, 3, 4, 5]
+print([x * 2 for x in b])  # Aynı sonuç ama daha yavaş ve uzun</code></pre>
+
+            <h2>İnteraktif: Adım Adım Kod Yürütme</h2>
+
+            <p>
+                Aşağıdaki animasyon, bir Python programının satır satır nasıl çalıştığını gösterir.
+                "Oynat" ile izleyin veya adım adım ilerleyin.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Python Kod Yürütme Simülasyonu</b></div>
+                <div class="viz-mount" id="viz-kod-adim" style="min-height:300px"></div>
+            </div>
+
+            <h2>Kendi Bilgisayarınızda Denemek İçin</h2>
+
+            <pre><code class="language-bash"># 1. Python'u indirin: https://python.org (3.11+ önerilir)
+# 2. Terminal açın, dosya oluşturun:
+mkdir byzt-deneme
+cd byzt-deneme
+
+# 3. Dosya oluşturun: ornek.py
+# İçine şu satırı yazın:
+#    print("Merhaba Bursa!")
+
+# 4. Çalıştırın:
+python ornek.py</code></pre>
+
+            <p>
+                Ya da hiçbir şey kurmadan <a href="https://colab.research.google.com" target="_blank">Google Colab</a>'da
+                tarayıcıdan deneyebilirsiniz — ilerideki derslerde tüm kodları Colab'da çalıştıracağız.
+            </p>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Resmi Python Tutorial. <a href="https://docs.python.org/3/tutorial/" target="_blank">docs.python.org</a> — Dil referansı.</li>
+                    <li>FreeCodeCamp. <em>Python for Beginners</em> (YouTube, 4 saat). — Görsel öğrenenler için.</li>
+                    <li>Python Türkçe Belgeler. <a href="https://python-istihza.yazbel.com/" target="_blank">python-istihza.yazbel.com</a> — Türkçe açık kaynak.</li>
+                    <li>Automate the Boring Stuff with Python — <a href="https://automatetheboringstuff.com/" target="_blank">automatetheboringstuff.com</a>. Pratik görevlerle öğrenme.</li>
+                    <li>Google Colab. <a href="https://colab.research.google.com" target="_blank">colab.research.google.com</a> — Ücretsiz bulut Python ortamı.</li>
+                    <li>Exercism Python Track. <a href="https://exercism.org/tracks/python" target="_blank">exercism.org</a> — Mentorlu pratik.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir">
+                <img src="../../assets/icon.webp" alt="">
+                <span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span>
+            </div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/kod-adim.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

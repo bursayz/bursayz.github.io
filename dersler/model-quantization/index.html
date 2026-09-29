@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Quantization Derinlemesine — Bursa YZGT</title>
+    <meta name="description" content="FP32/FP16/BF16, kalibrasyon, PTQ vs QAT, GGUF formatları. Model küçültme sanatının derinlikleri — uzman seviyesi.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/model-quantization/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-uzman" data-ders-slug="model-quantization">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu"><h1>Model Quantization Derinlemesine</h1>
+            <div class="ders-meta"><span>📚 U1 · Uzman Serisi</span><span>⏱ ~35 dakika</span><span>🎓 Uzman</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Kayan nokta aritmetiği (FP32/FP16/BF16), simetrik/asimetrik
+            quantization, kalibrasyon, PTQ vs QAT ve GGUF format ailesi (Q4_K_M vs Q8_0).
+            Quantization'ın "neden" ve "nasıl"ını derinlemesine kavrayın.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Kayan Nokta Aritmetiğinin Anatomisi</h2>
+
+            <pre><code class="language-python">import numpy as np
+import torch
+
+# 32-bit float (FP32): 1 sign + 8 exponent + 23 mantissa
+x = np.float32(3.14159)
+# Bitler: 01000000010010010000111111011010
+# İşaret: 0 (+), Üs: 10000000 (2^1), Ondalık: 0.5707...
+# Değer: (-1)^0 × 2^(128-127) × 1.5707 = 3.14159
+
+# FP16: 1+5+10 → exponent aralığı dar [2^-14, 2^15]
+# BF16: 1+8+7  → FP32'nin exponent aralığında (brain float) ama az mantissa
+# FP16 daha hassas küçük sayılarda, BF16 daha geniş aralıkta güvenli
+print(torch.tensor(1e5, dtype=torch.float16))  # inf (taşma!)
+print(torch.tensor(1e5, dtype=torch.bfloat16)) # 100352.0 (idare eder)</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    FP32 = santimetreli cetvel (hassas ama uzun), FP16 = yarım santimetre,
+                    INT8 = 0-255 arası sadece tam sayılar — "hassasiyet kaybı" mantığını görün.
+                    Quantization, devasa cetveldeki okumayı en yakın tam sayı çizgilerine oturtmaktır.
+                    Her model katmanının kabul edebileceği kayıp farklıdır.
+                </p>
+            </div>
+
+            <h2>Simetrik vs Asimetrik Quantization</h2>
+
+            <pre><code class="language-python"># Simetrik: sıfır noktası 0'a sabitlenir (ağırlıklar genelde sıfır merkezli)
+def simetrik_quant(x, bit=8):
+    maks = torch.abs(x).max()
+    olcek = maks / (2 ** (bit - 1) - 1)  # -127..127
+    return torch.clamp(torch.round(x / olcek), -127, 127), olcek
+
+# Asimetrik: min-max arasına eşler (aktivasyonlar tek yönlü olabilir: ReLU ≥ 0)
+def asimetrik_quant(x, bit=8):
+    mn, mx = x.min(), x.max()
+    olcek = (mx - mn) / (2 ** bit - 1)
+    sifir_noktasi = torch.round(-mn / olcek)
+    return torch.clamp(torch.round(x / olcek + sifir_noktasi), 0, 255), olcek, sifir_noktasi
+
+# W8A8 = ağırlık 8-bit + aktivasyon 8-bit (simetrik × asimetrik kombinasyonu)</code></pre>
+
+            <h2>Kalibrasyon: Hangi Ölçek?</h2>
+
+            <p>
+                Quantization'da en kritik karar her tensörün ölçeğini (scale) nasıl seçtiğinizdir:
+            </p>
+
+            <ul>
+                <li><strong>Min-Max:</strong> Gözlenen en uç değerlerle ölçek — aykırı değerler (outlier) aralığı şişirir, çözünürlük düşer.</li>
+                <li><strong>Percentile (99.9):</strong> Aykırıları kırp — çoğu değer için daha iyi çözünürlük.</li>
+                <li><strong>KL Divergence (TensorRT):</strong> Orijinal ve quantize dağılım arasındaki farkı minimize et.</li>
+                <li><strong>Per-channel:</strong> Her çıkış kanalına ayrı ölçek — büyük modellerde standart (per-tensor'dan çok daha iyi).</li>
+            </ul>
+
+            <h2>PTQ vs QAT</h2>
+
+            <pre><code class="language-python"># PTQ (Post-Training Quantization) — eğitilmiş modeli doğrudan dönüştür:
+# Artıları: dakikalar içinde, eğitim verisi az (512 örnek kalibrasyon)
+# Eksileri: INT4'te ciddi kalite kaybı olabilir
+
+# QAT (Quantization-Aware Training) — sahte quantization'ı eğitime dahil et:
+class SahteQuant(torch.nn.Module):
+    def forward(self, x):
+        olcek = ...  # öğrenilen
+        x_q = torch.round(x / olcek) * olcek
+        return x + (x_q - x).detach()  # Straight-Through Estimator (STE)
+        # forward: quantize, backward: gradyan kırılmadan geçer</code></pre>
+
+            <h2>GGUF Format Ailesi: İsimlendirmenin Şifresi</h2>
+
+            <table style="width:100%;border-collapse:collapse;font-size:0.83rem;margin:1rem 0">
+                <thead><tr style="color:var(--edu-text-dim);font-size:0.75rem;text-align:left">
+                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Format</th>
+                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Bit/param</th>
+                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Strateji</th>
+                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Kullanım</th></tr></thead>
+                <tbody>
+                    <tr><td style="padding:0.5rem"><b>Q2_K</b></td><td style="padding:0.5rem">~2.6</td><td style="padding:0.5rem">Blok + k-mean benzeri kodlama</td><td style="padding:0.5rem">Deneysel — kalite düşük</td></tr>
+                    <tr><td style="padding:0.5rem"><b>Q4_K_M</b></td><td style="padding:0.5rem">~4.8</td><td style="padding:0.5rem">Blok, bazı katmanlar 6-bit</td><td style="padding:0.5rem;color:#8fd94a">⭐ Önerilen standart</td></tr>
+                    <tr><td style="padding:0.5rem"><b>Q5_K_M</b></td><td style="padding:0.5rem">~5.7</td><td style="padding:0.5rem">Blok, daha iyi çözünürlük</td><td style="padding:0.5rem">Kalite kritikse</td></tr>
+                    <tr><td style="padding:0.5rem"><b>Q6_K</b></td><td style="padding:0.5rem">~6.6</td><td style="padding:0.5rem">Blok 6-bit</td><td style="padding:0.5rem">Q5'ten pek farkı yok (genelde Q5 tercih)</td></tr>
+                    <tr><td style="padding:0.5rem"><b>Q8_0</b></td><td style="padding:0.5rem">8.5</td><td style="padding:0.5rem">Düz INT8</td><td style="padding:0.5rem">Neredeyse kayıpsız</td></tr>
+                </tbody>
+            </table>
+
+            <pre><code class="language-python"># isim şifresi: Q4_K_M
+# Q4  = ortalama ~4 bit/parametre
+# K   = "k-quants" (süper-blok yapısı — IQ/XS/XXS varyantları daha agresif)
+# M   = Medium: attention/output katmanları 6-bit, geri kalanı 4-bit (Mixed)
+# S   = Small: her şey 4-bit
+
+# 7B model için dosya boyutları:
+# FP16: 13.5 GB | Q8_0: 7.2 GB | Q6_K: 5.5 GB | Q4_K_M: 4.1 GB | Q2_K: 2.7 GB</code></pre>
+
+            <h2>GPTQ ve AWQ: LLM'de PTQ'nun Zirvesi</h2>
+
+            <ul>
+                <li><strong>GPTQ:</strong> Katman katman, Hessian (2. türev) bilgisini kullanarak quantization hatasını telafi edecek şekilde diğer ağırlıkları ayarlar.</li>
+                <li><strong>AWQ:</strong> "Ağırlıkların sadece ~%1'i önemlidir" bulgusu — kritik ağırlıkları koruyup gerisini quantize eder. Ölçeklendirme ile.</li>
+                <li>Her ikisi de 4-bit'te Q4_K_M'den belirgin daha iyi kalite verir ama GPU inference odaklıdır.</li>
+            </ul>
+
+            <h2>İnteraktif: FP32→INT4 Dağılım Haritası</h2>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Ağırlık Dağılımı Quantization Öncesi/Sonrası</b></div>
+                <div class="viz-mount" id="viz-quant" style="min-height:320px"></div>
+            </div>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Frantar, E. et al. (2022). <em>"GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers."</em> ICLR. <a href="https://arxiv.org/abs/2210.17323" target="_blank">arXiv:2210.17323</a>.</li>
+                    <li>Lin, J. et al. (2024). <em>"AWQ: Activation-aware Weight Quantization for On-Device LLM Compression."</em> MLSys. <a href="https://arxiv.org/abs/2306.00978" target="_blank">arXiv:2306.00978</a>.</li>
+                    <li>Dettmers, T. et al. (2023). <em>"The Case for 4-bit Precision: k-bit Inference Scaling Laws."</em> ICML — Neden 4-bit altın nokta.</li>
+                    <li>Jacob, B. et al. (2018). <em>"Quantization and Training of Neural Networks for Efficient Integer-Arithmetic-Only Inference."</em> CVPR. <a href="https://arxiv.org/abs/1712.05877" target="_blank">arXiv:1712.05877</a> — QAT ve STE'nin temeli.</li>
+                    <li>Nagel, M. et al. (2021). <em>"A White Paper on Neural Network Quantization."</em> <a href="https://arxiv.org/abs/2106.08295" target="_blank">arXiv:2106.08295</a>.</li>
+                    <li>llama.cpp GGUF şartnamesi. <a href="https://github.com/ggerganov/ggml/blob/master/docs/gguf.md" target="_blank">github.com/ggerganov/ggml</a>.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/quant.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

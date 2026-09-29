@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RLHF ve DPO: Davranış Öğretmek — Bursa YZGT</title>
+    <meta name="description" content="İnsan geri bildirimi, ödül modeli, PPO ve DPO. ChatGPT'nin kibar, güvenli, yardımsever olmasının ardındaki hizalama süreci.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/rlhf-dpo/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-llm" data-ders-slug="rlhf-dpo">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu"><h1>RLHF ve DPO: Davranış Öğretmek</h1>
+            <div class="ders-meta"><span>📚 L9 · LLM Serisi</span><span>⏱ ~35 dakika</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> SFT'nin ötesinde hizalama (alignment):
+            insan tercihleriyle ödül modeli eğitmek, PPO ile pekiştirmeli öğrenme ve
+            daha basit modern alternatif DPO. ChatGPT'nin "kibar" olmasının arkasındaki son katman.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>SFT Neden Yetmez?</h2>
+
+            <p>
+                SFT, modele "insanların nasıl cevap verdiğini" öğretir ama tek cevabı temsil eder.
+                Gerçekte birçok cevap "doğru"dur — bazıları diğerlerinden daha yararlı, daha net, daha güvenli.
+                <strong>Hizalama (alignment)</strong> aşaması, insanların tercih ettiği cevap biçimini öğrenir.
+            </p>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    SFT doktora "doğru cevabı" verir. RLHF ona "hastaların beğenisini" öğretir:
+                    iki doktor da reçete yazabilir ama biri hastasını korkutmadan anlatır.
+                    "İyi olmak" teknik bilgi değil, <em>tercih öğrenimi</em>dir.
+                </p>
+            </div>
+
+            <h2>RLHF Üç Aşaması</h2>
+
+            <div class="io-akis">
+                <div class="io-kutu"><div class="io-baslik">1. Tercih Verisi</div><div class="io-icerik">Aynı soruya 2 cevap → insan "A'yı tercih ederim" der</div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">2. Ödül Modeli</div><div class="io-icerik">İnsan tercihlerini taklit eden skorlayıcı model eğitilir</div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">3. PPO Eğitimi</div><div class="io-icerik">LLM, ödül modelinden yüksek skor alacak şekilde güncellenir</div></div>
+            </div>
+
+            <h2>Ödül Modeli (Reward Model)</h2>
+
+            <pre><code class="language-python"># Ödül modeli = SFT modelinden türetilen, cevaba "skor" veren model
+# Eğitim: insan tercih verisiyle
+# Girdi: (prompt, cevap) → Çıktı: skor (yüksek = iyi)
+
+# Bradley-Terry kaybı: tercih edilen cevabın skoru > diğeri olsun
+kayip = -torch.log(torch.sigmoid(r_secilen - r_reddedilen)).mean()
+# r_secilen: tercih edilen cevabın skoru
+# r_reddedilen: reddedilen cevabın skoru
+# Model, tercih sıralamasını öğrenir.</code></pre>
+
+            <h2>PPO: Pekiştirmeli Öğrenme ile LLM Eğitimi</h2>
+
+            <pre><code class="language-python"># PPO döngüsü (basitleştirilmiş):
+# 1. Politika (LLM) cevap üretir
+# 2. Ödül modeli cevaba skor verir
+# 3. Yüksek skorlu cevapların olasılığı artırılır
+
+# KL cezası: modelin SFT modelinden çok uzaklaşmasını önler
+odul = odul_modeli(prompt, cevap) - beta * KL(politika, referans_model)
+# beta ~0.1: "özgür kal ama köklerinden kopma"
+
+# PPO'nun avantajı: online — model kendi ürettiği cevaplardan öğrenir
+# Dezavantajı: karmaşık, dengesiz, hiperparametre hassas</code></pre>
+
+            <h2>DPO: Ödül Modeli Olmadan Hizalama</h2>
+
+            <p>
+                2023'te Stanford ekibi (DPO) şunu gösterdi: insan tercih verisinden doğrudan
+                LLM'i güncelleyebilirsiniz — ödül modeli ve PPO'ya gerek yok!
+            </p>
+
+            <pre><code class="language-python">from trl import DPOTrainer, DPOConfig
+
+# DPO veri seti: her satır (prompt, chosen, rejected)
+veri = [
+    {"prompt": "Kediler neden mırıldar?",
+     "chosen":  "Kediler mırıldar çünkü... (yardımcı, nazik, detaylı)",
+     "rejected": "Bilmiyorum. (kısa, yararsız)"},
+    # ... binlerce örnek
+]
+
+ayarlar = DPOConfig(
+    beta=0.1,  # Referans modele bağlılık — yüksek beta = daha az sapma
+    learning_rate=5e-7,
+    per_device_train_batch_size=2
+)
+
+egitmen = DPOTrainer(model=model, ref_model=None, args=ayarlar, train_dataset=veri)
+egitmen.train()
+# ref_model=None → LoRA kullanıyorsanız otomatik referans yaratılır</code></pre>
+
+            <h2>RLHF vs DPO Karşılaştırması</h2>
+
+            <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin:1rem 0">
+                <thead><tr style="color:var(--edu-text-dim);font-size:0.75rem;text-align:left">
+                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">Özellik</th>
+                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">RLHF + PPO</th>
+                    <th style="padding:0.5rem;border-bottom:1px solid var(--edu-border)">DPO</th></tr></thead>
+                <tbody>
+                    <tr><td style="padding:0.5rem">Ödül modeli gerekli</td><td style="padding:0.5rem;color:#ef4444">Evet (ayrı model eğitimi)</td><td style="padding:0.5rem;color:#8fd94a">Hayır</td></tr>
+                    <tr><td style="padding:0.5rem">Karmaşıklık</td><td style="padding:0.5rem;color:#ef4444">Yüksek (RL döngüsü)</td><td style="padding:0.5rem;color:#8fd94a">Düşük (sınıflandırma benzeri)</td></tr>
+                    <tr><td style="padding:0.5rem">Kararlılık</td><td style="padding:0.5rem;color:#ef4444">Zor (hiperparametre hassas)</td><td style="padding:0.5rem;color:#8fd94a">Çok daha stabil</td></tr>
+                    <tr><td style="padding:0.5rem">Donanım</td><td style="padding:0.5rem;color:#ef4444">3 model aynı anda GPU'da</td><td style="padding:0.5rem;color:#8fd94a">1-2 model</td></tr>
+                    <tr><td style="padding:0.5rem">Sonuç kalitesi</td><td style="padding:0.5rem">Değişken, bazen daha iyi</td><td style="padding:0.5rem">Çoğu durumda eşdeğer, daha öngörülebilir</td></tr>
+                </tbody>
+            </table>
+
+            <div class="dikkat-kutu">
+                <span class="etiket">⚠️ DPO'nun Sınırı</span>
+                <p>
+                    DPO "kapalı kapı" verisidir: sadece hazır tercih çiftleriyle öğrenir.
+                    RLHF online'dır: model kendi cevaplarını üretip puanlanmayı bekler — zamanla daha zorlu
+                    durumlara adapte olabilir. Büyük laboratuvarlar (OpenAI, Anthropic) hâlâ RLHF varyantları kullanır;
+                    küçük ekipler için DPO neredeyse her zaman daha pratiktir.
+                </p>
+            </div>
+
+            <h2>İnteraktif: Tercih → Ödül → Politika Döngüsü</h2>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>RLHF / DPO Akış Şeması</b></div>
+                <div class="viz-mount" id="viz-rlhf" style="min-height:320px"></div>
+            </div>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Ouyang, L. et al. (2022). <em>"Training language models to follow instructions with human feedback"</em> (InstructGPT). <a href="https://arxiv.org/abs/2203.02155" target="_blank">arXiv:2203.02155</a> — RLHF'ın kurucu makalesi.</li>
+                    <li>Rafailov, R. et al. (2023). <em>"Direct Preference Optimization: Your Language Model is Secretly a Reward Model"</em> (DPO). NeurIPS. <a href="https://arxiv.org/abs/2305.18290" target="_blank">arXiv:2305.18290</a>.</li>
+                    <li>Schulman, J. et al. (2017). <em>"Proximal Policy Optimization Algorithms"</em> (PPO). <a href="https://arxiv.org/abs/1707.06347" target="_blank">arXiv:1707.06347</a>.</li>
+                    <li>Christiano, P. et al. (2017). <em>"Deep RL from Human Preferences"</em>. NeurIPS — İnsan tercihleriyle RL'in kökeni.</li>
+                    <li>HuggingFace TRL Docs — DPOTrainer. <a href="https://huggingface.co/docs/trl/dpo_trainer" target="_blank">huggingface.co/docs/trl</a>.</li>
+                    <li>Zheng, R. et al. (2023). <em>"Secrets of RLHF in Large Language Models"</em> — RLHF'nin pratik zorlukları (reward hacking, vb.).</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/rlhf.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

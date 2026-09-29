@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>İnce Ayar ve SFT (Instruction Tuning) — Bursa YZGT</title>
+    <meta name="description" content="Talimat veri seti formatı, chat template, loss maskesi ve SFTTrainer ile eğitim. Temel modele davranış öğretme sanatı.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/ince-ayar-sft/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-llm" data-ders-slug="ince-ayar-sft">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu">
+            <h1>İnce Ayar ve SFT (Instruction Tuning)</h1>
+            <div class="ders-meta"><span>📚 L7 · LLM Serisi</span><span>⏱ ~40 dakika</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Temel modeli asistana çeviren süreç,
+            talimat veri seti formatları, chat template, loss maskesi ile sadece cevabı öğretmek ve
+            Hugging Face SFTTrainer ile uçtan uca eğitim.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Temel Model Neden Yetmez?</h2>
+
+            <p>
+                Önceki derste öğrendik: temel model sadece metni sürdürür. Oysa bir asistanın
+                <strong>talimatları izlemesi, soruları yanıtlaması ve ne zaman duracağını bilmesi</strong> gerekir.
+                Bu davranışı öğreten aşamaya <strong>SFT (Supervised Fine-Tuning)</strong> denir.
+            </p>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Temel model, tıp fakültesini bitirmiş ama hiç hastayla konuşmamış bir doktordur.
+                    Kitap bilgisine sahiptir ama "hasta nasıl karşılanır, nasıl açıklama yapılır" bilmez.
+                    SFT, doktorun stajyerlik dönemidir: kıdemli doktorların hasta konuşmalarını izleyerek
+                    mesleki davranışları öğrenir. Tıp bilgisi zaten var — öğrenilen şey <em>davranış biçimi</em>dir.
+                </p>
+            </div>
+
+            <h2>Talimat Veri Seti: Modelin Davranış Rehberi</h2>
+
+            <pre><code class="language-python"># Standart talimat formatı (JSONL — her satır bir örnek):
+{"messages": [
+    {"role": "system",    "content": "Sen Türkçe konuşan yardımcı bir asistansın."},
+    {"role": "user",      "content": "Bursa'da nereleri gezmeliyim?"},
+    {"role": "assistant", "content": "Bursa'da Ulu Cami, Tophane Saat Kulesi ve Cumalıkızık köyünü mutlaka görmelisiniz..."}
+]}
+
+# Kalite altın kural: 200 uzman onaylı örnek > 2000 özensiz örnek
+# Başarılı SFT için tipik boyutlar: 1.000 - 100.000 örnek</code></pre>
+
+            <h2>Chat Template: Roller Arası Sınırlar</h2>
+
+            <pre><code class="language-python">from transformers import AutoTokenizer
+
+tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B")
+
+messages = [
+    {"role": "user", "content": "Merhaba!"},
+    {"role": "assistant", "content": "Merhaba! Nasıl yardımcı olabilirim?"}
+]
+
+# Tokenizer, mesajları modele özgü özel token'larla tek metne çevirir:
+metin = tokenizer.apply_chat_template(messages, tokenize=False)
+print(metin)
+# <|begin_of_text|><|start_header_id|>user<|end_header_id|>
+# Merhaba!<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+# Merhaba! Nasıl yardımcı olabilirim?<|eot_id|>
+
+# <|eot_id|> = End of Turn: model "sıra bitti" işaretini buradan öğrenir.</code></pre>
+
+            <h2>Loss Maskesi: Sadece Cevabı Öğret</h2>
+
+            <p>
+                Kritik detay: modelin <strong>soruyu değil, sadece cevabı üretmeyi</strong> öğrenmesini isteriz.
+                Bunu, kayıp hesaplanırken kullanıcı/sistem tokenlarını <em>maskeleyerek</em> yaparız:
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Loss Maskesi — Hangi Token'lardan Öğrenilir?</b></div>
+                <div class="viz-mount" id="viz-sft-maske" style="min-height:300px"></div>
+            </div>
+
+            <pre><code class="language-python"># Manuel loss maskesi mantığı:
+# labels dizisinde maskelenen token'lar -100 olarak işaretlenir
+# CrossEntropyLoss -100'ü yok sayar (ignore_index)
+
+etiketler = input_ids.clone()
+etiketler[:, :cevap_baslangici] = -100   # Sistem + kullanıcı kısmını maskele
+kayip = model(input_ids, labels=etiketler).loss
+# Model sadece asistan token'larını tahmin etmekten ceza/ödül alır.</code></pre>
+
+            <h2>SFTTrainer ile Uçtan Uca Eğitim</h2>
+
+            <pre><code class="language-python">from datasets import load_dataset
+from trl import SFTTrainer, SFTConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+model_adi = "Qwen/Qwen2.5-1.5B-Instruct"   # Küçük model — Colab ücretsiz GPU'da çalışır
+tokenizer = AutoTokenizer.from_pretrained(model_adi)
+model = AutoModelForCausalLM.from_pretrained(model_adi, torch_dtype="auto", device_map="auto")
+
+veri = load_dataset("HuggingFaceH4/ultrachat_200k", split="train_sft[:2000]")
+
+ayarlar = SFTConfig(
+    output_dir="./cikti",
+    num_train_epochs=1,
+    per_device_train_batch_size=2,
+    learning_rate=2e-5,           # SFT'de LR düşük tutulur — pretraining'den ~10x küçük
+    max_length=2048,
+    logging_steps=10,
+)
+
+egitmen = SFTTrainer(model=model, args=ayarlar, train_dataset=veri)
+egitmen.train()
+egitmen.save_model("./asistanim")  # Hazır!</code></pre>
+
+            <h2>Ne Zaman Fine-Tuning, Ne Zaman Prompt?</h2>
+
+            <ul>
+                <li>✅ <strong>Fine-tuning gerekli:</strong> tutarlı çıktı formatı (JSON şeması), alan jargonu, davranış tutarlılığı, token maliyetini düşürme (kısa prompt yeterli olur).</li>
+                <li>❌ <strong>Fine-tuning gereksiz:</strong> bilgi eksikliği (→ RAG kullanın), birkaç örnekle çözülebilen görevler (→ few-shot prompting), genel soru-cevap.</li>
+            </ul>
+
+            <div class="dikkat-kutu">
+                <span class="etiket">⚠️ Katastrofik Unutma</span>
+                <p>
+                    SFT modelin genel yeteneklerini zayıflatabilir (catastrophic forgetting).
+                    Önlem: düşük LR (1e-5 ~ 5e-5), az epoch (1-3), genel veri karışımına biraz genel sohbet verisi eklemek.
+                    Değerlendirmeyi unutmayın: hem hedef görevde hem genel benchmarklarda (MMLU gibi) test edin.
+                </p>
+            </div>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Ouyang, L. et al. (2022). <em>"Training language models to follow instructions with human feedback"</em> (InstructGPT). <a href="https://arxiv.org/abs/2203.02155" target="_blank">arXiv:2203.02155</a> — SFT+RLHF hattının kurucu makalesi.</li>
+                    <li>Chung, H. W. et al. (2022). <em>"Scaling Instruction-Finetuned Language Models"</em> (FLAN). <a href="https://arxiv.org/abs/2210.11416" target="_blank">arXiv:2210.11416</a>.</li>
+                    <li>Hugging Face TRL — SFTTrainer Docs. <a href="https://huggingface.co/docs/trl/sft_trainer" target="_blank">huggingface.co/docs/trl</a>.</li>
+                    <li>Raschka, S. (2024). <em>Build a Large Language Model (From Scratch)</em>. Bölüm 7 — Instruction finetuning. <a href="https://github.com/rasbt/LLMs-from-scratch" target="_blank">GitHub</a>.</li>
+                    <li>Wang, Y. et al. (2023). <em>"Self-Instruct: Aligning Language Models with Self-Generated Instructions."</em> ACL. — Sentetik SFT verisi üretimi.</li>
+                    <li>HuggingFaceH4. <em>ultrachat_200k ve openassistant-guanaco veri setleri</em>. <a href="https://huggingface.co/datasets" target="_blank">huggingface.co/datasets</a>.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/sft-maske.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transformer Mimarisi — Bursa YZGT</title>
+    <meta name="description" content="Çok başlık dikkat, artık bağlantılar, layer normalization ve feed-forward katmanı. Tam transformer bloğunu sıfırdan birleştirin.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/transformer-mimarisi/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-llm" data-ders-slug="transformer-mimarisi">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu">
+            <h1>Transformer Mimarisi</h1>
+            <div class="ders-meta"><span>📚 L4 · LLM Serisi</span><span>⏱ ~35 dakika</span><span>🧊 3D İnteraktif</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Self-attention'ı tam bir transformer bloğuna dönüştürmek:
+            multi-head attention + residual bağlantılar + layer normalization + feed-forward ağı.
+            Sonunda GPT'nin mimarisini tam anlayacaksınız.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Attention Yetmez — Bir Blok Lazım</h2>
+
+            <p>
+                Önceki derste attention'ın kelimelerin birbirine bakmasını sağladığını gördük.
+                Ama tek attention katmanı bir dil modeli yapmaz. Transformer bloğu,
+                attention'ı üç kritik bileşenle tamamlar: <strong>residual bağlantı</strong>,
+                <strong>layer normalization</strong> ve <strong>feed-forward ağ</strong>.
+            </p>
+
+            <div class="io-akis">
+                <div class="io-kutu"><div class="io-baslik">Girdi x</div><div class="io-icerik">Token embeddingleri<br>+ pozisyon</div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">Multi-Head Attention</div><div class="io-icerik">Kelimeler birbirine bakar<br><b>+ x (residual)</b></div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">Feed-Forward</div><div class="io-icerik">Her kelime bağımsız işlenir<br><b>+ x (residual)</b></div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">Çıktı</div><div class="io-icerik">Sonraki bloğa<br>(×12, ×24... kez tekrar)</div></div>
+            </div>
+
+            <h2>Residual Bağlantı: Bilgi Otoyolu</h2>
+
+            <pre><code class="language-python"># Residual: çıktı = katman(x) + x
+# Bilgi katmanı "atlayarak" doğrudan ileri akar
+
+cikis = x + self.attention(x)   # Attention ne eklediyse eklesin,
+                                 # ama orijinal x kaybolmasın</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Residual bağlantı, bir belgeyi düzenlerken <strong>orijinal metni silmemek</strong> gibidir.
+                    Her düzenleme katmanı (attention, feed-forward) belgeye <em>ekleme yapar</em> ama
+                    orijinali korur. Orijinali silseniz 100 katman sonra başlangıçtaki cümle kaybolurdu.
+                    Gradyanlar da bu "otoyol"dan akarak ilk katmanlara sağlıklı ulaşır.
+                </p>
+            </div>
+
+            <h2>Layer Normalization: Değerleri Dengede Tut</h2>
+
+            <pre><code class="language-python"># Her tokenın vektörünü: ortalama=0, varyans=1 yap
+def layer_norm(x, eps=1e-5):
+    ort = x.mean(dim=-1, keepdim=True)
+    var = x.var(dim=-1, unbiased=False, keepdim=True)
+    return (x - ort) / (var + eps).sqrt()
+
+# Neden? Değerler katman katman büyürse/küçülürse eğitim kararsızlaşır.
+# LayerNorm her katman girişini "aynı ölçeğe" çeker.</code></pre>
+
+            <h2>Feed-Forward Ağı: Her Tokenın Kişisel İşlemcisi</h2>
+
+            <pre><code class="language-python">class FeedForward(nn.Module):
+    def __init__(self, embed_dim):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(embed_dim, 4 * embed_dim),  # Genişlet: 768 → 3072
+            nn.GELU(),                            # Aktivasyon
+            nn.Linear(4 * embed_dim, embed_dim),  # Daralt: 3072 → 768
+        )
+    def forward(self, x):
+        return self.net(x)
+
+# Attention: tokenlar arası iletişim kurar ("sosyalleşme")
+# Feed-forward: her token bu bilgiyi kendi içinde işler ("derin düşünme")</code></pre>
+
+            <h2>Tam Transformer Bloğu — PyTorch ile</h2>
+
+            <pre><code class="language-python">import torch
+import torch.nn as nn
+
+class TransformerBlok(nn.Module):
+    def __init__(self, embed_dim, n_bas):
+        super().__init__()
+        self.ln1 = nn.LayerNorm(embed_dim)
+        self.att = MultiHeadAttention(embed_dim, n_bas)  # L3 dersindeki
+        self.ln2 = nn.LayerNorm(embed_dim)
+        self.ffn = FeedForward(embed_dim)
+
+    def forward(self, x):
+        # Pre-norm mimarisi (modern GPT'ler böyle kullanır):
+        x = x + self.att(self.ln1(x))   # Attention + residual
+        x = x + self.ffn(self.ln2(x))   # Feed-forward + residual
+        return x
+
+# GPT-2 small: bu bloktan 12 tane üst üste!
+class GPT(nn.Module):
+    def __init__(self, vocab, embed_dim, n_bas, n_blok, max_len):
+        super().__init__()
+        self.token_emb = nn.Embedding(vocab, embed_dim)
+        self.pos_emb = nn.Embedding(max_len, embed_dim)
+        self.bloklar = nn.ModuleList([TransformerBlok(embed_dim, n_bas) for _ in range(n_blok)])
+        self.ln_final = nn.LayerNorm(embed_dim)
+        self.kafa = nn.Linear(embed_dim, vocab, bias=False)  # Çıktı: her kelime için skor
+
+    def forward(self, token_idler):
+        T = token_idler.shape[1]
+        x = self.token_emb(token_idler) + self.pos_emb(torch.arange(T))
+        for blok in self.bloklar:
+            x = blok(x)
+        x = self.ln_final(x)
+        return self.kafa(x)   # (batch, T, vocab) → her pozisyon için kelime skorları</code></pre>
+
+            <h2>Encoder vs Decoder Farkı</h2>
+
+            <ul>
+                <li><strong>Encoder (BERT tarzı):</strong> Maskeleme yok — her kelime her yöne bakabilir. Anlama görevlerinde iyi (sınıflandırma, NER).</li>
+                <li><strong>Decoder (GPT tarzı):</strong> Nedensel maske — sadece geçmişe bakar. Metin üretimi için tasarlandı.</li>
+                <li><strong>Encoder-Decoder (T5, orijinal Transformer):</strong> Çeviri gibi giriş-çıkış dönüşümlerinde kullanılır.</li>
+            </ul>
+
+            <div class="dikkat-kutu">
+                <span class="etiket">⚠️ Boyutların Büyüklüğü</span>
+                <p>
+                    GPT-2 small: 12 blok, 768 boyut, 117M parametre.
+                    GPT-3: 96 blok, 12.288 boyut, 175M parametre.
+                    Mimari <strong>tamamen aynı</strong> — sadece ölçek değişir.
+                    Bir sonraki derste kendi mini-GPT'nizi eğiteceksiniz!
+                </p>
+            </div>
+
+            <h2>İnteraktif: 3D Transformer Akışı</h2>
+
+            <p>
+                Verinin transformer bloğundaki yolculuğunu 3D izleyin: token embeddinglerinin
+                attention ve feed-forward katmanlarından nasıl geçtiğini görün.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>3D Transformer Bloğu — Veri Akışı</b><span style="font-size:0.75rem">↔ Sürükleyin</span></div>
+                <div class="viz-mount" id="viz-transformer" style="min-height:380px"></div>
+            </div>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Vaswani, A. et al. (2017). <em>"Attention Is All You Need."</em> NeurIPS. <a href="https://arxiv.org/abs/1706.03762" target="_blank">arXiv:1706.03762</a></li>
+                    <li>He, K. et al. (2016). <em>"Deep Residual Learning for Image Recognition"</em> (ResNet). <a href="https://arxiv.org/abs/1512.03385" target="_blank">arXiv:1512.03385</a> — Residual bağlantıların kaynağı.</li>
+                    <li>Ba, J., Kiros, J. R., & Hinton, G. (2016). <em>"Layer Normalization."</em> <a href="https://arxiv.org/abs/1607.06450" target="_blank">arXiv:1607.06450</a></li>
+                    <li>radford, A. et al. (2019). <em>"Language Models are Unsupervised Multitask Learners"</em> (GPT-2). — Decoder-only mimarinin temelini atan makale.</li>
+                    <li>Raschka, S. (2024). <em>Build a Large Language Model (From Scratch)</em>. Bölüm 4 — GPT implementasyonu. <a href="https://github.com/rasbt/LLMs-from-scratch" target="_blank">GitHub</a></li>
+                    <li>Alammar, J. <em>"The Illustrated GPT-2"</em>. <a href="https://jalammar.github.io/illustrated-gpt2/" target="_blank">jalammar.github.io</a></li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/transformer.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

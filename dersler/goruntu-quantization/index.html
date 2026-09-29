@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Görüntü Modellerinde Quantization — Bursa YZGT</title>
+    <meta name="description" content="FP32→FP16→INT8 görüntü modelleri, VAE/difüzyon quantization ve TensorRT/ONNX hızlandırma. Üretim ortamında optimize etme.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/goruntu-quantization/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-goruntu" data-ders-slug="goruntu-quantization">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu"><h1>Görüntü Modellerinde Quantization</h1>
+            <div class="ders-meta"><span>📚 G9 · Görüntü Serisi</span><span>⏱ ~25 dakika</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Quantization'ın görüntü modellerine özgü zorlukları,
+            VAE quantization'ının renk etkisi, TensorRT/ONNX ile hızlandırma ve pratik karar kılavuzu.
+            LLM ve görüntü quantization farkları.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>LLM vs Görüntü Modeli Quantization Farkı</h2>
+
+            <div class="io-akis">
+                <div class="io-kutu"><div class="io-baslik">LLM Quantization</div><div class="io-icerik">Hata = metin kalitesi<br>İnsan okuyup fark edebilir<br>Geniş tolerans</div></div>
+                <div class="io-ok">vs</div>
+                <div class="io-kutu"><div class="io-baslik">Görüntü Quantization</div><div class="io-icerik">Hata = renk kayması / doku bozukluğu<br>Piksel düzeyinde görünür<br>Daha hassas</div></div>
+            </div>
+
+            <p>
+                LLM'de INT4 neredeyse görünmezdir; görüntüde VAE decoder'ı quantize ederseniz
+                renkler kayabilir, bulanıklık artabilir. Fakat UNet quantization daha güvenlidir.
+            </p>
+
+            <h2>Hangi Katmanı Ne Kadar Sıkıştırmalı?</h2>
+
+            <pre><code class="language-python"># Görüntü modellerinde quantization riski sıralaması (düşük→yüksek risk):
+# 1. UNet (denoising) — INT8 genellikle sorunsuz, INT4 kaliteye dokunabilir
+# 2. Text Encoder (CLIP) — INT8 genellikle iyi
+# 3. VAE Decoder — HASSAS! INT8'de renk kayması yaygın; FP16 tutun mümkünse
+#
+# Pratik öneri (SDXL):
+#   - UNet: INT8 veya FP8 (TensorRT/Mixed precision)
+#   - VAE: FP16 veya FP32 (decode hassas)</code></pre>
+
+            <h2>TensorRT ile Hızlandırma</h2>
+
+            <pre><code class="language-python"># NVIDIA TensorRT: modeli özel GPU kernel optimizasyonlarıyla derler
+# pip install torch-tensorrt
+
+import torch
+import torch_tensorrt
+
+model = torch.hub.load("facebookresearch/dinov2", "dinov2_vits14")
+input_example = torch.randn(1, 3, 224, 224).cuda()
+
+# torch.compile gibi ama daha agresif optimizasyonlar
+compiled = torch_tensorrt.compile(model, inputs=[input_example])
+# SD'de %50-100 hız artışı tipiktir</code></pre>
+
+            <h2>ONNX: Tek Format Her Yerde</h2>
+
+            <pre><code class="language-python"># ONNX: PyTorch/TensorFlow modelini ortak formata çevir,
+# her platformda (CPU, GPU, mobil) çalıştır
+
+import torch
+
+torch.onnx.export(
+    model,
+    input_example,
+    "model.onnx",
+    opset_version=17,          # Quantization destekli opset
+    input_names=["resim"],
+    output_names=["tahmin"],
+    dynamic_axes={"resim": {0: "batch"}}  # Esnek batch boyutu
+)
+# onnxruntime ile her platformda çalıştırılabilir
+import onnxruntime as ort
+oturum = ort.InferenceSession("model.onnx")</code></pre>
+
+            <h2>İnteraktif: Quantization Kalite-Hız Dengesi</h2>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Quantization Trade-off — Hız vs Kalite Eğrisi</b></div>
+                <div class="viz-mount" id="viz-quant" style="min-height:320px"></div>
+            </div>
+
+            <h2>Pratik Karar Kılavuzu</h2>
+
+            <ul>
+                <li>✅ <strong>Mobil/embedded:</strong> INT8 zorunlu (bellek ve pil kısıtı).</li>
+                <li>✅ <strong>Üretim sunucusu:</strong> FP16 veya INT8 UNet + FP16 VAE — kaliteyi korur, ~2x hız.</li>
+                <li>✅ <strong>Araştırma/maksimum kalite:</strong> FP32/BF16 her şeyde, TensorRT zorunlu değil.</li>
+                <li>⚠️ <strong>SDXL Turbo/Lightning:</strong> Zaten hızlı; quantization'ın ek yararı sınırlı olabilir.</li>
+            </ul>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Jacob, B. et al. (2018). <em>"Quantization and Training of Neural Networks for Efficient Integer-Arithmetic-Only Inference."</em> CVPR. <a href="https://arxiv.org/abs/1712.05877" target="_blank">arXiv:1712.05877</a> — Post-training quantization teorisi.</li>
+                    <li>NVIDIA TensorRT Docs. <a href="https://docs.nvidia.com/deeplearning/tensorrt/" target="_blank">docs.nvidia.com</a>.</li>
+                    <li>ONNX Runtime. <a href="https://onnxruntime.ai/" target="_blank">onnxruntime.ai</a> — Taşınabilir inference.</li>
+                    <li>Hugging Face Optimum. <a href="https://huggingface.co/docs/optimum" target="_blank">huggingface.co/docs/optimum</a> — ONNX+quantization için kolay API.</li>
+                    <li>Lin, Y. et al. (2024). <em>"Q-VLM: Post-training Quantization for Large Vision-Language Models"</em>. NeurIPS — Görüntü modellerinde quantization sınırları.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/viz-quant.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

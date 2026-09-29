@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Self-Attention: Model Nereye Bakıyor? — Bursa YZGT</title>
+    <meta name="description" content="Query/Key/Value, attention matrisi ve nedensel maskeleme. Transformer'ın kalbi olan self-attention mekanizmasını sıfırdan öğrenin.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/self-attention/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-llm" data-ders-slug="self-attention">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu">
+            <h1>Self-Attention: Model Nereye Bakıyor?</h1>
+            <div class="ders-meta"><span>📚 L3 · LLM Serisi</span><span>⏱ ~35 dakika</span><span>🧊 3D İnteraktif</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Query/Key/Value kavramları, attention skorunun nasıl hesaplandığı,
+            softmax, nedensel maskeleme ve çok başlık dikkat. Transformer'ın gücünün kaynağı burasıdır.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Problem: Kelime Anlamı Bağlama Bağlıdır</h2>
+
+            <p>"Bank" kelimesini düşünün: "nehir kenarındaki bank" vs "para çekmek için banka". Aynı kelime, farklı anlam.
+                Model anlamı çözmek için <em>etrafındaki</em> kelimelere bakmalı. Self-attention tam olarak bunu yapar:
+                her kelimeye, cümledeki <strong>diğer tüm kelimelerle</strong> ne kadar ilişkili olduğunu sorar.
+            </p>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Kalabalık bir partide bir konuşmayı yakalamaya çalışıyorsunuz.
+                    Herkes aynı anda konuşuyor ama siz beyninizi önemli kaynaklara odaklıyorsunuz.
+                    Self-attention: her kelime, diğer kelimelere "benim için ne kadar önemlisin?" diye sorar
+                    ve cevabına göre onlardan bilgi toplar. Önemsiz kelimeler = kısık ses, önemli kelimeler = yüksek ses.
+                </p>
+            </div>
+
+            <h2>Query, Key, Value</h2>
+
+            <p>Her kelime için üç vektör üretiriz:</p>
+
+            <pre><code class="language-python">import torch
+import torch.nn as nn
+
+embed_dim = 64
+Q = nn.Linear(embed_dim, embed_dim, bias=False)  # Sorgu vektörü
+K = nn.Linear(embed_dim, embed_dim, bias=False)  # Anahtar vektörü
+V = nn.Linear(embed_dim, embed_dim, bias=False)  # Değer vektörü
+
+# girdi: (seq_len, embed_dim) — her kelime için 64 boyutlu embedding
+# Q(x): "Ben ne arıyorum?" (Query)
+# K(x): "Benim anlamım / içeriğim nedir?" (Key)
+# V(x): "Sana ne bilgi sunabilirim?" (Value)</code></pre>
+
+            <div class="io-akis">
+                <div class="io-kutu"><div class="io-baslik">Query (Sorgu)</div><div class="io-icerik">"Ben ne arıyorum?"<br>— Bu kelimenin bakış açısı</div></div>
+                <div class="io-ok">×</div>
+                <div class="io-kutu"><div class="io-baslik">Key (Anahtar)</div><div class="io-icerik">"Ben neyim?"<br>— Her kelimenin kimliği</div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">Skor</div><div class="io-icerik">Q·K = ilgi düzeyi<br>High = çok bak<br>Low = az bak</div></div>
+            </div>
+
+            <h2>Attention Formülü</h2>
+
+            <pre><code class="language-python"># Attention(Q, K, V) = softmax(Q @ K.T / sqrt(d_k)) @ V
+#
+# Adım adım:
+#
+# 1. Q @ K.T  → attention skorları (seq_len × seq_len matrisi)
+#    - Her kelime her kelimeyle skor hesaplar
+#    - Büyük skor = çok ilişkili
+#
+# 2. / sqrt(d_k)  → ölçekleme (gradyanların stabilitesi için)
+#    - d_k = 64 → sqrt(64) = 8 ile böl
+#
+# 3. softmax  → satır toplamını 1 yap
+#    - Her kelime toplamda %100 dikkat dağıtır
+#
+# 4. @ V  → ağırlıklı değer toplamı
+#    - Skorlar yüksek olan kelimelerden daha çok bilgi al
+
+def attention(x, Q, K, V):
+    q, k, v = Q(x), K(x), V(x)      # (seq, dim)
+    dk = x.shape[-1]
+    skor = q @ k.T / dk**0.5         # (seq, seq)
+    agirliklar = torch.softmax(skor, dim=-1)  # (seq, seq)
+    return agirliklar @ v            # (seq, dim)</code></pre>
+
+            <h2>Nedensel Maskeleme (Causal Masking)</h2>
+
+            <p>
+                Dil modeli metni soldan sağa ürettiği için, kelime t+1'inci kelimeye bakamaz
+                (geleceği göremez). Nedensel maskeleme bunu engeller:
+            </p>
+
+            <pre><code class="language-python">seq_len = 4
+maske = torch.tril(torch.ones(seq_len, seq_len))
+# Alt üçgen: 1. kelime sadece kendini görür, 2. kendisi + 1., vs.
+# [[1, 0, 0, 0],
+#  [1, 1, 0, 0],
+#  [1, 1, 1, 0],
+#  [1, 1, 1, 1]]
+
+skor = skor.masked_fill(maske == 0, float("-inf"))
+# -inf → softmax sonrası 0 olur → gelecek kelimelere bakılamaz
+agirliklar = torch.softmax(skor, dim=-1)</code></pre>
+
+            <h2>İnteraktif: 3D Attention Matrisi</h2>
+
+            <p>
+                Aşağıda örnek bir cümlenin attention matrisini 3D olarak görüyorsunuz.
+                Her hücre [i][j], "i kelimesinin j kelimesine verdiği dikkat ağırlığı"nı gösterir.
+                Yüksek sütun = çok dikkat.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>3D Attention Matrisi — Q·K Skor Görselleştirmesi</b><span style="font-size:0.75rem">↔ Sürükleyin</span></div>
+                <div class="viz-mount" id="viz-attention" style="min-height:360px"></div>
+            </div>
+
+            <h2>Çok Başlık Dikkat (Multi-Head Attention)</h2>
+
+            <p>
+                Tek bir attention başlığı tek bir ilişki türünü öğrenir (örn. özne-nesne).
+                Çok başlık dikkat, kelime uzayını parçalara bölerek her parçada
+                <em>farklı ilişki türleri</em> öğrenir:
+            </p>
+
+            <pre><code class="language-python">class MultiHeadAttention(nn.Module):
+    def __init__(self, embed_dim=64, n_bas=4):
+        super().__init__()
+        self.n_bas = n_bas
+        self.bas_dim = embed_dim // n_bas   # 64/4 = 16 boyut per baş
+        self.Q = nn.Linear(embed_dim, embed_dim, bias=False)
+        self.K = nn.Linear(embed_dim, embed_dim, bias=False)
+        self.V = nn.Linear(embed_dim, embed_dim, bias=False)
+        self.proj = nn.Linear(embed_dim, embed_dim, bias=False)
+
+    def forward(self, x):
+        B, T, C = x.shape   # batch, seq, dim
+        q = self.Q(x).view(B, T, self.n_bas, self.bas_dim).transpose(1, 2)
+        k = self.K(x).view(B, T, self.n_bas, self.bas_dim).transpose(1, 2)
+        v = self.V(x).view(B, T, self.n_bas, self.bas_dim).transpose(1, 2)
+
+        skor = q @ k.transpose(-2, -1) / self.bas_dim**0.5
+        att = torch.softmax(skor, dim=-1)
+        out = att @ v   # (B, n_bas, T, bas_dim)
+
+        out = out.transpose(1, 2).contiguous().view(B, T, C)  # Başları birleştir
+        return self.proj(out)</code></pre>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Vaswani, A. et al. (2017). <em>"Attention Is All You Need."</em> NeurIPS. <a href="https://arxiv.org/abs/1706.03762" target="_blank">arXiv:1706.03762</a> — Transformer ve attention'ın kurucu makalesi. Mutlaka okuyun.</li>
+                    <li>Alammar, J. <em>"The Illustrated Transformer"</em>. <a href="https://jalammar.github.io/illustrated-transformer/" target="_blank">jalammar.github.io</a> — En iyi görsel açıklama.</li>
+                    <li>Raschka, S. (2024). <em>Build a Large Language Model (From Scratch)</em>. Manning. Bölüm 3 — Self-attention sıfırdan. <a href="https://github.com/rasbt/LLMs-from-scratch" target="_blank">GitHub</a>.</li>
+                    <li>Karpathy, A. (2023). <em>nanoGPT</em>. <a href="https://github.com/karpathy/nanoGPT" target="_blank">github.com/karpathy/nanoGPT</a> — attention implementasyonu için.</li>
+                    <li>3Blue1Brown (2024). <em>"Attention in transformers, clearly explained"</em> (YouTube). <a href="https://www.youtube.com/watch?v=eMlx5fFNoYc" target="_blank">izle</a>.</li>
+                    <li>BERT Attention Viz. <a href="https://github.com/jessevig/bertviz" target="_blank">bertviz</a> — Gerçek modellerin attention'ını görselleştirme aracı.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/attention.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

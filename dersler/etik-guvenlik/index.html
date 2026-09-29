@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Etik ve Güvenlik — Bursa YZGT</title>
+    <meta name="description" content="Yanlılık, halüsinasyon, veri gizliliği ve sorumlu yapay zeka geliştirme. Yapay zeka mühendisinin mesleki pusulası.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/etik-guvenlik/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-uzman" data-ders-slug="etik-guvenlik">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu"><h1>Etik ve Güvenlik</h1>
+            <div class="ders-meta"><span>📚 U5 · Uzman Serisi</span><span>⏱ ~25 dakika</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Model yanlılığı (bias), halüsinasyon,
+            veri gizliliği, kötüye kullanım senaryoları ve sorumlu geliştirme ilkeleri.
+            Teknik beceri kadar önemli olan son ders: model geliştirenin mesleki sorumluluğu.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Model Yanlılığı (Bias): Veri Ön Yargısı = Model Ön Yargısı</h2>
+
+            <p>
+                Modeller eğitim verisindeki toplumsal ön yargıları öğrenir ve büyütür. Belçika örneği: bir
+                işe alım modeli "erkek → mühendis", "kadın → hemşire" ilişkisini veriden öğrenmişti.
+                Bu bir model "hatası" değil — verinin gerçek yansımasıdır; sorun, onu <em>kullanma biçimimizdedir</em>.
+            </p>
+
+            <pre><code class="language-python"># Yanlılık testi örneği (kolay kendi denemeniz için):
+# Modelinize şu şablonu verin ve cinsiyet değiştirerek karşılaştırın:
+sablonlar = [
+    "Doktor odaya girdi, ___ eldivenlerini taktı.",     # boşluk: o
+    "Hemşire kapıyı açtı, ___ ilaçları getirdi.",
+]
+# Eril/dişil zamir olasılıklarındaki dengesizlik = cinsiyet yanlılığı kanıtı.
+# Word embeddinglerindeki "man:computer_programmer :: woman:homemaker" benzeri
+# ilişkilerin ölçümü WEAT testiyle yapılır.</code></pre>
+
+            <h2>Halüsinasyon: Kendinden Emin Yanlışlık</h2>
+
+            <p>
+                LLM'ler <em>bildiğinden emin görünerek</em> yanlış bilgi üretebilir — çünkü modeller
+                istatistiksel olasılıkkalpları üretir, gerçek doğrulama yapmaz. 2023'te bir avukatın
+                ChatGPT ürettiği sahte dava referanslarını mahkemeye sunması meşhur vakadır.
+            </p>
+
+            <div class="dikkat-kutu">
+                <span class="etiket">⚠️ Kritik Kural</span>
+                <p>
+                    Halüsinasyon tamamen çözülemez — modelin çalışma prensibine özgüdür.
+                    Azaltılabilir: RAG (kaynaktan cevap), zincir doğrulama, güven skoru raporu,
+                    ve kullanıcıya "bilmiyorum" demeyi öğretme (SFT/RLHF ile).
+                    Kritik kararlarda <strong>insan denetimi şarttır</strong>.
+                </p>
+            </div>
+
+            <h2>Veri Gizliliği: Model Ezberler mi?</h2>
+
+            <p>
+                Araştırmalar (Carlini et al., 2021) LLM'lerin eğitim verisinin parçalarını kısmen
+                <em>aynen ezberlediğini</em> gösterdi: bir kişinin e-posta adresini içeren metin,
+                model çıktısında tekrar üretilebiliyor. Türkiye'de <strong>KVKK</strong>,
+                AB'de <strong>GDPR</strong> kapsamında bu veri saklama/işleme sorumluluğu doğurur.
+            </p>
+
+            <ul>
+                <li>Eğitim öncesi PII (isim, TC, adres) temizliği yapın.</li>
+                <li>Kullanıcı verilerini (sohbet geçmişi) eğitimde kullanacaksanız açık rıza alın.</li>
+                <li>Üyelik dışı çıkarma testi (membership inference) ile ezberi ölçün.</li>
+            </ul>
+
+            <h2>Kötüye Kullanım Senaryoları</h2>
+
+            <ul>
+                <li><strong>Deepfake:</strong> Yüz/ses sahteciliği — seçim dezenformasyonu. (G6-G8 dersleri tekniği öğretir; burada sorumluluğu öğreniyoruz.)</li>
+                <li><strong>Ölçekli dezenformasyon:</strong> Bot ordularıyla üretilen ikna edici içerik.</li>
+                <li><strong>Prompt injection:</strong> Kullanıcı girdisiyle modele gizli komut enjekte etme (güvenlik açığı sınıfı).</li>
+                <li><strong>Model hırsızlığı:</strong> API'den sorguyla distillation (yasal & etik sınır).</li>
+            </ul>
+
+            <h2>Sorumlu Geliştirme Kontrol Listesi</h2>
+
+            <ol>
+                <li><strong>Amaç:</strong> Bu model kime ne kazandırıyor, kime zarar verebilir?</li>
+                <li><strong>Veri:</strong> Rıza alındı mı? Kaynaklar lisanslı mı? PII temizlendi mi?</li>
+                <li><strong>Test:</strong> Yanlılık ölçümleri yapıldı mı? (WEAT, çeşitlilik metrikleri)</li>
+                <li><strong>Şeffaflık:</strong> Model kartı (model card) yazıldı mı — sınırlar ve bilinen hatalar açıkça belirtilmeli.</li>
+                <li><strong>Denetim:</strong> Kritik kararlarda insan onayı var mı?</li>
+                <li><strong>İzleme:</strong> Üretimdeki davranış kayıt altında mı, geri bildirim kanalı var mı?</li>
+            </ol>
+
+            <h2>İnteraktif: Risk Değerlendirme Karar Ağacı</h2>
+
+            <p>
+                Bir yapay zeka özelliğini yayınlamadan önce izlenecek karar akışını inceleyin.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Sorumlu YZ Karar Ağacı — Yayınlamadan Önce Sorulacaklar</b></div>
+                <div class="viz-mount" id="viz-etik" style="min-height:340px"></div>
+            </div>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Bender, E. M. et al. (2021). <em>"On the Dangers of Stochastic Parrots: Can Language Models Be Too Big? 🦜"</em> FAccT. — Yanlılık ve çevresel maliyetin kurucu tartışması.</li>
+                    <li>Caliskan, A. et al. (2017). <em>"Semantics derived automatically from language corpora contain human-like biases"</em> (WEAT). Science. <a href="https://arxiv.org/abs/1608.07187" target="_blank">arXiv:1608.07187</a>.</li>
+                    <li>Carlini, N. et al. (2021). <em>"Extracting Training Data from Large Language Models."</em> USENIX Security. <a href="https://arxiv.org/abs/2012.07805" target="_blank">arXiv:2012.07805</a>.</li>
+                    <li>Mitchell, M. et al. (2019). <em>"Model Cards for Model Reporting."</em> FAT*. <a href="https://arxiv.org/abs/1810.03993" target="_blank">arXiv:1810.03993</a> — Model kartı standardı.</li>
+                    <li>KVKK — Kişisel Verileri Koruma Kanunu. <a href="https://www.kvkk.gov.tr/" target="_blank">kvkk.gov.tr</a> — Türkiye'deki yasal çerçeve.</li>
+                    <li>Partnership on AI ve OECD AI Principles. <a href="https://oecd.ai/en/ai-principles" target="_blank">oecd.ai</a>.</li>
+                    <li>Weidinger, L. et al. (2021). <em>"Ethical and social risks of harm from Language Models."</em> <a href="https://arxiv.org/abs/2112.04359" target="_blank">arXiv:2112.04359</a>.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/etik.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

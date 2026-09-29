@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tokenization: Metni Sayılara Çevirmek — Bursa YZGT</title>
+    <meta name="description" content="BPE algoritması adım adım, özel token'lar ve bağlam penceresi. LLM'in gördüğü ilk şey: sayılar. Sıfırdan açıklamalı eğitim.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/tokenization/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-llm" data-ders-slug="tokenization">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu">
+            <h1>Tokenization: Metni Sayılara Çevirmek</h1>
+            <div class="ders-meta"><span>📚 L1 · LLM Serisi</span><span>⏱ ~25 dakika</span><span>🖥 İnteraktif Araç</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Modelin metni nasıl gördüğü, BPE algoritması,
+            özel token'lar ve bağlam penceresi. LLM'in "düşünme" sürecinin ilk adımı burada başlar.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Model Metni Nasıl Görür?</h2>
+
+            <p>
+                Bilgisayarlar sadece sayıları anlar. "Merhaba dünya" yazısı bilgisayar için
+                anlamsızdır — önce sayılara çevrilmesi gerekir. Bu işleme <strong>tokenization</strong> denir.
+            </p>
+
+            <div class="io-akis">
+                <div class="io-kutu"><div class="io-baslik">Ham Metin</div><div class="io-icerik">"Bursa güzel bir şehir"</div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">Tokenization</div><div class="io-icerik">["Bursa", " güzel", " bir", " şehir"]<br>[15234, 8971, 245, 12908]</div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">Sayı Dizisi</div><div class="io-icerik">Modelin gördüğü:<br>[15234, 8971, 245, 12908]</div></div>
+            </div>
+
+            <h2>Neden Kelime Kelime Değil?</h2>
+
+            <p>
+                En basit yaklaşım kelime bazlı olurdu ama sorunlu: "koşmak", "koştu", "koşacak" hep farklı kelime sayılır.
+                Kelime haznesi çok büyür ve İngilizce dışındaki dillerde patlar.
+                <strong>Alt-kelime (subword)</strong> tokenizasyonu dengeyi bulur: sık kullanılan kelimeler tek token,
+                nadir kelimeler parçalara bölünür.
+            </p>
+
+            <pre><code class="language-python"># tiktoken ile (OpenAI'ın tokenizerı)
+import tiktoken
+enc = tiktoken.get_encoding("cl100k_base")
+
+metin = "yapay zeka öğreniyorum"
+tokenlar = enc.encode(metin)
+print(tokenlar)  # [15339, 11561, 91, 1048, 2977, 271, 1239]
+
+# Token ID'si → orijinal parça
+for t in tokenlar:
+    print(t, "→", enc.decode([t]))</code></pre>
+
+            <h2>BPE Algoritması: Adım Adım</h2>
+
+            <p>
+                <strong>BPE (Byte Pair Encoding)</strong>, en sık geçen karakter çiftlerini
+                tekrar tekrar birleştirerek kelime haznesi oluşturur:
+            </p>
+
+            <ol>
+                <li>Başta her karakter ayrı bir token: <code>["k","a","n","a","t"]</code></li>
+                <li>Veri setinde en çok birlikte geçen çift bulunur: <code>("a","n")</code> → yeni token <code>"an"</code></li>
+                <li>Tüm metinlerde bu çift birleştirilir: <code>["k","an","a","t"]</code></li>
+                <li>Bu adım tekrarlanır... binlerce kez → kelime haznesi oluşur</li>
+            </ol>
+
+            <pre><code class="language-python"># Basit BPE simülasyonu
+def bpe_egit(metin, birlesme_sayisi):
+    tokenlar = list(metin)
+    for _ in range(birlesme_sayisi):
+        # En sık geçen çifti bul
+        siklik = {}
+        for i in range(len(tokenlar) - 1):
+            cift = (tokenlar[i], tokenlar[i+1])
+            siklik[cift] = siklik.get(cift, 0) + 1
+        if not siklik: break
+        en_sik = max(siklik, key=siklik.get)
+        yeni_token = "".join(en_sik)
+        # Birleştir
+        yeni_tokenlar = []
+        i = 0
+        while i < len(tokenlar):
+            if i < len(tokenlar)-1 and (tokenlar[i], tokenlar[i+1]) == en_sik:
+                yeni_tokenlar.append(yeni_token)
+                i += 2
+            else:
+                yeni_tokenlar.append(tokenlar[i])
+                i += 1
+        tokenlar = yeni_tokenlar
+        print(f"Birleşen: {en_sik} → '{yeni_token}'  →  {tokenlar}")
+    return tokenlar
+
+bpe_egit("kanat kanat kanat", 3)
+# 1. tur: ('a','n') → 'an' → ['k','an','a','t',' ','k','an','a','t',...]
+# 2. tur: ('k','an') → 'kan' → ['kan','a','t',...]
+# 3. tur: ('a','t') → 'at' → ['kan','at',...]</code></pre>
+
+            <h2>İnteraktif BPE Aracı</h2>
+
+            <p>
+                Aşağıya herhangi bir Türkçe/İngilizce metin yazın. Gerçek bir tokenizer
+                kelimeleri nasıl parçaladığını görebilirsiniz.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Canlı Tokenization Aracı</b></div>
+                <div style="padding:0.5rem">
+                    <textarea id="bpe-input" placeholder="Metninizi buraya yazın..." style="
+                        width:100%;min-height:70px;background:var(--edu-bg);color:var(--edu-text);
+                        border:1px solid var(--edu-border);border-radius:0.5rem;padding:0.7rem;
+                        font-family:var(--font-sans);font-size:0.9rem;resize:vertical;box-sizing:border-box;
+                    ">Bursa Yapay Zeka Geliştiricileri Topluluğu</textarea>
+                    <div id="bpe-output" style="margin-top:0.8rem;font-size:0.85rem;line-height:2;color:var(--edu-text)"></div>
+                </div>
+            </div>
+
+            <h2>Özel Token'lar</h2>
+
+            <pre><code class="language-python"># LLM'lerde metnin içine "gizli komutlar" gibi özel token'lar eklenir:
+# [BOS] / [EOS] / [PAD] / [SEP] / [CLS]
+
+# Örnek chat template (Llama-3 tarzı):
+metin = """&lt;|begin_of_text|&gt;
+&lt;|start_header_id|&gt;system&lt;|end_header_id|&gt;
+Sen yardımcı bir asistansın.&lt;|eot_id|&gt;
+&lt;|start_header_id|&gt;user&lt;|end_header_id|&gt;
+Merhaba!&lt;|eot_id|&gt;
+&lt;|start_header_id|&gt;assistant&lt;|end_header_id|&gt;
+Merhaba! Size nasıl yardımcı olabilirim?&lt;|eot_id|&gt;"""
+
+# Tokenizer bu metni şöyle sayı dizisine çevirir:
+# [128000, 128006, 78191, ... 128009, ...]</code></pre>
+
+            <h2>Bağlam Penceresi (Context Window)</h2>
+
+            <ul>
+                <li>Model aynı anda sadece belirli sayıda token "görebilir". Bu limit: <strong>bağlam penceresi</strong>.</li>
+                <li>GPT-3.5: 4K token, GPT-4: 128K token, Claude 3.5: 200K token.</li>
+                <li>1 token ≈ 0.75 İngilizce kelime ≈ 0.5-0.6 Türkçe kelime (Türkçe daha çok parçalanır!).</li>
+                <li>Pencere dolunca: eski token'lar "unutulur" veya özetlenir.</li>
+            </ul>
+
+            <div class="dikkat-kutu">
+                <span class="etiket">⚠️ Türkçe ve Tokenization</span>
+                <p>
+                    Türkçe eklemeli bir dildir — "evlerimizden" = 5 anlamlı morfem (ev+ler+i+miz+den).
+                    İngilizce için eğitilen tokenizer Türkçe'yi çok parçalar → daha fazla token,
+                    daha yüksek maliyet, daha yavaş çalışma. Türkçe LLM geliştirirken Türkçe
+                    tokenizer eğitmek büyük avantaj sağlar.
+                </p>
+            </div>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Sennrich, R., Haddow, B., & Birch, A. (2016). <em>"Neural Machine Translation of Rare Words with Subword Units."</em> ACL. <a href="https://arxiv.org/abs/1508.07909" target="_blank">arXiv:1508.07909</a> — BPE'nin kurucu makalesi.</li>
+                    <li>Karpathy, A. (2024). <em>"Let's build the GPT Tokenizer"</em> (YouTube). <a href="https://www.youtube.com/watch?v=zduSFxRajkE" target="_blank">izle</a> — BPE'yi sıfırdan kodlayıp anlamanın en iyi yolu.</li>
+                    <li>OpenAI. <em>tiktoken</em> GitHub. <a href="https://github.com/openai/tiktoken" target="_blank">github.com/openai/tiktoken</a> — OpenAI modellerinin tokenizer kütüphanesi.</li>
+                    <li>Hugging Face. <em>Tokenizers Documentation</em>. <a href="https://huggingface.co/docs/tokenizers" target="_blank">huggingface.co/docs/tokenizers</a>.</li>
+                    <li>Gage, P. (1994). <em>"A New Algorithm for Data Compression."</em> C Users Journal — BPE'nin orijinal sıkıştırma versiyonu.</li>
+                    <li>Kudo, T., & Richardson, J. (2018). <em>"SentencePiece."</em> EMNLP. — Llama/Qwen modellerinin kullandığı tokenizer.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/bpe.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

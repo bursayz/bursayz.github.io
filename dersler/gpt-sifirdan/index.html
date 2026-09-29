@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sıfırdan GPT Yapımı — Bursa YZGT</title>
+    <meta name="description" content="NanoGPT tarzı minimal GPT: katmanları birleştirme, karakter seviyesinde eğitim ve metin üretimi. Kendi dil modelinizi eğitin.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/gpt-sifirdan/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-llm" data-ders-slug="gpt-sifirdan">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu">
+            <h1>Sıfırdan GPT Yapımı</h1>
+            <div class="ders-meta"><span>📚 L5 · LLM Serisi</span><span>⏱ ~45 dakika</span><span>🖥 İnteraktif Simülasyon</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Şimdiye kadar öğrendiğiniz her şeyi birleştirerek
+            çalışan bir GPT eğiteceksiniz: tokenization, embedding, transformer blokları, eğitim döngüsü ve metin üretimi.
+            Bu ders platformun kalbidir.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Her Şeyi Birleştiriyoruz</h2>
+
+            <p>
+                Önceki 4 derste öğrendiklerinizi tek bir modele dökelim. Elinizde:
+                tokenization (L1), embedding (L2), self-attention (L3), transformer bloğu (L4) var.
+                Eksik olan tek şey: bunları birleştirip <strong>"bir sonraki karakteri tahmin et"</strong> göreviyle eğitmek.
+            </p>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Temel Fikir</span>
+                <p>
+                    GPT'ye "bir sonraki karakteri tahmin etme oyunu" öğretiyoruz. Milyonlarca metin gösterilir:
+                    <em>"Ankara Türkiye'nin başkent___"</em> → doğru cevap "idir". Kaybı azaltmak için model
+                    dilbilgisi, dünya bilgisi, hatta basit mantık öğrenmek <em>zorundadır</em>.
+                    İşte "zeka" buradan doğar: tahmin oyununda ustalaşmak anlamayı gerektirir.
+                </p>
+            </div>
+
+            <h2>Adım 1: Veri Hazırlama</h2>
+
+            <pre><code class="language-python">import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+# Eğitim metni (Colab'da Shakespeare veya Türkçe bir külliyat kullanın)
+with open("veri.txt", encoding="utf-8") as f:
+    metin = f.read()
+
+# Karakter seviyesinde tokenizer (en basit yaklaşım)
+karakterler = sorted(set(metin))
+vocab_size = len(karakterler)
+stoi = {ch: i for i, ch in enumerate(karakterler)}  # string → int
+itos = {i: ch for ch, i in stoi.items()}           # int → string
+
+encode = lambda s: [stoi[c] for c in s]
+decode = lambda l: "".join(itos[i] for i in l)
+
+veri = torch.tensor(encode(metin), dtype=torch.long)
+n = int(0.9 * len(veri))
+train_veri, val_veri = veri[:n], veri[n:]
+
+block_size = 64   # Bağlam penceresi: 64 karaktere bakarak sonraki tahmin
+
+def batch_al(split):
+    v = train_veri if split == "train" else val_veri
+    ix = torch.randint(len(v) - block_size, (32,))   # 32 rastgele konum
+    x = torch.stack([v[i:i+block_size] for i in ix])
+    y = torch.stack([v[i+1:i+block_size+1] for i in ix])  # Hedef: 1 kaydırılmış!
+    return x, y
+
+# KRİTİK NOKTA: y = x'in 1 karakter sağa kaymış hali.
+# Model her pozisyonda "bir sonrakini" tahmin etmeyi öğrenir.</code></pre>
+
+            <h2>Adım 2: Model — Mini GPT</h2>
+
+            <pre><code class="language-python">class Head(nn.Module):
+    """Tek bir attention başlığı (L3'te öğrendiklerimiz)."""
+    def __init__(self, embed_dim, head_size):
+        super().__init__()
+        self.k = nn.Linear(embed_dim, head_size, bias=False)
+        self.q = nn.Linear(embed_dim, head_size, bias=False)
+        self.v = nn.Linear(embed_dim, head_size, bias=False)
+        self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
+
+    def forward(self, x):
+        B, T, C = x.shape
+        k, q, v = self.k(x), self.q(x), self.v(x)
+        wei = q @ k.transpose(-2, -1) * C**-0.5
+        wei = wei.masked_fill(self.tril[:T, :T] == 0, float("-inf"))  # Geleceğe bakma!
+        wei = F.softmax(wei, dim=-1)
+        return wei @ v
+
+class MiniGPT(nn.Module):
+    def __init__(self):
+        super().__init__()
+        n_embd, n_head, n_layer = 64, 4, 3
+        self.token_emb = nn.Embedding(vocab_size, n_embd)
+        self.pos_emb = nn.Embedding(block_size, n_embd)
+        self.ln_f = nn.LayerNorm(n_embd)
+        self.kafa = nn.Linear(n_embd, vocab_size)
+
+        # Basitlik için tek başlık × 3 katman yazıyoruz (Colab CPU'da bile çalışır)
+        self.bloklar = nn.ModuleList()
+        for _ in range(n_layer):
+            self.bloklar.append(nn.ModuleDict({
+                "ln1": nn.LayerNorm(n_embd),
+                "att": Head(n_embd, n_embd // n_head),
+                "ln2": nn.LayerNorm(n_embd),
+                "ffn": nn.Sequential(
+                    nn.Linear(n_embd, 4 * n_embd), nn.GELU(), nn.Linear(4 * n_embd, n_embd)
+                )
+            }))
+
+    def forward(self, idx, hedefler=None):
+        B, T = idx.shape
+        x = self.token_emb(idx) + self.pos_emb(torch.arange(T))
+        for b in self.bloklar:
+            x = x + b["att"](b["ln1"](x))
+            x = x + b["ffn"](b["ln2"](x))
+        x = self.ln_f(x)
+        logits = self.kafa(x)   # (B, T, vocab_size)
+
+        kayip = None
+        if hedefler is not None:
+            B, T, C = logits.shape
+            kayip = F.cross_entropy(logits.view(B*T, C), hedefler.view(B*T))
+        return logits, kayip
+
+    @torch.no_grad()
+    def uret(self, idx, max_yeni=200):
+        for _ in range(max_yeni):
+            idx_kes = idx[:, -block_size:]       # Bağlam penceresini aşma
+            logits, _ = self(idx_kes)
+            olasiliklar = F.softmax(logits[:, -1, :], dim=-1)  # Son pozisyon
+            sonraki = torch.multinomial(olasiliklar, 1)        # Olasılığa göre örnekle
+            idx = torch.cat([idx, sonraki], dim=1)
+        return idx
+
+model = MiniGPT()
+print(f"Parametre sayısı: {sum(p.numel() for p in model.parameters()):,}")</code></pre>
+
+            <h2>Adım 3: Eğitim Döngüsü</h2>
+
+            <pre><code class="language-python">optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
+
+for adim in range(3000):
+    x, y = batch_al("train")
+    logits, kayip = model(x, y)
+    optimizer.zero_grad()
+    kayip.backward()
+    optimizer.step()
+    if adim % 500 == 0:
+        print(f"Adım {adim}: kayıp = {kayip.item():.4f}")
+
+# Kayıp ~2.5'tan ~1.2'ye düştüğünde model dilbilgisini çözmeye başlamış demektir
+# (rastgele tahmin: ln(vocab_size) ≈ ln(65) ≈ 4.17)</code></pre>
+
+            <h2>Adım 4: Metin Üretme</h2>
+
+            <pre><code class="language-python">baslangic = torch.zeros((1, 1), dtype=torch.long)  # Boş başlangıç
+uretilen = model.uret(baslangic, max_yeni=300)
+print(decode(uretilen[0].tolist()))
+# Eğitimsiz: "xjKqö ğüZşx..." (rastgele harf yığını)
+# Eğitimli:  "Kralın sarayında büyük bir şölen..." (akıcı metin!)</code></pre>
+
+            <h2>Sampling: temperature ve top-k</h2>
+
+            <pre><code class="language-python">def uret_v2(model, idx, max_yeni=200, temperature=1.0, top_k=None):
+    for _ in range(max_yeni):
+        logits, _ = model(idx[:, -block_size:])
+        logits = logits[:, -1, :] / temperature  # Düşük T = güvenli, yüksek T = yaratıcı
+        if top_k:
+            v, _ = torch.topk(logits, top_k)
+            logits[logits < v[:, [-1]]] = float("-inf")  # Sadece en iyi k aday
+        probs = F.softmax(logits, dim=-1)
+        sonraki = torch.multinomial(probs, 1)
+        idx = torch.cat([idx, sonraki], dim=1)
+    return idx
+
+# temperature=0.1 → neredeyse hep en olası token (tekdüze ama tutarlı)
+# temperature=1.5 → riskli seçimler (yaratıcı ama saçmalayabilir)
+# top_k=50 → sadece en iyi 50 adaydan seç (saçmalama azalır)</code></pre>
+
+            <h2>İnteraktif: Token-Token Üretim Simülasyonu</h2>
+
+            <p>
+                Modelin metni nasıl ürettiğini adım adım izleyin: her adımda olasılık dağılımı hesaplanır,
+                bir token örneklenir ve bağlama eklenir.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Autoregressive Metin Üretimi — Adım Adım</b></div>
+                <div class="viz-mount" id="viz-metin-uretim" style="min-height:320px"></div>
+            </div>
+
+            <h2>Denemek İçin: Google Colab</h2>
+
+            <p>
+                Bu kodu <a href="https://colab.research.google.com" target="_blank">Google Colab</a>'a yapıştırın (ücretsiz GPU: Runtime → Change runtime type → T4 GPU).
+                Shakespeare metni yerine <a href="https://www.gutenberg.org" target="_blank">Project Gutenberg</a>'den Türkçe klasikler indirebilirsiniz.
+            </p>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Karpathy, A. (2023). <em>"Let's build GPT: from scratch, in code, spelled out"</em> (YouTube, 2 saat). <a href="https://www.youtube.com/watch?v=kCc8FmEb1nY" target="_blank">izle</a> — Bu dersin video hali; mutlaka izleyin.</li>
+                    <li>Karpathy, A. <em>nanoGPT</em>. <a href="https://github.com/karpathy/nanoGPT" target="_blank">github.com/karpathy/nanoGPT</a> — Tam GPT-2 eğitim kodu, ~300 satır.</li>
+                    <li>Raschka, S. (2024). <em>Build a Large Language Model (From Scratch)</em>. Manning. Bölüm 4-5. <a href="https://github.com/rasbt/LLMs-from-scratch" target="_blank">GitHub</a>.</li>
+                    <li>Radford, A. et al. (2018). <em>"Improving Language Understanding by Generative Pre-Training"</em> (GPT-1). — GPT ailesinin ilk makalesi.</li>
+                    <li>Nanculef, R. et al. <em>"Let's reproduce GPT-2 (124M)"</em> — Karpathy'nin 4 saatlik derin eğitim videosu. <a href="https://www.youtube.com/watch?v=l8pRSuU81PU" target="_blank">izle</a></li>
+                    <li>Holtzman, A. et al. (2020). <em>"The Curious Case of Neural Text Degeneration"</em> (nucleus sampling). <a href="https://arxiv.org/abs/1904.09751" target="_blank">arXiv:1904.09751</a> — temperature/top-k ardındaki bilim.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/metin-uretim.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

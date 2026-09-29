@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matematik Temelleri — Bursa Yapay Zeka Geliştiricileri Topluluğu</title>
+    <meta name="description" content="Vektörler, matrisler, matris çarpımı, türev ve olasılık. Yapay zekanın dili olan matematiği korkmadan, görsel örneklerle öğrenin.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/matematik-temelleri/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-temel" data-ders-slug="matematik-temelleri">
+
+    <nav class="edu-topbar">
+        <div class="edu-container">
+            <a href="../../index.html" class="edu-logo">
+                <img src="../../assets/icon.webp" alt="Bursa YZGT">
+                <span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span>
+                <span class="short">Bursa YZGT</span>
+            </a>
+            <div class="edu-nav">
+                <a href="../../index.html">Eğitimler</a>
+                <a href="../../topluluk.html">Topluluk</a>
+                <span id="auth-slot"></span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+
+        <div class="ders-baslik-blogu">
+            <h1>Matematik Temelleri</h1>
+            <div class="ders-meta">
+                <span>📚 T2 · Temel Serisi</span>
+                <span>⏱ ~25 dakika</span>
+            </div>
+        </div>
+
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong>
+            Sayıların bilgisayarda temsili, vektörler, matrisler, matris çarpımının gerçek anlamı, türev ve eğim,
+            olasılık. <em>"Matematik beni aşar"</em> diyorsanız — bu ders tam size göre. Formül ezberlemeyeceğiz,
+         her şeyi geometrik sezgiyle göreceğiz.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Neden Matematik?</h2>
+
+            <p>
+                Bir yapay zeka modeli, eninde sonunda <strong>dev bir hesap makinesidir</strong>.
+                Ama sıradan toplama-çıkarma değil: milyonlarca sayıyı matrislerle çarpar, türevlerle ayarlar,
+                olasılıklarla karar verir. Bu derste bu üç temel aracı — <em>matris</em>, <em>türev</em>, <em>olasılık</em> —
+                sezgisel olarak kavrayacağız.
+            </p>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Yapay zeka modelini bir <strong>fırın</strong> olarak düşünün. Hamur (veri) girer, fırının ayar düğmeleri
+                    (ağırlıklar) doğru konumdaysa güzel bir ekmek (doğru çıktı) çıkar. Matematik, fırının hangi düğmesini
+                    ne kadar çevirmemiz gerektiğini söyleyen rehberdir.
+                </p>
+            </div>
+
+            <h2>Bilgisayar Sayıyı Nasıl Tutar?</h2>
+
+            <p>
+                Bilgisayarlar her şeyi 0 ve 1 (bit) olarak saklar. Bir sayıyı saklarken kullanılan bit sayısı,
+                o sayının ne kadar "hassas" temsil edilebileceğini belirler. Bu, ileride <strong>quantization</strong>
+                dersinde çok işimize yarayacak:
+            </p>
+
+            <ul>
+                <li><strong>FP32 (float32):</strong> 32 bit — 4.294.967.296 farklı değer. Yüksek hassasiyet, çok yer kaplar.</li>
+                <li><strong>FP16 (float16):</strong> 16 bit — 65.536 değer. Yarı yarıya yer kaplar, hassasiyet düşer.</li>
+                <li><strong>INT8:</strong> 8 bit — sadece 256 farklı değer! Ama bazı modeller için yeterli olur.</li>
+            </ul>
+
+            <pre><code class="language-python"># Python'da sayı tipleri
+import numpy as np
+
+x = np.float32(3.14159)   # 32 bit: 3.14159...
+y = np.float16(3.14159)   # 16 bit: 3.140625 (yuvarlandı!)
+z = np.int8(3.14159)      # 8 bit: 3 (kesir uçtu!)
+
+print(x)   # 3.14159
+print(y)   # 3.14
+print(z)   # 3</code></pre>
+
+            <h2>Vektörler: Sayı Listeleri</h2>
+
+            <p>
+                Bir <strong>vektör</strong>, sıralı bir sayı listesidir. Ama geometrik olarak düşünün:
+                2 sayılık bir vektör, düzlemde bir nokta (veya o noktaya işaret eden ok);
+                3 sayılık vektör, uzayda bir nokta demektir.
+            </p>
+
+            <pre><code class="language-python">import numpy as np
+
+# 3 boyutlu bir vektör: (x, y, z) koordinatı
+vektor = np.array([2.0, 4.0, 1.0])
+
+# Vektör büyüklüğü (uzunluğu)
+buyukluk = np.linalg.norm(vektor)   # √(2² + 4² + 1²) = √21 ≈ 4.58
+
+# Birim vektör: yön aynı, uzunluk 1
+birim = vektor / buyukluk</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Kelime "elma" için bir vektör düşünün: <code>[meyve=0.9, renk=kırmızı=0.7, teknoloji=0.1]</code>.
+                    "Armut" vektörü <code>[meyve=0.85, renk=yeşil=0.6, teknoloji=0.05]</code> —
+                    ikisi birbirine yakın çünkü ikisi de meyve. Ama "Apple şirketi" vektörü
+                    <code>[teknoloji=0.95]</code> uzakta durur. <strong>Embedding dersinde bu fikri derinlemesine göreceğiz.</strong>
+                </p>
+            </div>
+
+            <h2>Matrisler: Sayı Tabloları</h2>
+
+            <p>
+                Bir <strong>matris</strong>, satır ve sütunlardan oluşan sayı tablosudur.
+                Bir sinir ağı katmanı aslında bir matristir: her giriş nöronunu, her çıkış nöronuna bağlayan ağırlıkları tutar.
+            </p>
+
+            <pre><code class="language-python"># 2x3 matris: 2 satır, 3 sütun
+matris = np.array([
+    [1, 2, 3],
+    [4, 5, 6]
+])
+print(matris.shape)   # (2, 3)</code></pre>
+
+            <h2>Matris Çarpımı: Asıl Oyuncu</h2>
+
+            <p>
+                Matris çarpımı korkutucu görünür ama aslında basit bir fikirdir:
+                <strong>her çıkış, tüm girdilerin ağırlıklı toplamıdır.</strong>
+            </p>
+
+            <pre><code class="language-python"># Basit bir örnek: 2 girdi, 3 çıkış
+girdi = np.array([1.0, 0.5])        # uzunluk 2
+
+agirlik = np.array([                 # shape (3, 2)
+    [0.8, 0.2],    # çıkış 1'in ağırlıkları
+    [0.1, 0.9],    # çıkış 2'nin ağırlıkları
+    [0.5, 0.5]     # çıkış 3'ün ağırlıkları
+])
+
+cikti = agirlik @ girdi   # matris çarpımı
+print(cikti)  # [0.9, 0.55, 0.75]
+# çıkış[0] = 1.0*0.8 + 0.5*0.2 = 0.9
+# çıkış[1] = 1.0*0.1 + 0.5*0.9 = 0.55
+# çıkış[2] = 1.0*0.5 + 0.5*0.5 = 0.75</code></pre>
+
+            <p>
+                Sinir ağlarında milyonlarca parametre işte bu matris çarpımlarının içindeki sayılardır.
+                Eğitim, bu sayıları doğru değerlere ayarlamaktan ibarettir.
+            </p>
+
+            <h2>İnteraktif: 3D Matris Çarpımı</h2>
+
+            <p>
+                Aşağıda 3 boyutlu bir vektörün bir matrisle çarpılışını izleyin.
+                Vektör ve ağırlıklar değiştikçe sonucun nasıl döndüğünü/uzadığını görün.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik">
+                    <b>3D Vektör × Matris Çarpımı</b>
+                    <span style="font-size:0.75rem">Oklar: kırmızı=girdi, yeşil=sonuç</span>
+                </div>
+                <div class="viz-mount" id="viz-matris" style="min-height:320px"></div>
+            </div>
+
+            <h2>Türev: Eğim Ölçer</h2>
+
+            <p>
+                <strong>Türev</strong>, bir fonksiyonun bir noktadaki eğimini (ne kadar hızlı değiştiğini) ölçer.
+                Modeli eğitirken "ağırlığı biraz artırırsam hata azalır mı?" sorusunun cevabı türevdir.
+                Bu, ileri derslerdeki <strong>gradyan inişi</strong>nin kalbidir.
+            </p>
+
+            <pre><code class="language-python"># f(x) = x² fonksiyonunun türevi: f'(x) = 2x
+# x=3 noktasında fonksiyon 9, türev 6:
+# "x'i biraz artırırsam sonuç 6 katı hızla artar"
+
+import torch
+x = torch.tensor(3.0, requires_grad=True)
+y = x ** 2          # y = 9
+y.backward()        # türevi hesapla (geriye yayılım!)
+print(x.grad)       # 6.0</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Karanlık dağlık bir arazide vadiye inmeye çalışıyorsunuz. Elinizde sadece eğimi ölçen bir alet var.
+                    "Hangi yöne gidersem daha çok aşağı inerim?" — türevin cevabı işte bu.
+                    Yapay zeka eğitimi tam olarak budur: her adımda eğime bakıp hata vadisine doğru yürümek.
+                </p>
+            </div>
+
+            <h2>Olasılık: Belirsizlikle Başa Çıkmak</h2>
+
+            <p>
+                Bir model asla "kesin cevap" vermez; bir <strong>olasılık dağılımı</strong> üretir.
+                "Bu resim %98 kedi" demek, modelin 100 benzer resmin 98'inde haklı olduğunu varsaymasıdır.
+            </p>
+
+            <ul>
+                <li><strong>Olasılık:</strong> 0 ile 1 arası bir değer. 0 = imkânsız, 1 = kesin.</li>
+                <li><strong>Sofmax:</strong> Model çıktılarını (0.2, 0.7, 0.1) gibi toplamı 1 olan olasılıklara dönüştüren fonksiyon.</li>
+                <li><strong>Entropi:</strong> Belirsizliğin ölçüsü. Eğitim, tahminlerin entropisini düşürmeyi amaçlar.</li>
+            </ul>
+
+            <pre><code class="language-python">import numpy as np
+
+# Modelin ham çıktıları (logit)
+logit = np.array([2.0, 0.5, -1.0])
+
+# Softmax: olasılığa çevir
+exp = np.exp(logit)
+olasilik = exp / exp.sum()
+print(olasilik)   # [0.836, 0.146, 0.018] → %84 kedi!</code></pre>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>3Blue1Brown. <em>"Essence of Linear Algebra"</em> (YouTube serisi) — <a href="https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab" target="_blank">izle</a>. Vektör ve matrisleri geometrik sezgiyle anlatan en iyi kaynak.</li>
+                    <li>3Blue1Brown. <em>"Essence of Calculus"</em> — <a href="https://www.youtube.com/playlist?list=PLZHQObOWTQDMsr9K-rj53DwVRMYO3t5Yr" target="_blank">izle</a>. Türev ve gradyanın sezgisel temeli.</li>
+                    <li>Strang, G. (2016). <em>Introduction to Linear Algebra</em> (5th ed.). Wellesley-Cambridge Press.</li>
+                    <li>Deisenroth, M. P., Faisal, A. A., & Ong, C. S. (2020). <em>Mathematics for Machine Learning</em>. Cambridge University Press. <a href="https://mml-book.github.io/" target="_blank">Ücretsiz PDF</a>.</li>
+                    <li>NumPy Belgeleri. <a href="https://numpy.org/doc/stable/" target="_blank">numpy.org</a>.</li>
+                    <li>PyTorch Autograd Tutorial. <a href="https://pytorch.org/tutorials/beginner/blitz/autograd_tutorial.html" target="_blank">pytorch.org</a>.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir">
+                <img src="../../assets/icon.webp" alt="">
+                <span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span>
+            </div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/matris.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

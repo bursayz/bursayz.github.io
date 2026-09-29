@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aşırı Öğrenme ve Düzenlileştirme — Bursa YZGT</title>
+    <meta name="description" content="Overfitting, dropout, L1/L2 regularization, erken durdurma ve veri artırma. Modelin ezberlemesini engelleme teknikleri.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/overfitting-regularization/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-mldl" data-ders-slug="overfitting-regularization">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../index.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+        <div class="edu-nav"><a href="../../index.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu">
+            <h1>Aşırı Öğrenme ve Düzenlileştirme</h1>
+            <div class="ders-meta"><span>📚 M5 · ML/DL Serisi</span><span>⏱ ~25 dakika</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Overfitting/underfitting ayrımı, dropout, L1/L2,
+            erken durdurma ve veri artırma. "Model ezberliyor" sorununu tespit etmek ve çözmek.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Underfitting vs Doğru Öğrenme vs Overfitting</h2>
+
+            <div class="io-akis">
+                <div class="io-kutu"><div class="io-baslik">Underfitting</div><div class="io-icerik">Model çok basit<br>Eğitim+Test'te kötü<br>(model görmemiş gibi)</div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">İyi Öğrenme</div><div class="io-icerik">Hem eğitim hem test<br>iyi — model genelleme yapıyor</div></div>
+                <div class="io-ok">→</div>
+                <div class="io-kutu"><div class="io-baslik">Overfitting</div><div class="io-icerik">Eğitimde mükemmel<br>Test'te kötü (ezberleme)</div></div>
+            </div>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Sınav öncesi çalışan öğrenci gibi düşünün:<br>
+                    <strong>Underfitting:</strong> Hiç çalışmamış — ne soru çözebilir ne anlar.<br>
+                    <strong>Doğru öğrenme:</strong> Konuyu kavramış — her türlü soruya cevap verir.<br>
+                    <strong>Overfitting:</strong> Sadece örnek soruların cevaplarını ezberlemiş — görmediği soruda tökezler.
+                </p>
+            </div>
+
+            <h2>Overfitting'i Tespit Etmek</h2>
+
+            <pre><code class="language-python"># Overfitting sinyali: train acc ↑ val acc ↓ (gap açılıyor)
+# Eğitim eğrilerinde bu "V" oluşumu:
+
+# Epoch    Train Loss   Val Loss
+#   1        0.9         0.85
+#   5        0.4         0.50
+#  10        0.1         0.62  ← Burada val loss artıyor! OVERFIT!
+#  15        0.02        0.78  ← Durmak gerekirdi (erken durdurma noktası)</code></pre>
+
+            <h2>Çözüm 1: Dropout — Rastgele Nöronları Kapat</h2>
+
+            <p>
+                Dropout, her eğitim adımında nöronların bir kısmını rastgele kapatır.
+                Model, tek bir nörona "güvenemez" hale gelir; daha sağlam, genelleştirilebilir
+                özellikler öğrenir.
+            </p>
+
+            <pre><code class="language-python">import torch.nn as nn
+
+# nn.Sequential yada nn.Module içinde:
+model = nn.Sequential(
+    nn.Linear(784, 256),
+    nn.ReLU(),
+    nn.Dropout(p=0.5),   # Her adımda %50 nöron kapat
+    nn.Linear(256, 10)
+)
+
+# ⚠️ model.eval() çağrıldığında dropout otomatik devre dışı kalır!</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Dropout Analojisi</span>
+                <p>
+                    Sadece en iyi oyuncusuna bağımlı bir basketbol takımı, o oyuncu sakatlanınca çöker.
+                    Dropout, her antrenmanda rastgele oyuncuları yedek bırakarak takımı
+                    "herkesle oynayabilen" hale getirir — daha sağlam, daha dengeli.
+                </p>
+            </div>
+
+            <h2>Çözüm 2: L1 ve L2 Regularization</h2>
+
+            <pre><code class="language-python"># Kayıp = orijinal kayıp + ceza_terimi
+
+# L2 (Ridge) — Büyük ağırlıkları cezalandır.
+# Amaç: ağırlıkları küçük tutmak (smooth model)
+kayip = orijinal_kayip + lambda_ * (agirliklar ** 2).sum()
+
+# L1 (Lasso) — Toplam büyüklüğü cezalandır.
+# Ağırıkları sıfıra itebilir → özellik seçimi yapabilir
+kayip = orijinal_kayip + lambda_ * (agirliklar.abs()).sum()
+
+# PyTorch'ta weight_decay parametresiyle L2 uygulanır:
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)</code></pre>
+
+            <h2>Çözüm 3: Erken Durdurma (Early Stopping)</h2>
+
+            <pre><code class="language-python">en_iyi_val_kayip = float("inf")
+sabir_sayaci = 0
+SABIR_LIMITI = 5   # 5 epoch iyileşmezse dur
+
+for epoch in range(100):
+    # ... eğitim adımları ...
+    val_kayip = degerlendir(model, val_loader)
+
+    if val_kayip < en_iyi_val_kayip:
+        en_iyi_val_kayip = val_kayip
+        torch.save(model.state_dict(), "en_iyi_model.pt")  # En iyi checkpoint
+        sabir_sayaci = 0
+    else:
+        sabir_sayaci += 1
+        if sabir_sayaci >= SABIR_LIMITI:
+            print(f"Erken durma: Epoch {epoch}")
+            break
+
+# İşlem bitince en iyi checkpoint'i yükle
+model.load_state_dict(torch.load("en_iyi_model.pt"))</code></pre>
+
+            <h2>Çözüm 4: Veri Artırma (Data Augmentation)</h2>
+
+            <p>
+                Görüntüleri döndür, yansıt, kırp — model, nesnenin sadece bir pozisyonunu değil
+                her halini görsün. Veri artırmak, modelin "ezberlemesi" gereken doğru cevap setini genişletir
+                ve genellemeyi artırır.
+            </p>
+
+            <pre><code class="language-python">from torchvision import transforms
+
+train_transform = transforms.Compose([
+    transforms.RandomHorizontalFlip(),          # 180° yansıt (%50 şans)
+    transforms.RandomRotation(15),               # ±15° döndür
+    transforms.ColorJitter(brightness=0.2),      # Parlaklık değiştir
+    transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),  # Kırp
+    transforms.ToTensor(),
+])
+
+# Test verisine augmentation YAPILMAZ — model sadece eğitimde "daha çok görür"</code></pre>
+
+            <h2>İnteraktif: Overfitting Animasyonu</h2>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Underfitting vs Doğru Öğrenme vs Overfitting</b></div>
+                <div class="viz-mount" id="viz-overfit" style="min-height:320px"></div>
+            </div>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Srivastava, N. et al. (2014). <em>"Dropout: A Simple Way to Prevent Neural Networks from Overfitting."</em> JMLR, 15, 1929–1958. <a href="https://jmlr.org/papers/v15/srivastava14a.html" target="_blank">jmlr.org</a> — Dropout'un orijinal makalesi.</li>
+                    <li>Prechelt, L. (1998). <em>"Early Stopping — But When?"</em> — Erken durdurma stratejileri.</li>
+                    <li>Ioffe, S., & Szegedy, C. (2015). <em>"Batch Normalization."</em> ICML — Ağırlık regularization ile birlikte en yaygın teknik.</li>
+                    <li>Goodfellow et al. (2016). <em>Deep Learning</em>, Bölüm 7 (Regularization). <a href="https://www.deeplearningbook.org/" target="_blank">deeplearningbook.org</a>.</li>
+                    <li>Shorten, C., & Khoshgoftaar, T. M. (2019). <em>"A survey on Image Data Augmentation for Deep Learning."</em> Journal of Big Data. — Görüntü augmentation stratejileri.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/overfit.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

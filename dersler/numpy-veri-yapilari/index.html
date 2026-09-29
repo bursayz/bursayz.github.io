@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NumPy ve Veri Yapıları — Bursa Yapay Zeka Geliştiricileri Topluluğu</title>
+    <meta name="description" content="Array, shape, indeksleme ve broadcasting. Modellerin veriyi nasıl gördüğünü anlamanın ilk adımı — Türkçe, sıfırdan.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/numpy-veri-yapilari/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-temel" data-ders-slug="numpy-veri-yapilari">
+
+    <nav class="edu-topbar">
+        <div class="edu-container">
+            <a href="../../index.html" class="edu-logo">
+                <img src="../../assets/icon.webp" alt="Bursa YZGT">
+                <span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span>
+                <span class="short">Bursa YZGT</span>
+            </a>
+            <div class="edu-nav">
+                <a href="../../index.html">Eğitimler</a>
+                <a href="../../topluluk.html">Topluluk</a>
+                <span id="auth-slot"></span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+
+        <div class="ders-baslik-blogu">
+            <h1>NumPy ve Veri Yapıları</h1>
+            <div class="ders-meta">
+                <span>📚 T4 · Temel Serisi</span>
+                <span>⏱ ~25 dakika</span>
+            </div>
+        </div>
+
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong>
+            Neden Python listeleri yetmez? NumPy array kavramı, shape (şekil), indeksleme, broadcasting,
+            temel istatistik işlemleri. Bu, her YZ modelinin veriyi okuma dilidir.
+        </div>
+
+        <article class="ders-icerik">
+
+            <h2>Neden Python Listesi Yetmez?</h2>
+
+            <p>
+                Python'un kendi listesi günlük işler için harikadır ama yapay zekada milyonlarca sayıyla
+                çalışırsınız. Python listesi bu iş için <strong>çok yavaştır</strong> — her eleman ayrı bir nesne,
+                bellekte rastgele dağılmış, ve her işlemde Python yorumlayıcısı tek tek dolaşmak zorunda.
+            </p>
+
+            <pre><code class="language-python"># Python listesi ile 1 milyon sayıyı 2 ile çarpmak — YAVAŞ
+import time
+
+liste = list(range(1_000_000))
+t0 = time.time()
+[b * 2 for b in liste]
+print("Python listesi:", time.time() - t0, "saniye")
+
+# NumPy ile aynı iş — HIZLI
+import numpy as np
+dizi = np.arange(1_000_000)
+t0 = time.time()
+dizi * 2
+print("NumPy:", time.time() - t0, "saniye")   # Genellikle 10-100x daha hızlı</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Analoji</span>
+                <p>
+                    Python listesi, her ürünü ayrı raftan tek tek aldığınız bir market gibi.
+                    NumPy ise bir forklift: paleti olduğu gibi kaldırır, tek hamlede taşır.
+                    Aynı işi yapar ama "yap şekli" farklıdır — NumPy işlemi C dilinde, tek seferde yapar.
+                </p>
+            </div>
+
+            <h2>Array: NumPy'nın Temel Veri Yapısı</h2>
+
+            <pre><code class="language-python">import numpy as np
+
+# 1D array (vektör): tek bir satır
+vektor = np.array([1, 2, 3, 4, 5])
+
+# 2D array (matris): tablo
+matris = np.array([
+    [1, 2, 3],
+    [4, 5, 6]
+])
+
+# 3D array (küp): resim — yükseklik × genişlik × renk kanalı
+resim = np.zeros((224, 224, 3))  # 224×224 piksel, RGB</code></pre>
+
+            <h2>Shape: Verinin Ölçüleri</h2>
+
+            <pre><code class="language-python">print(vektor.shape)    # (5,)     → 1 boyutlu, 5 eleman
+print(matris.shape)    # (2, 3)   → 2 satır, 3 sütun
+print(resim.shape)     # (224, 224, 3) → 3 boyutlu
+
+# Boyut sayısı
+print(resim.ndim)      # 3
+
+# Toplam eleman sayısı
+print(resim.size)      # 150528 = 224×224×3</code></pre>
+
+            <div class="dikkat-kutu">
+                <span class="etiket">⚠️ Shape Uyumu</span>
+                <p>
+                    Sinir ağlarında en sık yapılan hata <strong>şekil uyumsuzluğudur</strong>:
+                    "Model (3, 4) bekliyordu, ben (4, 3) gönderdim" gibi.
+                    Modelinize veri beslemeden önce her zaman <code>.shape</code> ile kontrol edin.
+                </p>
+            </div>
+
+            <h2>İndeksleme: İstediğin Veriyi Seçme</h2>
+
+            <pre><code class="language-python">matris = np.array([
+    [10, 20, 30],
+    [40, 50, 60]
+])
+
+print(matris[0])        # [10 20 30] — ilk satır
+print(matris[0, 1])     # 20 — 0. satır, 1. sütun
+print(matris[:, 1])     # [20 50] — tüm satırlar, 1. sütun
+print(matris[1, :])     # [40 50 60] — 1. satır, tüm sütunlar
+print(matris[0, 1:])    # [20 30] — 0. satır, 1'den sona kadar</code></pre>
+
+            <h2>Broadcasting: Farklı Boyutları Uyumlu Hale Getirmek</h2>
+
+            <p>
+                NumPy, farklı boyutlardaki array'leri otomatik olarak "yayarak" (broadcasting) birlikte
+                çalışabilir hale getirir. Bu, milyonlarca satırı tek satırda işlemenizi sağlar:
+            </p>
+
+            <pre><code class="language-python"># Her elemana 10 ekleme — NumPy otomatik olarak 10'u her elemana "yayar"
+matris = np.array([[1, 2, 3], [4, 5, 6]])
+print(matris + 10)
+# [[11 12 13]
+#  [14 15 16]]
+
+# Sütun vektörü ile satır vektörü toplama (outer-benzeri)
+a = np.array([[1], [2], [3]])    # shape (3, 1)
+b = np.array([10, 20])           # shape (2,)
+print(a + b)
+# a her elemanı b'nin her elemanına yayılır:
+# [[11 21]
+#  [12 22]
+#  [13 23]]</code></pre>
+
+            <h2>İnteraktif: Broadcasting Animasyonu</h2>
+
+            <p>
+                Aşağıda broadcasting'in nasıl çalıştığını adım adım izleyin: küçük array,
+                büyük array'e her işlem sırasında "kopyalanarak" eşlik eder.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Broadcasting Mekanizması</b></div>
+                <div class="viz-mount" id="viz-broadcast" style="min-height:300px"></div>
+            </div>
+
+            <h2>Temel İstatistik</h2>
+
+            <pre><code class="language-python">puanlar = np.array([85, 92, 78, 95, 88, 76, 90])
+
+print(np.mean(puanlar))    # Ortalama: 86.28...
+print(np.median(puanlar))  # Medyan: 88
+print(np.std(puanlar))     # Standart sapma: 6.35...
+print(np.min(puanlar))     # En düşük: 76
+print(np.max(puanlar))     # En yüksek: 95
+
+# Normalizasyon — çok önemli: model girişlerini aynı ölçeğe getirmek
+normal = (puanlar - np.mean(puanlar)) / np.std(puanlar)
+# Artık ortalama 0, standart sapma 1 → model daha rahat öğrenir</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Normalizasyon Analojisi</span>
+                <p>
+                    Bir sınıfta bazı öğrenciler 100 üzerinden, bazıları 5 üzerinden not almış olsun.
+                    Karşılaştırma yapmak için hepsini ortak bir ölçeğe çevirmeniz gerekir.
+                    Normalizasyon tam olarak bunu yapar: her veri özelliğini aynı "ölçek cetveline" oturtur.
+                </p>
+            </div>
+
+            <h2>Resimler Aslında NumPy Array'idir</h2>
+
+            <pre><code class="language-python">from PIL import Image
+import numpy as np
+
+# Bir resmi NumPy array'e çevirme
+img = Image.open("kedi.jpg")
+arr = np.array(img)
+print(arr.shape)   # (yükseklik, genişlik, 3) — 3 = R, G, B kanalları
+
+# R (kırmızı) kanalı al
+kirmizi = arr[:, :, 0]
+
+# Gri tonlamaya çevir (basit yöntem)
+gri = np.mean(arr, axis=2)</code></pre>
+
+            <h2>Kaynaklar</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>NumPy Belgeleri. <a href="https://numpy.org/doc/stable/user/absolute_beginners.html" target="_blank">"NumPy: the absolute basics for beginners"</a> — <a href="https://numpy.org" target="_blank">numpy.org</a>.</li>
+                    <li>VanderPlas, J. (2016). <em>Python Data Science Handbook</em>. <a href="https://jakevdp.github.io/PythonDataScienceHandbook/" target="_blank">Ücretsiz online</a> — Bölüm 2: NumPy.</li>
+                    <li>W3Schools NumPy Tutorial. <a href="https://www.w3schools.com/python/numpy/" target="_blank">w3schools.com/python/numpy</a> — Interaktif tarayıcıda deneme.</li>
+                    <li>Harris, C. R. et al. (2020). <em>"Array programming with NumPy."</em> Nature, 585, 357–362. <a href="https://doi.org/10.1038/s41586-020-2649-2" target="_blank">DOI</a> — NumPy'ın akademik makalesi.</li>
+                    <li>Kaggle. <em>"Intro to Machine Learning"</em> — <a href="https://www.kaggle.com/learn/intro-to-machine-learning" target="_blank">kaggle.com</a> — NumPy + pandas pratiği.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir">
+                <img src="../../assets/icon.webp" alt="">
+                <span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span>
+            </div>
+            <p><a href="../../index.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/broadcast.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>
