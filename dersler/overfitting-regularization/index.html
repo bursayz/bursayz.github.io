@@ -26,6 +26,8 @@
         <div class="ders-kapsam-note">
             <strong>Bu derste öğrenecekleriniz:</strong> Overfitting/underfitting ayrımı, dropout, L1/L2,
             erken durdurma ve veri artırma. "Model ezberliyor" sorununu tespit etmek ve çözmek.
+            (Düzenlileştirme, İngilizce karşılığı "regularization" nedeniyle bazı kaynaklarda
+            "regülarizasyon" olarak da geçer.)
         </div>
 
         <article class="ders-icerik">
@@ -33,7 +35,7 @@
             <h2>Underfitting vs Doğru Öğrenme vs Overfitting</h2>
 
             <div class="io-akis">
-                <div class="io-kutu"><div class="io-baslik">Underfitting</div><div class="io-icerik">Model çok basit<br>Eğitim+Test'te kötü<br>(model görmemiş gibi)</div></div>
+                <div class="io-kutu"><div class="io-baslik">Underfitting</div><div class="io-icerik">Model çok basit<br>Eğitim+Test'te kötü<br>(model veriyi yakalayamıyor)</div></div>
                 <div class="io-ok">→</div>
                 <div class="io-kutu"><div class="io-baslik">İyi Öğrenme</div><div class="io-icerik">Hem eğitim hem test<br>iyi — model genelleme yapıyor</div></div>
                 <div class="io-ok">→</div>
@@ -52,14 +54,15 @@
 
             <h2>Overfitting'i Tespit Etmek</h2>
 
-            <pre><code class="language-python"># Overfitting sinyali: train acc ↑ val acc ↓ (gap açılıyor)
-# Eğitim eğrilerinde bu "V" oluşumu:
+            <pre><code class="language-python"># Overfitting sinyali: train loss ↓ devam ederken val loss ↑ döner (gap açılır)
+# Eğitim eğrilerinde val loss'ta bu "U" oluşumu:
 
 # Epoch    Train Loss   Val Loss
 #   1        0.9         0.85
-#   5        0.4         0.50
+#   5        0.4         0.50  ← val loss minimuma yaklaşıyor
+#   7        0.25        0.47  ← minimum civarı: durmak için ideal nokta
 #  10        0.1         0.62  ← Burada val loss artıyor! OVERFIT!
-#  15        0.02        0.78  ← Durmak gerekirdi (erken durdurma noktası)</code></pre>
+#  15        0.02        0.78  ← Çok geç — model ezberlemiş</code></pre>
 
             <h2>Çözüm 1: Dropout — Rastgele Nöronları Kapat</h2>
 
@@ -71,15 +74,21 @@
 
             <pre><code class="language-python">import torch.nn as nn
 
-# nn.Sequential yada nn.Module içinde:
+# nn.Sequential ya da nn.Module içinde:
 model = nn.Sequential(
-    nn.Linear(784, 256),
+    nn.Linear(784, 512),
     nn.ReLU(),
-    nn.Dropout(p=0.5),   # Her adımda %50 nöron kapat
+    nn.Dropout(p=0.3),   # Her adımda nöronların %30'unu kapat
+    nn.Linear(512, 256),
+    nn.ReLU(),
+    nn.Dropout(p=0.5),   # Son katmana yakın daha yüksek oran yaygındır
     nn.Linear(256, 10)
 )
 
-# ⚠️ model.eval() çağrıldığında dropout otomatik devre dışı kalır!</code></pre>
+# ⚠️ model.eval() çağrıldığında dropout otomatik devre dışı kalır!
+# ⚠️ Değerlendirme bitince eğitime dönmek için model.train() çağırmayı unutmayın.
+# Not: PyTorch eğitimde kalan nöronları 1/(1-p) ile ölçekler (inverted dropout),
+# böylece test anında ekstra ölçekleme gerekmez.</code></pre>
 
             <div class="analoji-kutu">
                 <span class="etiket">💡 Dropout Analojisi</span>
@@ -93,17 +102,25 @@ model = nn.Sequential(
             <h2>Çözüm 2: L1 ve L2 Regularization</h2>
 
             <pre><code class="language-python"># Kayıp = orijinal kayıp + ceza_terimi
+# agirliklar: modelin tüm ağırlık parametreleri birleştirilmiş tek bir tensör gibi düşünün
 
 # L2 (Ridge) — Büyük ağırlıkları cezalandır.
 # Amaç: ağırlıkları küçük tutmak (smooth model)
 kayip = orijinal_kayip + lambda_ * (agirliklar ** 2).sum()
 
-# L1 (Lasso) — Toplam büyüklüğü cezalandır.
-# Ağırıkları sıfıra itebilir → özellik seçimi yapabilir
+# L1 (Lasso) — Ağırlıkların mutlak değerlerinin toplamını cezalandır.
+# Ağırlıkları sıfıra itebilir → özellik seçimi yapabilir
 kayip = orijinal_kayip + lambda_ * (agirliklar.abs()).sum()
 
-# PyTorch'ta weight_decay parametresiyle L2 uygulanır:
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)</code></pre>
+# lambda_ (ceza katsayısı) bir hiperparametredir; ağırlık çapraz doğrulama ile seçilir
+# (örn. 1e-5 ile 1e-2 arasında logaritmik tarama).
+
+# PyTorch'ta SGD'de weight_decay parametresi L2 cezasına eşdeğerdir:
+optimizer = torch.optim.SGD(model.parameters(), lr=0.01, weight_decay=1e-4)
+
+# ⚠️ Adam'da weight_decay gerçek L2 cezası gibi davranmaz — ceza gradyana eklenir
+# ve adaptif ölçeklemeden geçer (Loshchilov &amp; Hutter, 2019). Adam için doğrusu AdamW'dir:
+optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-4)</code></pre>
 
             <h2>Çözüm 3: Erken Durdurma (Early Stopping)</h2>
 
@@ -132,21 +149,33 @@ model.load_state_dict(torch.load("en_iyi_model.pt"))</code></pre>
 
             <p>
                 Görüntüleri döndür, yansıt, kırp — model, nesnenin sadece bir pozisyonunu değil
-                her halini görsün. Veri artırmak, modelin "ezberlemesi" gereken doğru cevap setini genişletir
-                ve genellemeyi artırır.
+                her halini görsün. Veri artırma, eğitim dağılımını çeşitlendirerek modelin
+                ezberlemesini zorlaştırır ve genellemeyi artırır.
             </p>
 
             <pre><code class="language-python">from torchvision import transforms
 
 train_transform = transforms.Compose([
-    transforms.RandomHorizontalFlip(),          # 180° yansıt (%50 şans)
+    transforms.RandomHorizontalFlip(),           # Yatay aynalama (%50 olasılık)
     transforms.RandomRotation(15),               # ±15° döndür
     transforms.ColorJitter(brightness=0.2),      # Parlaklık değiştir
-    transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),  # Kırp
+    transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),  # Kırp ve 224x224'e boyutla
     transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],      # ImageNet ön eğitimli
+                         std=[0.229, 0.224, 0.225]),      # modeller için gerekli
 ])
 
-# Test verisine augmentation YAPILMAZ — model sadece eğitimde "daha çok görür"</code></pre>
+# Doğrulama/test için rastgele dönüşümler YAPILMAZ; ama tahmin öncesi deterministik
+# ön işleme yine gerekir (Resize + CenterCrop + Normalize):
+val_transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+])
+# Not: Bazı ileri senaryolarda test anında da augmentation uygulanır
+# (test-time augmentation / TTA) ve tahminler ortalanır.</code></pre>
 
             <h2>İnteraktif: Overfitting Animasyonu</h2>
 
@@ -155,14 +184,12 @@ train_transform = transforms.Compose([
                 <div class="viz-mount" id="viz-overfit" style="min-height:320px"></div>
             </div>
 
-            <h2>Kaynaklar</h2>
-
             <div class="kaynaklar-kutu">
                 <h2>📚 Kaynaklar</h2>
                 <ol>
                     <li>Srivastava, N. et al. (2014). <em>"Dropout: A Simple Way to Prevent Neural Networks from Overfitting."</em> JMLR, 15, 1929–1958. <a href="https://jmlr.org/papers/v15/srivastava14a.html" target="_blank">jmlr.org</a> — Dropout'un orijinal makalesi.</li>
-                    <li>Prechelt, L. (1998). <em>"Early Stopping — But When?"</em> — Erken durdurma stratejileri.</li>
-                    <li>Ioffe, S., & Szegedy, C. (2015). <em>"Batch Normalization."</em> ICML — Ağırlık regularization ile birlikte en yaygın teknik.</li>
+                    <li>Prechelt, L. (1998). <em>"Early Stopping — But When?"</em> In: <em>Neural Networks: Tricks of the Trade</em>, Springer. — Erken durdurma stratejileri.</li>
+                    <li>Loshchilov, I., & Hutter, F. (2019). <em>"Decoupled Weight Decay Regularization."</em> ICLR. <a href="https://arxiv.org/abs/1711.05101" target="_blank">arxiv.org</a> — AdamW'nin orijinal makalesi: Adam'da weight_decay ile L2'nin neden farklı davrandığı.</li>
                     <li>Goodfellow et al. (2016). <em>Deep Learning</em>, Bölüm 7 (Regularization). <a href="https://www.deeplearningbook.org/" target="_blank">deeplearningbook.org</a>.</li>
                     <li>Shorten, C., & Khoshgoftaar, T. M. (2019). <em>"A survey on Image Data Augmentation for Deep Learning."</em> Journal of Big Data. — Görüntü augmentation stratejileri.</li>
                 </ol>
