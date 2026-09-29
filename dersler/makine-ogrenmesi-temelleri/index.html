@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Makine Öğrenmesi Temelleri — Bursa Yapay Zeka Geliştiricileri Topluluğu</title>
-    <meta name="description" content="Denetimli/denetimsiz öğrenme, özellik ve etiket, eğitim-test ayrımı, doğrusal regresyon ve kayıp kavramı. ML'e sıfırdan giriş.">
+    <meta name="description" content="Denetimli/denetimsiz/pekiştirmeli öğrenme, özellik ve etiket, eğitim-test ayrımı, doğrusal regresyon ve kayıp kavramı. ML'e sıfırdan giriş.">
     <link rel="canonical" href="https://bursayz.github.io/dersler/makine-ogrenmesi-temelleri/">
     <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -22,7 +22,7 @@
             <button class="edu-nav-toggle" id="nav-toggle" aria-label="Menüyü aç" aria-expanded="false">☰</button>
             <div class="edu-nav" id="edu-nav">
                 <a href="../../egitim.html">Eğitimler</a>
-                <a href="../../topluluk.html">Topluluk</a>
+                <a href="../../index.html">Topluluk</a>
                 <span id="auth-slot"></span>
             </div>
         </div>
@@ -85,7 +85,7 @@
             <p>
                 Model bir <strong>ajan</strong> olarak çevreyle etkileşir, iyi davranışlar ödüllendirilir,
                 kötüler cezalandırılır. Satranç oynayan, robotik kol kontrol eden sistemler böyle eğitilir.
-                <em>RLHF (RL from Human Feedback) dersinde LLM'lere uygulanışını göreceğiz.</em>
+                <em>RLHF (Reinforcement Learning from Human Feedback) dersinde LLM'lere uygulanışını göreceğiz.</em>
             </p>
 
             <div class="analoji-kutu">
@@ -100,24 +100,34 @@
             <h2>Özellik (Feature) ve Etiket (Label)</h2>
 
             <p>
-                Model girişine <strong>özellik</strong> (feature), model çıktısına <strong>etiket</strong> (label) denir.
+                Modele verdiğimiz girdilere <strong>özellik</strong> (feature), modelin öğrenmeye çalıştığı
+                <em>doğru cevaplara</em> <strong>etiket</strong> (label) denir. Dikkat: etiket modelin çıktısı değildir;
+                modelin çıktısına <strong>tahmin</strong> (prediction) denir. Eğitim sırasında tahmin ile etiketi
+                karşılaştırarak modelin ne kadar yanıldığını ölçeriz.
             </p>
 
             <pre><code class="language-python"># Ev fiyatı tahmin örneği
-# X = özellikler (input), y = etiket (output — doğru cevap)
+# X = özellikler (girdi), y = etiket (doğru cevap — gerçek fiyat)
 
 X = [  # Her satır bir ev, her sütun bir özellik
-    [85, 15, "Bursa"],   # m², yaş, şehir
-    [120, 5, "Bursa"],
-    [60, 30, "Bursa"],
+    [85, 15],    # m², yaş
+    [120, 5],
+    [60, 30],
 ]
 y = [2_100_000, 3_400_000, 1_200_000]  # Gerçek satış fiyatları</code></pre>
+
+            <p>
+                Scikit-learn gibi kütüphanelerdeki modeller yalnızca <strong>sayısal veri</strong> ile çalışır.
+                "Şehir" gibi metin/kategorik özellikler önce sayıya çevrilmelidir (one-hot encoding gibi);
+                bu konuya ileride veri hazırlığı derslerinde değineceğiz.
+            </p>
 
             <h2>Eğitim/Test Ayrımı</h2>
 
             <p>
-                Verinin tamamıyla eğitirseniz model ezberler. Bu yüzden veriyi ikiye ayırırız:
-                <strong>eğitim seti</strong>yle modeli öğretiriz, <strong>test seti</strong>yle adil sınav yaparız.
+                Model eğitim verisini <em>ezberleyebilir</em> ve bu durumda eğitim verisiyle ölçülen başarı yanıltıcı olur.
+                Bu yüzden veriyi ikiye ayırırız: <strong>eğitim seti</strong>yle modeli öğretiriz,
+                <strong>test seti</strong>yle modelin daha önce görmediği verilerde adil sınav yaparız.
             </p>
 
             <pre><code class="language-python">from sklearn.model_selection import train_test_split
@@ -125,15 +135,28 @@ y = [2_100_000, 3_400_000, 1_200_000]  # Gerçek satış fiyatları</code></pre>
 # %80 eğitim, %20 test — en yaygın oran
 X_egitim, X_test, y_egitim, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+# Not: Bizim 3 satırlık oyuncak örneğimizde bu bölme 2 eğitim / 1 test çıkar;
+# gerçek projelerde binlerce satırınız olur ve oran anlamlı hâle gelir.
+
 # İyi model = TEST setinde de iyi performans gösteren modeldir
-# Train'de %99 ama test'te %60 → overfitting (ezberleme)!</code></pre>
+# Eğitimde %99 ama testte %60 → overfitting (ezberleme)!</code></pre>
 
             <h2>Doğrusal Regresyon: En Basit Model</h2>
 
             <p>
                 En basit ML modeli tek bir doğru çizmektir: "veriye en iyi uyan doğru nedir?"
-                Bu doğru, m² ile fiyat arasındaki ilişkiyi temsil eder.
+                Bir doğrunun denklemi <strong>ŷ = w·x + b</strong> biçimindedir. Buradaki <strong>w</strong> (eğim)
+                ve <strong>b</strong> (kesme noktası) modelin <strong>ağırlıkları</strong>dır (parametreleri).
+                Öğrenme dediğimiz şey, bu ağırlıkların doğru değerlerini bulmaktır.
             </p>
+
+            <pre><code class="language-python">from sklearn.linear_model import LinearRegression
+
+model = LinearRegression()
+model.fit(X_egitim, y_egitim)   # w ve b değerlerini veriden öğrenir
+
+print(model.predict(X_test))    # Test evlerinin tahmini fiyatları
+print(model.coef_, model.intercept_)  # Öğrenilen w ve b</code></pre>
 
             <div class="viz-kutu">
                 <div class="viz-baslik"><b>Doğrusal Regresyon — Veriye En İyi Oturan Doğru</b></div>
@@ -144,10 +167,11 @@ X_egitim, X_test, y_egitim, y_test = train_test_split(X, y, test_size=0.2, rando
 
             <p>
                 Modelin ne kadar <em>yanlış</em> olduğunu ölçen sayıya <strong>kayıp (loss)</strong> denir.
-                Amaç: kaybı minimize etmek. En yaygın kayıp fonksiyonu, MSE (Mean Squared Error):
+                Amaç: kaybı minimize etmek. Regresyonda en yaygın kayıp fonksiyonu MSE'dir (Mean Squared Error);
+                sınıflandırmada ise genellikle cross-entropy kullanılır (bunu sınıflandırma derslerinde göreceğiz).
             </p>
 
-            <pre><code class="language-python"># MSE: her tahminin hataya karesini al, ortalamasını hesapla
+            <pre><code class="language-python"># MSE: her tahmin hatasının karesini al, ortalamasını hesapla
 tahminler = [2.0, 2.5, 1.8]     # Model tahminleri
 gercekler = [2.1, 2.3, 2.0]     # Gerçek değerler
 
@@ -160,7 +184,12 @@ print(f"MSE: {mse:.4f}")  # Küçük olması iyi
 
             <h2>Model Eğitiminin Genel Döngüsü</h2>
 
-            <pre><code class="language-python"># Tüm modellerde aynı döngü — 10 satırda:
+            <p>
+                Sinir ağları gibi <strong>gradyan tabanlı</strong> modellerde eğitim şu döngüyle ilerler
+                (aşağıdaki <em>sözde kod</em>dur; PyTorch'ta gerçek hâlini ilerideki derslerde göreceğiz):
+            </p>
+
+            <pre><code class="language-python"># Özde kod — gradyan tabanlı eğitim döngüsü:
 for epoch in range(10):
     # 1. İleri geçiş: tahmin üret
     tahmin = model(X_egitim)
@@ -177,17 +206,20 @@ for epoch in range(10):
 
     print(f"Epoch {epoch}: kayıp = {kayip.item():.4f}")</code></pre>
 
-            <p>Bu döngüyü ileride milyarlarca parametreli modellere de aynen uygulayacağız — değişen sadece ölçek ve karmaşıklık olacak.</p>
-
-            <h2>Kaynaklar</h2>
+            <p>
+                Her model böyle döngüyle eğitilmez: örneğin karar ağaçları veriyi adım adım böler,
+                k-means küme merkezlerini iteratif günceller — bunların ikisinde de gradyan (türev) yoktur.
+                Bu döngü doğrusal regresyondan milyarlarca parametreli sinir ağlarına kadar, gradyan tabanlı
+                tüm modellerde aynıdır — değişen sadece ölçek ve karmaşıklıktır.
+            </p>
 
             <div class="kaynaklar-kutu">
                 <h2>📚 Kaynaklar</h2>
                 <ol>
                     <li>Andrew Ng. <em>Machine Learning Specialization</em>. <a href="https://www.coursera.org/specializations/machine-learning-introduction" target="_blank">Coursera</a> — Alanın klasik başlangıç kursu.</li>
-                    <li>Scikit-learn Belgeleri. <a href="https://scikit-learn.org/stable/tutorial/basic/tutorial.html" target="_blank">scikit-learn.org</a> — train_test_split ve temel modeller için.</li>
-                    <li>StatQuest (Josh Starmer). <em>Machine Learning Fundamentals</em> (YouTube). — Görsel ve sezgisel açıklamalar.</li>
-                    <li>Mitchell, T. M. (1997). <em>Machine Learning</em>. McGraw-Hill — Alanın kurucu kitabı, temel kavramlar için.</li>
+                    <li>Scikit-learn Belgeleri. <a href="https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.train_test_split.html" target="_blank">train_test_split</a> — Eğitim/test ayrımının resmî belgesi.</li>
+                    <li>StatQuest (Josh Starmer). <a href="https://www.youtube.com/@statquest" target="_blank"><em>Machine Learning Fundamentals</em></a> (YouTube) — Görsel ve sezgisel açıklamalar.</li>
+                    <li>Mitchell, T. M. (1997). <em>Machine Learning</em>. McGraw-Hill — Klasik ders kitabı, temel kavramlar için.</li>
                     <li>Kaggle. <em>Intro to Machine Learning</em>. <a href="https://www.kaggle.com/learn/intro-to-machine-learning" target="_blank">kaggle.com/learn</a> — Ücretsiz pratik kurs.</li>
                     <li>Google. <em>Machine Learning Crash Course</em>. <a href="https://developers.google.com/machine-learning/crash-course" target="_blank">developers.google.com</a> — Ücretsiz, interaktif.</li>
                 </ol>
@@ -205,7 +237,7 @@ for epoch in range(10):
                 <img src="../../assets/icon.webp" alt="">
                 <span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span>
             </div>
-            <p><a href="../../egitim.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p><a href="../../egitim.html">Tüm Eğitimler</a> · <a href="../../index.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
             <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
         </div>
     </footer>
