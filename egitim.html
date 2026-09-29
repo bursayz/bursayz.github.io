@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eğitimler — Bursa Yapay Zeka Geliştiricileri Topluluğu</title>
+    <meta name="description" content="Sıfırdan yapay zeka modeli geliştirmeyi öğrenin. LLM eğitimi, ince ayar (SFT), LoRA/QLoRA, CNN, diffusion ve daha fazlası. Türkçe, ücretsiz, herkese açık.">
+    <meta name="keywords" content="yapay zeka eğitimi, llm eğitimi, yapay zeka modeli geliştirme, bursa, python, pytorch, derin öğrenme, transformer, ücretsiz eğitim">
+    <meta name="author" content="Bursa Yapay Zeka Geliştiricileri Topluluğu">
+    <meta name="robots" content="index, follow">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://bursayz.github.io/egitim">
+    <meta property="og:title" content="Bursa YZGT — Eğitimler">
+    <meta property="og:description" content="Sıfırdan yapay zeka modeli geliştirmeyi öğretin. Türkçe, ücretsiz.">
+    <meta property="og:image" content="https://bursayz.github.io/assets/logo.jpg">
+    <meta property="og:locale" content="tr_TR">
+    <link rel="canonical" href="https://bursayz.github.io/egitim.html">
+    <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/edu.css">
+</head>
+<body class="edu-body seri-temel">
+
+    <nav class="edu-topbar">
+        <div class="edu-container">
+            <a href="egitim.html" class="edu-logo">
+                <img src="assets/icon.webp" alt="Bursa YZGT">
+                <span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span>
+                <span class="short">Bursa YZGT</span>
+            </a>
+            <div class="edu-nav">
+                <a href="egitim.html" class="active">Eğitimler</a>
+                <a href="egitim.html#rozetler">Rozetler</a>
+                <a href="index.html">Topluluk</a>
+                <span id="auth-slot"></span>
+            </div>
+        </div>
+    </nav>
+
+    <header class="edu-hero">
+        <div class="edu-container">
+            <h1>
+                Yapay Zekayı <span class="highlight">Kullanmayı</span> Değil,<br>
+                <span class="highlight">Geliştirmeyi</span> Öğrenin.
+            </h1>
+            <p class="sub">
+                Sıfırdan başlayın. LLM'leri, görüntü modellerini ve quantization'ı
+                adım adım, örneklerle ve 3D görselleştirmelerle kavrayın.
+                Lise öğrencisinden ileri düzey geliştiriciye — herkese açık, tamamen ücretsiz.
+            </p>
+            <div class="edu-badges">
+                <span class="edu-badge">✓ %100 Ücretsiz</span>
+                <span class="edu-badge">✓ Giriş Gerekmez</span>
+                <span class="edu-badge">✓ Sıfırdan Başlar</span>
+                <span class="edu-badge">✓ Türkçe</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="edu-container">
+
+        <section class="ilerleme-ozet" id="rozetler">
+            <div class="ust">
+                <b>📊 İlerlemeniz</b>
+                <span id="ilerleme-metin">Yükleniyor...</span>
+            </div>
+            <div class="ilerleme-bar"><div class="dolu" id="ilerleme-bar"></div></div>
+            <div class="rozet-raf" id="rozet-raf"></div>
+            <div id="devam-onerisi" style="margin-top:0.9rem;font-size:0.85rem;"></div>
+        </section>
+
+        <div id="ders-katalog"></div>
+
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir">
+                <img src="assets/icon.webp" alt="">
+                <span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span>
+            </div>
+            <p>
+                Türkiye'deki öğrenciler ve geliştiriciler için ücretsiz yapay zeka eğitim platformu.<br>
+                <a href="index.html">Topluluk Sayfası</a> ·
+                <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a> ·
+                <a href="https://github.com/bursayz" target="_blank" rel="noopener">GitHub</a> ·
+                <a href="https://www.youtube.com/@bursayz" target="_blank" rel="noopener">YouTube</a>
+            </p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="js/edu/config.js"></script>
+    <script src="js/edu/curriculum.js"></script>
+    <script src="js/edu/progress.js"></script>
+    <script src="js/edu/auth.js"></script>
+    <script>
+        (function () {
+            const katalog = document.getElementById("ders-katalog");
+            let html = "";
+            for (const [seriAdi, seri] of Object.entries(SERILER)) {
+                const dersler = seriDersleri(seriAdi);
+                if (!dersler.length) continue;
+                const i = Progress.seriIlerleme(seriAdi);
+                html += `<section class="seri-section ${seri.seriClass}" id="seri-${seriAdi}">
+                    <div class="seri-baslik">
+                        <h2>${seri.ad} Serisi</h2>
+                        <span class="seri-aciklama">${seri.aciklama}</span>
+                        <span class="seri-ilerleme">${i.tamamlanan}/${i.toplam} tamamlandı</span>
+                    </div>
+                    <div class="ders-grid">`;
+                for (const d of dersler) {
+                    const durum = Progress.dersDurum(d.slug);
+                    const gecti = Progress.quizGectiMi(d.slug);
+                    const durumIkon = gecti
+                        ? '<span class="durum tamamlandi" title="Sınav geçildi ✓">✔</span>'
+                        : (durum === "devam" ? '<span class="durum" title="Başlandı">◐</span>' : '<span class="durum bekliyor">○</span>');
+                    html += `
+                        <a class="ders-kart" href="dersler/${d.slug}/">
+                            <div class="no">${d.no}</div>
+                            <div class="icerik">
+                                <h3>${d.baslik}</h3>
+                                <p>${d.ozet}</p>
+                                <div class="etiketler">
+                                    <span class="etiket">⏱ ${d.sure}</span>
+                                    ${d.viz.startsWith("3d") ? '<span class="etiket">🧊 3D İnteraktif</span>' : '<span class="etiket">🖥 İnteraktif</span>'}
+                                </div>
+                            </div>
+                            ${durumIkon}
+                        </a>`;
+                }
+                html += `</div></section>`;
+            }
+            katalog.innerHTML = html;
+
+            const g = Progress.genelIlerleme();
+            document.getElementById("ilerleme-metin").textContent =
+                g.tamamlanan === 0
+                    ? "Henüz başlamadınız — ilk dersle başlayın!"
+                    : `${g.tamamlanan}/${g.toplam} ders tamamlandı (%${g.yuzde})`;
+            document.getElementById("ilerleme-bar").style.width = g.yuzde + "%";
+
+            const rozetler = Progress.kazanilanRozetler();
+            const raf = document.getElementById("rozet-raf");
+            if (rozetler.length) {
+                raf.innerHTML = rozetler.map(r => `<span class="rozet-item kazanildi">🏆 ${r} Serisi</span>`).join("");
+            } else {
+                const q = Progress.toplamQuizSayisi();
+                raf.innerHTML = q ? `<span class="rozet-item">📝 ${q} sınav denemesi — bir seriyi bitirerek ilk rozeti kazanın!</span>` : "";
+            }
+
+            const oneri = Progress.siradakiTavsiye();
+            if (oneri && g.tamamlanan > 0) {
+                document.getElementById("devam-onerisi").innerHTML =
+                    `▶ Kaldığınız yerden devam: <a href="dersler/${oneri.slug}/"><b>${oneri.no} — ${oneri.baslik}</b></a>`;
+            } else if (oneri) {
+                document.getElementById("devam-onerisi").innerHTML =
+                    `▶ İlk derse başlayın: <a href="dersler/${oneri.slug}/"><b>${oneri.no} — ${oneri.baslik}</b></a>`;
+            } else {
+                document.getElementById("devam-onerisi").innerHTML = "🎉 Tüm müfredatı tamamladınız!";
+            }
+
+            if (typeof GitHubAuth !== "undefined") {
+                GitHubAuth.authButonuRender("auth-slot");
+            }
+        })();
+    </script>
+</body>
+</html>

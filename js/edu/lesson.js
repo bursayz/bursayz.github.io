@@ -22,7 +22,7 @@
     const bc = document.getElementById("ders-breadcrumb");
     if (bc) {
         bc.innerHTML = `
-            <a href="../../index.html">Eğitimler</a>
+            <a href="../../egitim.html">Eğitimler</a>
             <span class="ayirac">›</span>
             <a href="../../index.html#seri-${ders.seri}">${seri.ad} Serisi</a>
             <span class="ayirac">›</span>
@@ -44,7 +44,7 @@
                 <span class="nav-baslik">${onceki.no} — ${onceki.baslik}</span>
             </a>`;
         } else {
-            html += `<a class="geri" href="../../index.html">
+            html += `<a class="geri" href="../../egitim.html">
                 <span class="nav-yon">← Eğitim Kataloğu</span>
                 <span class="nav-baslik">Tüm Dersler</span>
             </a>`;
@@ -55,7 +55,7 @@
                 <span class="nav-baslik">${sonraki.no} — ${sonraki.baslik}</span>
             </a>`;
         } else {
-            html += `<a class="ileri" href="../../index.html">
+            html += `<a class="ileri" href="../../egitim.html">
                 <span class="nav-yon">Bitirdiniz! →</span>
                 <span class="nav-baslik">Kataloğa Dön 🎉</span>
             </a>`;
