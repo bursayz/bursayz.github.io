@@ -35,14 +35,15 @@
             <p>
                 Bilgisayarlar sadece sayıları anlar. "Merhaba dünya" yazısı bilgisayar için
                 anlamsızdır — önce sayılara çevrilmesi gerekir. Bu işleme <strong>tokenization</strong> denir.
+                (Aşağıdaki token ID'leri örnek değerlerdir.)
             </p>
 
             <div class="io-akis">
                 <div class="io-kutu"><div class="io-baslik">Ham Metin</div><div class="io-icerik">"Bursa güzel bir şehir"</div></div>
                 <div class="io-ok">→</div>
-                <div class="io-kutu"><div class="io-baslik">Tokenization</div><div class="io-icerik">["Bursa", " güzel", " bir", " şehir"]<br>[15234, 8971, 245, 12908]</div></div>
+                <div class="io-kutu"><div class="io-baslik">Tokenization</div><div class="io-icerik">["Bursa", " güzel", " bir", " şehir"]<br>[15234, 8971, 245, 12908]<br><small style="font-size:0.75em;opacity:0.7">(örnek değerler)</small></div></div>
                 <div class="io-ok">→</div>
-                <div class="io-kutu"><div class="io-baslik">Sayı Dizisi</div><div class="io-icerik">Modelin gördüğü:<br>[15234, 8971, 245, 12908]</div></div>
+                <div class="io-kutu"><div class="io-baslik">Sayı Dizisi</div><div class="io-icerik">Modelin gördüğü:<br>[15234, 8971, 245, 12908]<br><small style="font-size:0.75em;opacity:0.7">(örnek değerler)</small></div></div>
             </div>
 
             <h2>Neden Kelime Kelime Değil?</h2>
@@ -54,45 +55,63 @@
                 nadir kelimeler parçalara bölünür.
             </p>
 
-            <pre><code class="language-python"># tiktoken ile (OpenAI'ın tokenizerı)
+            <pre><code class="language-python"># tiktoken ile (OpenAI'ın tokenizer'ı)
 import tiktoken
 enc = tiktoken.get_encoding("cl100k_base")
 
 metin = "yapay zeka öğreniyorum"
 tokenlar = enc.encode(metin)
-print(tokenlar)  # [15339, 11561, 91, 1048, 2977, 271, 1239]
+print(tokenlar)  # [88, 391, 352, 1167, 53413, 17372, 11257, 1466, 16618, 34106]
 
 # Token ID'si → orijinal parça
+# DİKKAT: Byte-level BPE'de bir karakter birden çok token'a bölünebilir.
+# Örneğin "ö" gibi bazı karakterler tek başına decode edilemez — "" (replacement char) üretebilir.
+# Güvenli kullanım: decode_single_token_bytes ile byte seviyesinde inceleyin.
 for t in tokenlar:
-    print(t, "→", enc.decode([t]))</code></pre>
+    print(t, "→", enc.decode_single_token_bytes(t))
+# 88 → b'y'
+# 391 → b'ap'
+# 352 → b'ay'
+# 1167 → b' z'
+# 53413 → b'eka'
+# 17372 → b' \xc3\xb6'  (ö'nün byte'ları)
+# 11257 → b'\xc4\x9f'  (ğ'nün byte'ları)
+# 1466 → b'ren'
+# 16618 → b'iy'
+# 34106 → b'orum'</code></pre>
 
             <h2>BPE Algoritması: Adım Adım</h2>
 
             <p>
                 <strong>BPE (Byte Pair Encoding)</strong>, en sık geçen karakter çiftlerini
-                tekrar tekrar birleştirerek kelime haznesi oluşturur:
+                tekrar tekrar birleştirerek kelime haznesi oluşturur.
+                <em>Aşağıdaki örnek kavramsal BPE'dir; modern tokenizer'larda (cl100k_base, Llama-3) byte-level BPE kullanılır
+                ve başlangıç sözlüğü 256 byte'tır.</em> Gerçek BPE önce kelimelere ayırır (pre-tokenization),
+                kelime frekansları üzerinden çalışır ve birleştirme kurallarını (merge list) saklar.
             </p>
 
             <ol>
-                <li>Başta her karakter ayrı bir token: <code>["k","a","n","a","t"]</code></li>
-                <li>Veri setinde en çok birlikte geçen çift bulunur: <code>("a","n")</code> → yeni token <code>"an"</code></li>
-                <li>Tüm metinlerde bu çift birleştirilir: <code>["k","an","a","t"]</code></li>
-                <li>Bu adım tekrarlanır... binlerce kez → kelime haznesi oluşur</li>
+                <li>Başta her karakter ayrı bir token (gerçekte 256 byte): <code>["k","a","n","a","t"]</code></li>
+                <li>Veri setinde en çok birlikte geçen çift bulunur: <code>("k","a")</code> → yeni token <code>"ka"</code></li>
+                <li>Tüm metinlerde bu çift birleştirilir: <code>["ka","n","a","t"]</code></li>
+                <li>Bu adım tekrarlanır; kelime haznesi boyutu (vocab size) kadar kural oluşur → kelime haznesi oluşur</li>
+                <li><em>Kural listesi (merge list) inference sırasında da sırayla uygulanır — yani bir tokenizasyon aynı kuralları tekrar tekrar kullanır.</em></li>
             </ol>
 
-            <pre><code class="language-python"># Basit BPE simülasyonu
+            <pre><code class="language-python"># Basit BPE simülasyonu (kavramsal; gerçek BPE kelime frekansları üzerinden çalışır)
+# Not: Eşitlik durumunda ilk görülen çift seçilir (max() davranışı)
 def bpe_egit(metin, birlesme_sayisi):
     tokenlar = list(metin)
-    for _ in range(birlesme_sayisi):
+    for tur in range(birlesme_sayisi):
         # En sık geçen çifti bul
         siklik = {}
         for i in range(len(tokenlar) - 1):
             cift = (tokenlar[i], tokenlar[i+1])
             siklik[cift] = siklik.get(cift, 0) + 1
         if not siklik: break
-        en_sik = max(siklik, key=siklik.get)
+        en_sik = max(siklik, key=siklik.get)  # Eşitlikte ilk eklenen çift
         yeni_token = "".join(en_sik)
-        # Birleştir
+        # Birleştir (tek kural)
         yeni_tokenlar = []
         i = 0
         while i < len(tokenlar):
@@ -103,19 +122,25 @@ def bpe_egit(metin, birlesme_sayisi):
                 yeni_tokenlar.append(tokenlar[i])
                 i += 1
         tokenlar = yeni_tokenlar
-        print(f"Birleşen: {en_sik} → '{yeni_token}'  →  {tokenlar}")
+        print(f"Tur {tur+1}: Birleşen: {en_sik} → '{yeni_token}'  →  {tokenlar}")
     return tokenlar
 
 bpe_egit("kanat kanat kanat", 3)
-# 1. tur: ('a','n') → 'an' → ['k','an','a','t',' ','k','an','a','t',...]
-# 2. tur: ('k','an') → 'kan' → ['kan','a','t',...]
-# 3. tur: ('a','t') → 'at' → ['kan','at',...]</code></pre>
+# Tur 1: Birleşen: ('k','a') → 'ka'  →  ['ka','n','a','t',' ','ka','n','a','t',' ','ka','n','a','t']
+# Tur 2: Birleşen: ('ka','n') → 'kan'  →  ['kan','a','t',' ','kan','a','t',' ','kan','a','t']
+# Tur 3: Birleşen: ('kan','a') → 'kana'  →  ['kana','t',' ','kana','t',' ','kana','t']
+# Dikkat: Tüm çiftler eşit sıklıkta (3 kez). Eşitlik durumunda ilk eklenen çift ('k','a') seçilir.
+# Bu örnekte "en sık çift" kavramı anlam kazanmıyor — "kanat kanat kanat kalem" gibi eşit olmayan bir örnek daha öğretici olurdu.
+
+# Gerçek BPE'de birleştirme kuralları (merge list) döndürülür ve yeni metin encode edilirken
+# sırayla uygulanır. Bu basit simülasyon yalnızca tokenlanmış metni döndürür.</code></pre>
 
             <h2>İnteraktif BPE Aracı</h2>
 
             <p>
-                Aşağıya herhangi bir Türkçe/İngilizce metin yazın. Gerçek bir tokenizer
-                kelimeleri nasıl parçaladığını görebilirsiniz.
+                Aşağıya herhangi bir Türkçe/İngilizce metin yazın. Örnek bir <strong>simülasyon</strong> aracı
+                kelimeleri nasıl parçaladığını görebilirsiniz. Bu araç gerçek bir tokenizer değildir;
+                gerçek davranış için tiktoken veya Hugging Face Tokenizers kullanın.
             </p>
 
             <div class="viz-kutu">
@@ -132,51 +157,58 @@ bpe_egit("kanat kanat kanat", 3)
 
             <h2>Özel Token'lar</h2>
 
-            <pre><code class="language-python"># LLM'lerde metnin içine "gizli komutlar" gibi özel token'lar eklenir:
-# [BOS] / [EOS] / [PAD] / [SEP] / [CLS]
+            <pre><code class="language-python"># LLM'lerde metnin içine yapısal işaretleyiciler (özel token'lar) eklenir:
+# &lt;|begin_of_text|&gt;, &lt;|endoftext|&gt;, &lt;|eot_id|&gt; gibi formatlar yaygındır.
+# [BOS]/[EOS] gösterimi bazı kaynaklarda kullanılır ama genel standart değildir.
+# [CLS]/[SEP] ise BERT model ailesine özgüdür.
+# Önemli: Model bu token'lara eğitim sırasında anlam kazandırır; "gizli komut" değillerdir.
 
 # Örnek chat template (Llama-3 tarzı):
-metin = """&lt;|begin_of_text|&gt;
-&lt;|start_header_id|&gt;system&lt;|end_header_id|&gt;
-Sen yardımcı bir asistansın.&lt;|eot_id|&gt;
-&lt;|start_header_id|&gt;user&lt;|end_header_id|&gt;
-Merhaba!&lt;|eot_id|&gt;
-&lt;|start_header_id|&gt;assistant&lt;|end_header_id|&gt;
-Merhaba! Size nasıl yardımcı olabilirim?&lt;|eot_id|&gt;"""
+metin = """<|begin_of_text|>
+<|start_header_id|>system<|end_header_id|>
 
-# Tokenizer bu metni şöyle sayı dizisine çevirir:
-# [128000, 128006, 78191, ... 128009, ...]</code></pre>
+Sen yardımcı bir asistansın.<|eot_id|>
+<|start_header_id|>user<|end_header_id|>
+
+Merhaba!<|eot_id|>
+<|start_header_id|>assistant<|end_header_id|>
+
+Merhaba! Size nasıl yardımcı olabilirim?<|eot_id|>"""
+
+# Tokenizer bu metni sayı dizisine çevirir.
+# Not: tiktoken varsayılan olarak özel token'ları encode etmez;
+# allowed_special={"<|...|>"} veya encode_with_special kullanmanız gerekir.
+# Gerçek Llama-3 tokenizer'ında "system" ID'si 9125'tir (78191 "assistant" kelimesinin ID'sidir).</code></pre>
 
             <h2>Bağlam Penceresi (Context Window)</h2>
 
             <ul>
-                <li>Model aynı anda sadece belirli sayıda token "görebilir". Bu limit: <strong>bağlam penceresi</strong>.</li>
-                <li>GPT-3.5: 4K token, GPT-4: 128K token, Claude 3.5: 200K token.</li>
-                <li>1 token ≈ 0.75 İngilizce kelime ≈ 0.5-0.6 Türkçe kelime (Türkçe daha çok parçalanır!).</li>
-                <li>Pencere dolunca: eski token'lar "unutulur" veya özetlenir.</li>
+                <li>Model aynı anda sadece belirli sayıda token "görebilir". Bu limit: <strong>bağlam penceresi</strong> (girdi + çıktı token'larının toplamı).</li>
+                <li>GPT-3.5: ilk sürüm 4K, sonra 16K token. GPT-4: orijinal 8K/32K; Turbo ve GPT-4o: 128K token. Claude 3.5: 200K token. Güncel değerler için model dokümantasyonuna bakın (Eylül 2026 itibarıyla 1M+ bağlam sunan modeller mevcut).</li>
+                <li>1 token ≈ 0.75 İngilizce kelime (cl100k_base için). Türkçe kelime oranı tokenizer'a göre değişir; cl100k_base'de yaklaşık 0.5-0.6 civarıdır, yeni tokenizer'larda daha yüksek olabilir. "Yaklaşık" olarak değerlendirilmeli.</li>
+                <li>Pencere dolunca: API'lerde çoğunlukla hata döner veya giriş kesilir; "unutma/özetleme" davranışını uygulama katmanı belirler, model kendisi otomatik olarak eski token'ları silmez.</li>
             </ul>
 
             <div class="dikkat-kutu">
                 <span class="etiket">⚠️ Türkçe ve Tokenization</span>
                 <p>
-                    Türkçe eklemeli bir dildir — "evlerimizden" = 5 anlamlı morfem (ev+ler+i+miz+den).
+                    Türkçe eklemeli bir dildir — "evlerimizden" = 4 anlamlı morfem (ev + ler + imiz + den).
+                    BPE token'ları morfemlerle bire bir örtüşmez; ikisi farklı kavramlardır.
                     İngilizce için eğitilen tokenizer Türkçe'yi çok parçalar → daha fazla token,
                     daha yüksek maliyet, daha yavaş çalışma. Türkçe LLM geliştirirken Türkçe
                     tokenizer eğitmek büyük avantaj sağlar.
                 </p>
             </div>
 
-            <h2>Kaynaklar</h2>
-
             <div class="kaynaklar-kutu">
                 <h2>📚 Kaynaklar</h2>
                 <ol>
-                    <li>Sennrich, R., Haddow, B., & Birch, A. (2016). <em>"Neural Machine Translation of Rare Words with Subword Units."</em> ACL. <a href="https://arxiv.org/abs/1508.07909" target="_blank">arXiv:1508.07909</a> — BPE'nin kurucu makalesi.</li>
+                    <li>Sennrich, R., Haddow, B., & Birch, A. (2016). <em>"Neural Machine Translation of Rare Words with Subword Units."</em> ACL. <a href="https://arxiv.org/abs/1508.07909" target="_blank">arXiv:1508.07909</a> — BPE'yi sinir ağı çevirisine uyarlayan makale (BPE sıkıştırma algoritması olarak Gage (1994) tarafından geliştirildi).</li>
                     <li>Karpathy, A. (2024). <em>"Let's build the GPT Tokenizer"</em> (YouTube). <a href="https://www.youtube.com/watch?v=zduSFxRajkE" target="_blank">izle</a> — BPE'yi sıfırdan kodlayıp anlamanın en iyi yolu.</li>
-                    <li>OpenAI. <em>tiktoken</em> GitHub. <a href="https://github.com/openai/tiktoken" target="_blank">github.com/openai/tiktoken</a> — OpenAI modellerinin tokenizer kütüphanesi.</li>
+                    <li>OpenAI. <em>tiktoken</em> GitHub. <a href="https://github.com/openai/tiktoken" target="_blank">github.com/openai/tiktoken</a> — OpenAI modellerinin tokenizer kütüphanesi; Llama 3 de tiktoken tabanlı byte-level BPE kullanır.</li>
                     <li>Hugging Face. <em>Tokenizers Documentation</em>. <a href="https://huggingface.co/docs/tokenizers" target="_blank">huggingface.co/docs/tokenizers</a>.</li>
                     <li>Gage, P. (1994). <em>"A New Algorithm for Data Compression."</em> C Users Journal — BPE'nin orijinal sıkıştırma versiyonu.</li>
-                    <li>Kudo, T., & Richardson, J. (2018). <em>"SentencePiece."</em> EMNLP. — Llama/Qwen modellerinin kullandığı tokenizer.</li>
+                    <li>Kudo, T., & Richardson, J. (2018). <em>"SentencePiece."</em> EMNLP. — Llama 1 ve 2 modellerinin kullandığı tokenizer. (Llama 3 tiktoken tabanlı BPE'ye, Qwen ise byte-level BPE'ye geçmiştir.)</li>
                 </ol>
             </div>
 
