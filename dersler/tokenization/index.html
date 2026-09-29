@@ -138,20 +138,42 @@ bpe_egit("kanat kanat kanat", 3)
             <h2>İnteraktif BPE Aracı</h2>
 
             <p>
-                Aşağıya herhangi bir Türkçe/İngilizce metin yazın. Örnek bir <strong>simülasyon</strong> aracı
-                kelimeleri nasıl parçaladığını görebilirsiniz. Bu araç gerçek bir tokenizer değildir;
-                gerçek davranış için tiktoken veya Hugging Face Tokenizers kullanın.
+                Aşağıya herhangi bir Türkçe/İngilizce metin yazın. Bu araç <strong>gerçek tokenizer</strong>
+                kullanır — iki model arasında geçiş yapıp Türkçe'nin nasıl parçalandığını karşılaştırabilirsiniz:
             </p>
+            <ul>
+                <li><strong>cl100k_base</strong>: OpenAI GPT-4/GPT-3.5'ün tokenizer'ı (İngilizce ağırlıklı eğitilmiştir — Türkçe'yi çok parçalar).</li>
+                <li><strong>Kumru-2B</strong>: VNGRS'in Türkçe ağırlıklı eğittiği modelin BPE tokenizer'ı (Türkçe'de çok daha verimli).</li>
+            </ul>
 
             <div class="viz-kutu">
                 <div class="viz-baslik"><b>Canlı Tokenization Aracı</b></div>
                 <div style="padding:0.5rem">
+                    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem;flex-wrap:wrap">
+                        <label for="bpe-tokenizer-sec" style="font-size:0.8rem;color:var(--edu-text-dim)">Tokenizer:</label>
+                        <select id="bpe-tokenizer-sec" style="
+                            background:var(--edu-bg);color:var(--edu-text);
+                            border:1px solid var(--edu-border);border-radius:0.4rem;
+                            padding:0.35rem 0.6rem;font-size:0.85rem;
+                        ">
+                            <option value="cl100k">cl100k_base (GPT-4 / GPT-3.5)</option>
+                            <option value="kumru">Kumru-2B (Türkçe BPE — vngrs)</option>
+                        </select>
+                        <span id="bpe-durum" style="font-size:0.78rem"></span>
+                    </div>
                     <textarea id="bpe-input" placeholder="Metninizi buraya yazın..." style="
                         width:100%;min-height:70px;background:var(--edu-bg);color:var(--edu-text);
                         border:1px solid var(--edu-border);border-radius:0.5rem;padding:0.7rem;
                         font-family:var(--font-sans);font-size:0.9rem;resize:vertical;box-sizing:border-box;
                     ">Bursa Yapay Zeka Geliştiricileri Topluluğu</textarea>
                     <div id="bpe-output" style="margin-top:0.8rem;font-size:0.85rem;line-height:2;color:var(--edu-text)"></div>
+                    <div style="margin-top:0.6rem;font-size:0.72rem;color:var(--edu-text-dim)">
+                        Kullanılanlar: <a href="https://github.com/niieani/gpt-tokenizer" target="_blank" rel="noopener">gpt-tokenizer</a>
+                        (tiktoken'ın saf-JS portu, cl100k_base) ve
+                        <a href="https://huggingface.co/vngrs/Kumru-2B" target="_blank" rel="noopener">vngrs/Kumru-2B</a>
+                        modelinin tokenizer.json dosyası (≈3.9 MB, ilk seçimde indirilir). Token ID'leri gerçektir;
+                        aynı metin her zaman aynı ID dizisini üretir. Araç tamamen tarayıcınızda çalışır.
+                    </div>
                 </div>
             </div>
 
@@ -207,6 +229,7 @@ Merhaba! Size nasıl yardımcı olabilirim?<|eot_id|>"""
                     <li>Karpathy, A. (2024). <em>"Let's build the GPT Tokenizer"</em> (YouTube). <a href="https://www.youtube.com/watch?v=zduSFxRajkE" target="_blank">izle</a> — BPE'yi sıfırdan kodlayıp anlamanın en iyi yolu.</li>
                     <li>OpenAI. <em>tiktoken</em> GitHub. <a href="https://github.com/openai/tiktoken" target="_blank">github.com/openai/tiktoken</a> — OpenAI modellerinin tokenizer kütüphanesi; Llama 3 de tiktoken tabanlı byte-level BPE kullanır.</li>
                     <li>Hugging Face. <em>Tokenizers Documentation</em>. <a href="https://huggingface.co/docs/tokenizers" target="_blank">huggingface.co/docs/tokenizers</a>.</li>
+                    <li>VNGRS. <em>Kumru-2B</em> (2025). <a href="https://huggingface.co/vngrs/Kumru-2B" target="_blank">huggingface.co/vngrs/Kumru-2B</a> — Türkçe ağırlıklı eğitilmiş açık LLM; bu sayfadaki interaktif araçta BPE tokenizer'ı kullanılmıştır.</li>
                     <li>Gage, P. (1994). <em>"A New Algorithm for Data Compression."</em> C Users Journal — BPE'nin orijinal sıkıştırma versiyonu.</li>
                     <li>Kudo, T., & Richardson, J. (2018). <em>"SentencePiece."</em> EMNLP. — Llama 1 ve 2 modellerinin kullandığı tokenizer. (Llama 3 tiktoken tabanlı BPE'ye, Qwen ise byte-level BPE'ye geçmiştir.)</li>
                 </ol>
@@ -232,7 +255,7 @@ Merhaba! Size nasıl yardımcı olabilirim?<|eot_id|>"""
     <script src="../../js/edu/auth.js"></script>
     <script src="../../js/edu/viz-helpers.js"></script>
     <script src="../../js/edu/quiz.js"></script>
-    <script src="viz/bpe.js"></script>
+    <script type="module" src="viz/bpe.js"></script>
     <script src="quiz.js"></script>
     <script src="../../js/edu/lesson.js"></script>
     <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
