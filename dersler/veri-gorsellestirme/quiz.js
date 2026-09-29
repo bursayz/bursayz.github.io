@@ -31,29 +31,29 @@ window.QUIZ_DATA = [
             "Learning rate çok yüksek"
         ],
         dogru: 1,
-        aciklama: "Bu durum overfitting'in klasik işaretidir. M5 dersinde detaylıca göreceğiz: model ezberlemiş, yeni veriye genelleme yapamıyor. Doğrulama kaybı eğitim kaybından yükselmeye başladığı nokta 'erken durdurma' noktasıdır."
+        aciklama: "Bu durum overfitting'in klasik işaretidir. M5 dersinde detaylıca göreceğiz: model ezberlemiş, yeni veriye genelleme yapamıyor. Doğrulama kaybı eğitim kaybından yükselmeye başladığı nokta 'erken durdurma' noktasıdır. Ancak unutmayın: doğruluk (accuracy) bir süre daha artmaya devam edebilir; loss ve accuracy aynı anda bozulmayabilir."
     },
     {
         soru: "Yanıltıcı bir grafik hangi özellik gösterir?",
         secenekler: [
             "Çok fazla renk içermesi",
-            "Y ekseninin 0'dan başlamaması ve küçük farkları dramatik göstermesi",
+            "Sütun grafiğinde Y ekseninin 0'dan başlamaması ve küçük farkları dramatik göstermesi",
             "Başlık eksikliği",
             "Çok büyük boyutta olması"
         ],
         dogru: 1,
-        aciklama: "Y eksenini 0'dan başlatmamak (örneğin 95-100 aralığında başlatmak), %2'lik farkı %100 gibi gösterir. Okurken her zaman eksen aralığına bakın; kendi grafiklerinizde 0'dan başlatın."
+        aciklama: "Sütun grafiğinde Y eksenini 0'dan başlatmamak (örneğin 95-100 aralığında başlatmak), %2'lik farkı %100 gibi gösterir. Çizgi ve saçılım grafiklerinde ise 0'dan başlamak çoğu zaman gerekmez; veriyi ezebilir. Okurken her zaman eksen aralığına bakın."
     },
     {
         soru: "Isı haritası (heatmap) YZ'da en çok nerede kullanılır?",
         secenekler: [
             "Sadece güzel görüntüler üretmek için",
-            "Confusion matrix ve attention matrisi gibi sayı tablolarını renklerle görselleştirmek için",
+            "Confusion matrix gibi sayı tablolarını renklerle görselleştirmek için",
             "Metinleri renklendirmek için",
             "Video işleme için"
         ],
         dogru: 1,
-        aciklama: "Isı haritasında her hücre bir sayı, rengi ise o sayının büyüklüğünü temsil eder. Attention matrisleri (L3 dersi) ve karışıklık matrisleri (bu ders) bu yöntemle görselleştirilir."
+        aciklama: "Isı haritasında her hücre bir sayı, rengi ise o sayının büyüklüğünü temsil eder. Karışıklık matrisleri (bu ders) bu yöntemle görselleştirilir. Hücre değerlerini yazdırmak için plt.text() veya seaborn.heatmap(annot=True) kullanılır."
     },
     {
         soru: "plt.scatter() hangi amaçla kullanılır?",
@@ -64,11 +64,11 @@ window.QUIZ_DATA = [
             "Model ağırlıklarını görselleştirmek"
         ],
         dogru: 1,
-        aciklama: "Dağılım grafiği (scatter plot), iki sayısal değişken arasındaki ilişkiyi gösterir. Örneğin 'boy ile ağırlık arasında ilişki var mı?' — noktalar sağ üst köşeye yöneliyorsa pozitif korelasyon vardır."
+        aciklama: "Saçılım grafiği (scatter plot), iki sayısal değişken arasındaki ilişkiyi gösterir. Örneğin 'boy ile ağırlık arasında ilişki var mı?' — noktalar sağ üst köşeye yöneliyorsa pozitif korelasyon vardır."
     },
     {
         soru: "Bir modelin hangi sınıfı diğeriyle karıştırdığını bulmak için hangi görselleştirme kullanılır?",
-        secenekler: ["Çizgi grafiği", "Sütun grafiği", "Isı haritası (confusion matrix)", "Dağılım grafiği"],
+        secenekler: ["Çizgi grafiği", "Sütun grafiği", "Isı haritası (confusion matrix)", "Saçılım grafiği"],
         dogru: 2,
         aciklama: "Confusion matrix ısı haritası formatında görselleştirilir: satır = gerçek sınıf, sütun = tahmin edilen sınıf, renk yoğunluğu = sayı. Hangi sınıfın hangi sınıfla karıştırıldığı buradan okunur."
     },

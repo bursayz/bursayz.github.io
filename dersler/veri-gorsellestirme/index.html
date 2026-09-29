@@ -41,8 +41,9 @@
 
         <div class="ders-kapsam-note">
             <strong>Bu derste öğrenecekleriniz:</strong>
-            Matplotlib ile çizgi/sütun/dağılım grafikleri, ısı haritası, eksen ve etiket okuryazarlığı,
-            ve en önemlisi: <em>veriyi doğru okumak</em> — çünkü modele bakmadan önce veriye bakmanız gerekir.
+            Matplotlib ile çizgi/sütun/saçılım grafikleri, histogram ve kutu grafiği, ısı haritası,
+            eksen ve etiket okuryazarlığı, ve en önemlisi: <em>veriyi doğru okumak</em> —
+            çünkü modele bakmadan önce veriye bakmanız gerekir.
         </div>
 
         <article class="ders-icerik">
@@ -58,11 +59,21 @@
             <div class="analoji-kutu">
                 <span class="etiket">💡 ANALOJİ</span>
                 <p>
-                    Sayı tablosu, bir hastalığın <em>kan tahlil sonuçları</em> gibidir — doktora bakmadan anlayamazsınız.
-                    Görselleştirme ise doktorun size gösterdiği <em>röntgen veya grafik</em>tir:
-                    "İşte burada bir anormallik var" dersiniz, hemen görürsünüz.
+                    Sayı tablosu, <em>hesap tablosundaki ham sayılar</em> gibidir — her şey oradadır ama
+                    örüntüyü göremezsiniz. Görselleştirme ise o sayıların <em>harita üzerinde gösterimi</em> gibidir:
+                    aynı bilgi, ama coğrafyayı hemen anlarsınız. "Anscombe'un Dörtlüsü" bu dersin en iyi örneğidir:
+                    dört veri setinin istatistikleri neredeyse aynı olsa da grafikleri tamamen farklıdır.
                 </p>
             </div>
+
+            <h2>Kurulum ve Pratik Bilgiler</h2>
+
+            <pre><code class="language-bash"># Terminal / Komut Satırı
+pip install matplotlib numpy
+
+# Jupyter veya Colab kullanıyorsanız:
+# Grafikler otomatik olarak hücre altında görünür.
+# Dosyaya kaydetmek için: plt.savefig("grafik.png", dpi=150, bbox_inches="tight")</code></pre>
 
             <h2>Matplotlib: Python'ın Çizim Aracı</h2>
 
@@ -73,61 +84,197 @@ import numpy as np
 x = np.linspace(0, 10, 100)         # 0-10 arası 100 nokta
 y = np.sin(x)
 
-plt.plot(x, y)
+plt.plot(x, y, label="sin(x)", color="steelblue")
 plt.title("Sinüs Dalgası")
-plt.xlabel("X ekseni")
+plt.xlabel("X ekseni (radyan)")
 plt.ylabel("Y ekseni")
-plt.grid(True)
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.show()</code></pre>
+
+            <h2>Nesne Yönelimli Kullanım (fig, ax)</h2>
+
+            <p>
+                Birden fazla grafiği yönetmek veya daha fazla kontrol için
+                <code>fig, ax = plt.subplots()</code> kalıbını kullanın. <code>plt.subplot()</code> eskimiş sayılır.
+            </p>
+
+            <pre><code class="language-python"># Modern, önerilen yol: fig ve ax nesneleri
+fig, ax = plt.subplots(figsize=(8, 5))
+
+ax.plot(x, y, label="sin(x)")
+ax.set_title("Sinüs Dalgası")
+ax.set_xlabel("X (radyan)")
+ax.set_ylabel("Y")
+ax.legend()
+ax.grid(True, alpha=0.3)
+
 plt.show()</code></pre>
 
             <h2>Yaygın Grafik Türleri</h2>
 
-            <pre><code class="language-python"># 1. Çizgi grafiği — zaman serisi, eğitim eğrileri
+            <pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+
+# --- 1. Çizgi grafiği — zaman serisi, eğitim eğrileri ---
+epochs = np.arange(1, 21)
+np.random.seed(42)
+train_loss = 1.0 * np.exp(-0.15 * epochs) + np.random.normal(0, 0.02, len(epochs))
+val_loss   = 1.0 * np.exp(-0.12 * epochs) + np.random.normal(0, 0.03, len(epochs)) + 0.05
+
 plt.plot(epochs, train_loss, label="Eğitim")
 plt.plot(epochs, val_loss, label="Doğrulama")
+plt.xlabel("Epoch")
+plt.ylabel("Kayıp")
 plt.legend()
+plt.title("Eğitim vs Doğrulama Kaybı")
+plt.grid(True, alpha=0.3)
+plt.show()
 # → Overfitting'i burada görürsünüz!
 
-# 2. Sütun grafiği — kategori karşılaştırma
+# --- 2. Sütun grafiği — kategori karşılaştırma ---
+# Not: Bu skorlar varsayımsal örnek veridir, gerçek benchmark değildir.
 modeller = ["LLaMA", "Qwen", "Mistral"]
 skorlar  = [87, 85, 83]
-plt.bar(modeller, skorlar)
+plt.bar(modeller, skorlar, color=["#4C72B0", "#55A868", "#C44E52"])
+plt.ylabel("Performans Skoru (%)")
+plt.title("Model Karşılaştırması (Varsayımsal Veri)")
+plt.ylim(0, 100)  # ← Sütun grafiklerinde 0'dan başlatmak önemlidir
+plt.show()
 
-# 3. Dağılım grafiği — ilişki analizi
-plt.scatter(boylar, agirliklar, alpha=0.5)
+# --- 3. Saçılım grafiği — ilişki analizi ---
+np.random.seed(42)
+boylar     = np.random.normal(170, 10, 50)          # cm
+agirliklar = 0.9 * boylar - 70 + np.random.normal(0, 5, 50)
+plt.scatter(boylar, agirliklar, alpha=0.6, color="steelblue")
+plt.xlabel("Boy (cm)")
+plt.ylabel("Ağırlık (kg)")
+plt.title("Boy-Ağırlık İlişkisi")
+plt.grid(True, alpha=0.3)
+plt.show()
 
-# 4. Isı haritası (heatmap) — confusion matrix, attention
+# --- 4. Isı haritası (heatmap) — confusion matrix ---
+conf_matrisi = np.array([
+    [45, 3,  2],
+    [2,  38, 5],
+    [1,  2,  42]
+])
 plt.imshow(conf_matrisi, cmap="Blues")
-plt.colorbar()</code></pre>
+plt.colorbar(label="Tahmin Sayısı")
+plt.xticks([0,1,2], ["Kedi", "Köpek", "Kuş"])
+plt.yticks([0,1,2], ["Kedi", "Köpek", "Kuş"])
+plt.xlabel("Tahmin Edilen Sınıf")
+plt.ylabel("Gerçek Sınıf")
+plt.title("Karışıklık Matrisi")
+plt.show()</code></pre>
 
-            <h2>Isı Haritası: Confusion Matrix ve Attention</h2>
+            <h2>Isı Haritası: Confusion Matrix</h2>
 
             <p>
                 Yapay zekada en çok göreceğiniz görselleştirme <strong>ısı haritasıdır</strong>:
                 her hücre bir sayı, rengin sıcaklığı sayıyı temsil eder.
+                Aşağıdaki örnekte hücre içi değerleri de yazdırıyoruz — renk tek başına yeterli değildir.
             </p>
 
-            <pre><code class="language-python"># Confusion matrix: model hangi sınıfı hangi sınıfla karıştırıyor?
+            <pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+
+# Confusion matrix: model hangi sınıfı hangi sınıfla karıştırıyor?
 # Örnek: 3 sınıflı bir model (kedi, köpek, kuş)
+# Satır = Gerçek sınıf, Sütun = Tahmin edilen sınıf
 conf = np.array([
     [45, 3,  2],     # Gerçek kedi → 45 doğru, 3 köpek tahmin, 2 kuş tahmin
     [2,  38, 5],     # Gerçek köpek → 2 kedi, 38 doğru, 5 kuş
     [1,  2,  42]     # Gerçek kuş → 1 kedi, 2 köpek, 42 doğru
 ])
 
+plt.figure(figsize=(6, 5))
 plt.imshow(conf, cmap="Blues")
+
+# Hücre değerlerini yazdır — seaborn.heatmap(annot=True) ile aynı işlev
+for i in range(3):
+    for j in range(3):
+        plt.text(j, i, conf[i, j], ha="center", va="center",
+                 color="white" if conf[i, j] > conf.max()/2 else "black",
+                 fontsize=14, fontweight="bold")
+
 plt.xticks([0,1,2], ["Kedi", "Köpek", "Kuş"])
 plt.yticks([0,1,2], ["Kedi", "Köpek", "Kuş"])
+plt.xlabel("Tahmin Edilen Sınıf")   # ← eksen etiketi şart
+plt.ylabel("Gerçek Sınıf")          # ← eksen etiketi şart
+plt.title("Karışıklık Matrisi")
 plt.colorbar(label="Tahmin Sayısı")
 plt.show()</code></pre>
 
             <div class="dikkat-kutu">
                 <span class="etiket">⚠️ YANILTICI GRAFİKLER</span>
                 <p>
-                    Eksenleri oynayarak aynı veriyi tamamen farklı gösterebilirsiniz:
-                    Y eksenini 0'dan başlatmayan bir grafik, küçük farkları dramatik gösterir.
+                    Eksenleri oynayarak aynı veriyi tamamen farklı gösterebilirsiniz.
+                    <strong>Sütun grafiklerinde</strong> Y eksenini 0'dan başlatmamak küçük farkları dramatik gösterir.
+                    Ancak <strong>çizgi ve saçılım grafiklerinde</strong> 0'dan başlamak çoğu zaman veriyi ezer;
+                    örneğin 36,5–37,5 °C arası bir sıcaklık serisini 0'dan başlatırsanız hiçbir şey görünmez.
                     Grafik okurken her zaman eksen aralıklarını kontrol edin.
-                    Kendi grafiklerinizde dürüst olun — eksenleri 0'dan başlatın.
+                </p>
+            </div>
+
+            <h2>Veri Keşfi: Modele Başlamadan Önce</h2>
+
+            <p>
+                Eğitim kaybı ve karışıklık matrisi <em>model sonrası</em> araçlardır.
+                Asıl kritik adım: veri setinizi daha modele dokunmadan görselleştirmek.
+            </p>
+
+            <pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+
+# Örnek veri üret
+np.random.seed(42)
+veri_normal = np.random.normal(50, 10, 200)
+veri_aykiri = np.concatenate([veri_normal, [150, 160, -30]])  # aykırı değerler
+
+# 1. Histogram — dağılımı ve aykırı değerleri gör
+fig, ax = plt.subplots(1, 2, figsize=(12, 4))
+
+ax[0].hist(veri_aykiri, bins=30, color="steelblue", edgecolor="white")
+ax[0].set_title("Histogram — Veri Dağılımı")
+ax[0].set_xlabel("Değer")
+ax[0].set_ylabel("Frekans")
+
+# 2. Kutu grafiği (boxplot) — aykırı değerleri işaretler
+ax[1].boxplot(veri_aykiri, vert=False)
+ax[1].set_title("Kutu Grafiği — Aykırı Değerler")
+ax[1].set_xlabel("Değer")
+
+plt.tight_layout()
+plt.show()
+
+# 3. Korelasyon ısı haritası — değişkenler arası ilişki
+ozellikler = np.random.normal(0, 1, (100, 4))
+ozellikler[:, 2] = ozellikler[:, 0] * 0.8 + np.random.normal(0, 0.3, 100)
+korelasyon = np.corrcoef(ozellikler.T)
+
+plt.imshow(korelasyon, cmap="RdBu_r", vmin=-1, vmax=1)
+plt.colorbar(label="Korelasyon Katsayısı")
+plt.xticks(range(4), [f"Özellik {i+1}" for i in range(4)])
+plt.yticks(range(4), [f"Özellik {i+1}" for i in range(4)])
+plt.title("Korelasyon Isı Haritası")
+plt.show()</code></pre>
+
+            <h2>Veriyi Doğru Okumak: Anscombe'un Dörtlüsü</h2>
+
+            <p>
+                1973'te istatistikçi Anscombe, dört veri seti yayımladı. Dördünün de
+                ortalaması, varyansı, korelasyonu ve doğrusal regresyon eğimi <strong>neredeyse aynıydı</strong>.
+                Ama grafikleri tamamen farklıydı: biri doğrusal, biri eğri, biri aykırı değerli, biri tek nokta.
+                <em>İstatistikler yalan söyleyebilir; grafikler gerçeği gösterir.</em>
+            </p>
+
+            <div class="dikkat-kutu">
+                <span class="etiket">⚠️ KORELASYON ≠ NEDENSELLİK</span>
+                <p>
+                    Dondurma satışları ile boğulma vakaları birlikte artar — ama biri diğerine neden olmaz;
+                    ikisi de <em>yaz mevsiminden</em> etkilenir. Grafikte ilişki görmek, "A, B'ye neden oluyor"
+                    demek değildir.
                 </p>
             </div>
 
@@ -145,29 +292,52 @@ plt.show()</code></pre>
 
             <h2>Eğitim Sürecini Görselleştirmek</h2>
 
-            <pre><code class="language-python"># Overfitting tespiti:
-# Eğitim kaybı düşerken doğrulama kaybı yükseliyorsa → overfit!
-plt.figure(figsize=(10, 4))
+            <pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
 
-plt.subplot(1, 2, 1)
-plt.plot(train_losses, label="Eğitim Kaybı")
-plt.plot(val_losses, label="Doğrulama Kaybı")
-plt.legend()
-plt.title("Kayıp Eğrileri")
+# Örnek eğitim verisi üret (gerçek model çıktısı yerine simülasyon)
+np.random.seed(42)
+epochs = np.arange(1, 31)
+train_losses = 1.0 * np.exp(-0.12 * epochs) + np.random.normal(0, 0.01, len(epochs))
+val_losses   = np.concatenate([
+    1.0 * np.exp(-0.10 * epochs[:15]) + np.random.normal(0, 0.02, 15),
+    0.25 + 0.02 * (epochs[15:] - 15) + np.random.normal(0, 0.02, 15)
+])
+train_accs = 1 - train_losses
+val_accs   = np.concatenate([
+    1 - val_losses[:15],
+    np.maximum(0.75 - 0.005 * (epochs[15:] - 15), 0.70)  # accuracy bir süre daha artabilir
+])
 
-plt.subplot(1, 2, 2)
-plt.plot(train_accs, label="Eğitim Doğruluk")
-plt.plot(val_accs, label="Doğrulama Doğruluk")
-plt.legend()
-plt.title("Doğruluk Eğrileri")
+fig, ax = plt.subplots(1, 2, figsize=(12, 4))
+
+ax[0].plot(epochs, train_losses, label="Eğitim Kaybı")
+ax[0].plot(epochs, val_losses, label="Doğrulama Kaybı")
+ax[0].set_title("Kayıp Eğrileri")
+ax[0].set_xlabel("Epoch")
+ax[0].legend()
+ax[0].grid(True, alpha=0.3)
+
+ax[1].plot(epochs, train_accs, label="Eğitim Doğruluğu")      # ← dilbilgisi düzeltildi
+ax[1].plot(epochs, val_accs, label="Doğrulama Doğruluğu")
+ax[1].set_title("Doğruluk Eğrileri")
+ax[1].set_xlabel("Epoch")
+ax[1].legend()
+ax[1].grid(True, alpha=0.3)
 
 plt.tight_layout()
 plt.show()</code></pre>
 
+            <p>
+                <strong>Overfitting'i okurken dikkat:</strong> Doğrulama kaybı yükselirken doğruluk (accuracy)
+                bir süre daha artabilir — loss ve accuracy aynı anda bozulmayabilir.
+                Ayrıca doğrulama kaybının <em>durağanlaşması</em> (plateau) da erken durdurma sinyali olabilir;
+                mutlaka yükselmesi gerekmez.
+            </p>
+
             <h2>Kaynaklar</h2>
 
             <div class="kaynaklar-kutu">
-                <h2>📚 Kaynaklar</h2>
                 <ol>
                     <li>Matplotlib Resmi Tutorial. <a href="https://matplotlib.org/stable/tutorials/index.html" target="_blank">matplotlib.org</a>.</li>
                     <li>Seaborn (daha şık istatistik grafikleri). <a href="https://seaborn.pydata.org/" target="_blank">seaborn.pydata.org</a>.</li>
@@ -175,6 +345,7 @@ plt.show()</code></pre>
                     <li>Cairo, A. (2016). <em>The Truthful Art</em>. — Yanıltıcı grafiklerden kaçınma rehberi.</li>
                     <li>Kaggle. <em>"Data Visualization"</em> ücretsiz kurs — <a href="https://www.kaggle.com/learn/data-visualization" target="_blank">kaggle.com</a>.</li>
                     <li>Plotly (interaktif grafikler). <a href="https://plotly.com/python/" target="_blank">plotly.com/python</a>.</li>
+                    <li>Türkçe Python belgeleri ve topluluk kaynakları için: <a href="https://pythontr.org/" target="_blank">pythontr.org</a> ve <a href="https://belgeler.pythontr.org/" target="_blank">belgeler.pythontr.org</a>.</li>
                 </ol>
             </div>
 
