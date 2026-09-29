@@ -4,11 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Görüntü Sınıflandırma Modeli Yapımı — Bursa YZGT</title>
-    <meta name="description" content="MNIST/CIFAR-10 ile PyTorch CNN modeli, eğitim döngüsü ve karışıklık matrisi. Kendi görüntü sınıflandırıcınızı sıfırdan yapın.">
+    <meta name="description" content="MNIST ile uçtan uca PyTorch CNN modeli: veri yükleme, eğitim döngüsü, karışıklık matrisi ve hata analizi. Kendi rakam tanıyıcınızı eğitin.">
     <link rel="canonical" href="https://bursayz.github.io/dersler/goruntu-siniflandirma/">
     <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../../css/edu.css">
+    <style>
+        .shape-flow { display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin:0.8rem 0; font-family:var(--font-mono); font-size:0.78rem; }
+        .shape-flow .sf-box { background:rgba(255,255,255,0.06); border:1px solid var(--edu-border); border-radius:0.4rem; padding:0.25rem 0.5rem; line-height:1.3; }
+        .shape-flow .sf-arrow { color:var(--accent-2); font-weight:700; }
+        .shape-flow .sf-op { color:#9aa0b4; font-size:0.7rem; display:block; }
+        .ders-icerik table.tablo { width:100%; border-collapse:collapse; font-size:0.83rem; margin:1rem 0; }
+        .ders-icerik table.tablo th, .ders-icerik table.tablo td { border:1px solid var(--edu-border); padding:0.45rem 0.6rem; text-align:left; }
+        .ders-icerik table.tablo th { background:rgba(255,255,255,0.05); color:var(--edu-text); font-weight:600; }
+        .ders-icerik table.tablo td { color:#cbd0dd; }
+        .ders-icerik table.tablo tr:nth-child(even) td { background:rgba(255,255,255,0.015); }
+    </style>
 </head>
 <body class="edu-body seri-goruntu" data-ders-slug="goruntu-siniflandirma">
     <nav class="edu-topbar"><div class="edu-container">
@@ -23,9 +34,11 @@
             <div class="ders-meta"><span>📚 G2 · Görüntü Serisi</span><span>⏱ ~40 dakika</span><span>🖥 İnteraktif Demo</span></div>
         </div>
         <div class="ders-kapsam-note">
-            <strong>Bu derste öğrenecekleriniz:</strong> MNIST veri setiyle uçtan uca bir CNN sınıflandırıcı eğitmek:
-            veri yükleme, model tanımı, eğitim döngüsü, karışıklık matrisi ile hata analizi ve
-            hatalı tahminleri inceleme. Bu dersin sonunda kendi modelinizi Colab'da eğitebileceksiniz.
+            <strong>Bu derste öğrenecekleriniz:</strong> MNIST veri setiyle uçtan uca bir CNN sınıflandırıcı eğitmek — veri
+            yükleme ve inceleme, model tanımı, eğitim döngüsü, karışıklık matrisi ile hata analizi ve hatalı tahminleri
+            tek tek görüntüleme. Bu dersin sonunda modeli <a href="https://colab.research.google.com" target="_blank">Google
+            Colab</a>'da (ücretsiz GPU) eğitebilecek ve kendi çizdiğiniz rakamı sınıflandırabileceksiniz.
+            <br><strong>Ön koşul:</strong> G1 — CNN Temelleri dersini bitirmiş olmanız önerilir.
         </div>
 
         <article class="ders-icerik">
@@ -34,79 +47,175 @@
 
             <p>
                 MNIST: 28×28 gri el yazısı rakam (0-9) veri seti — 60.000 eğitim, 10.000 test örneği.
-                Yapay zekanın "Merhaba Dünya"sıdır. Küçük ama gerçek derin öğrenme problemidir.
+                Yapay zekânın "Merhaba Dünya"sıdır: küçük ama gerçek bir derin öğrenme problemidir.
+                Bu derste sıfırdan bir CNN kurup ~%99 doğruluğa 3 dakikada ulaşacağız.
             </p>
 
-            <h2>Adım 1: Veri Yükleme</h2>
+            <h2>Adım 1: Veri Yükleme ve İnceleme</h2>
+
+            <p>Model kurmadan önce <strong>veriye bakmak</strong> birinci kuraldır. Bozuk etiket, dengesiz sınıf,
+            garip ölçek — hepsini ancak görerek yakalarsınız.</p>
 
             <pre><code class="language-python">import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
 transform = transforms.Compose([
-    transforms.ToTensor(),               # [0,255] → [0,1] float tensor
-    transforms.Normalize((0.1307,), (0.3081,))  # MNIST istatistikleriyle normalize
+    transforms.ToTensor(),                      # PIL [0,255] -> float [0,1] ve (C,H,W) yapar
+    transforms.Normalize((0.1307,), (0.3081,))  # MNIST ortalama/std
 ])
 
-train_data = datasets.MNIST("./data", train=True, download=True, transform=transform)
+train_data = datasets.MNIST("./data", train=True,  download=True, transform=transform)
 test_data  = datasets.MNIST("./data", train=False, download=True, transform=transform)
 
 train_loader = DataLoader(train_data, batch_size=64, shuffle=True)
-test_loader  = DataLoader(test_data, batch_size=64)
+test_loader  = DataLoader(test_data,  batch_size=256)
 
-print(len(train_data))   # 60000
-print(train_data[0][0].shape)  # torch.Size([1, 28, 28])</code></pre>
+print(len(train_data), len(test_data))   # 60000 10000
+print(train_data[0][0].shape)            # torch.Size([1, 28, 28])</code></pre>
+
+            <pre><code class="language-python"># Veriyi görün: ilk 16 eğitim örneği
+import matplotlib.pyplot as plt
+
+fig, axes = plt.subplots(2, 8, figsize=(12, 3))
+for ax, (img, etiket) in zip(axes.flat, train_data):
+    ax.imshow(img.squeeze(), cmap="gray")
+    ax.set_title(str(etiket), fontsize=10)
+    ax.axis("off")
+plt.tight_layout()
+plt.show()
+
+# Sınıf dağılımı dengeli mi?
+import collections
+sayac = collections.Counter(int(etiket) for _, etiket in train_data)
+print(sayac)  # her rakamdan ~6000 adet — dengeli ✓</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Normalize neden?</span>
+                <p>
+                    <code>ToTensor()</code> pikselleri 0-1 aralığına çeker. <code>Normalize</code> ise her pikselden
+                    veri setinin ortalamasını (<strong>0.1307</strong>) çıkarıp standart sapmasına (<strong>0.3081</strong>) böler;
+                    böylece girişler ortalama 0, std 1 civarında dağılır. Bu, gradyan inişinin ilk adımlarını dengeler
+                    ve eğitimi hızlandırır. Sayılar MNIST'in önceden hesaplanmış gerçek istatistikleridir — CIFAR-10 için
+                    farklıdır (aşağıya bakın).
+                </p>
+            </div>
 
             <h2>Adım 2: CNN Model Tanımı</h2>
+
+            <p>
+                Model iki evrişim bloğu + iki tam bağlı katman: conv → relu → pool, iki kez; sonra düzleştir ve sınıflandır.
+            </p>
 
             <pre><code class="language-python">import torch.nn as nn
 
 class RakamSiniflandirici(nn.Module):
     def __init__(self):
         super().__init__()
-        self.conv1 = nn.Conv2d(1, 32, 3, padding=1)   # 1→32 kanal, 3x3
-        self.conv2 = nn.Conv2d(32, 64, 3, padding=1)  # 32→64 kanal
-        self.pool = nn.MaxPool2d(2, 2)                 # 2x küçültme
-        self.fc1 = nn.Linear(64 * 7 * 7, 128)         # 64×7×7 = 3136
-        self.fc2 = nn.Linear(128, 10)                  # 10 rakam sınıfı
+        self.conv1 = nn.Conv2d(1, 32, 3, padding=1)   # 1->32 kanal, 3x3
+        self.conv2 = nn.Conv2d(32, 64, 3, padding=1)  # 32->64 kanal
+        self.pool = nn.MaxPool2d(2, 2)                # 2x küçültme
+        self.fc1 = nn.Linear(64 * 7 * 7, 128)         # 64*7*7 = 3136
+        self.fc2 = nn.Linear(128, 10)                 # 10 rakam sınıfı
         self.dropout = nn.Dropout(0.25)
         self.relu = nn.ReLU()
 
     def forward(self, x):
-        x = self.pool(self.relu(self.conv1(x)))  # 28→14
-        x = self.pool(self.relu(self.conv2(x)))  # 14→7
-        x = x.view(x.size(0), -1)                # Düzleştir: (B, 3136)
+        x = self.pool(self.relu(self.conv1(x)))  # 28 -> 14
+        x = self.pool(self.relu(self.conv2(x)))  # 14 -> 7
+        x = torch.flatten(x, 1)                  # (B, 3136)
         x = self.dropout(self.relu(self.fc1(x)))
-        return self.fc2(x)                       # Ham skorlar (logits)
+        return self.fc2(x)                       # ham skorlar (logits)
 
 model = RakamSiniflandirici()
-print(f"Parametre: {sum(p.numel() for p in model.parameters()):,}")  # ~421K</code></pre>
+toplam = sum(p.numel() for p in model.parameters())
+print(f"Parametre sayısı: {toplam:,}")   # 421,642</code></pre>
+
+            <h3>Veri akışı: şekil takibi</h3>
+            <div class="shape-flow">
+                <span class="sf-box">(1, 28, 28)<span class="sf-op">girdi</span></span>
+                <span class="sf-arrow">→</span>
+                <span class="sf-box">(32, 28, 28)<span class="sf-op">conv1+relu</span></span>
+                <span class="sf-arrow">→</span>
+                <span class="sf-box">(32, 14, 14)<span class="sf-op">pool</span></span>
+                <span class="sf-arrow">→</span>
+                <span class="sf-box">(64, 14, 14)<span class="sf-op">conv2+relu</span></span>
+                <span class="sf-arrow">→</span>
+                <span class="sf-box">(64, 7, 7)<span class="sf-op">pool</span></span>
+                <span class="sf-arrow">→</span>
+                <span class="sf-box">(3136)<span class="sf-op">flatten</span></span>
+                <span class="sf-arrow">→</span>
+                <span class="sf-box">(128)<span class="sf-op">fc1+relu</span></span>
+                <span class="sf-arrow">→</span>
+                <span class="sf-box">(10)<span class="sf-op">fc2 (logit)</span></span>
+            </div>
+
+            <table class="tablo">
+                <thead><tr><th>Katman</th><th>Parametre hesabı</th><th>Adet</th><th>Pay</th></tr></thead>
+                <tbody>
+                    <tr><td><code>conv1</code></td><td>(3×3×1 + 1) × 32</td><td>320</td><td>%0,08</td></tr>
+                    <tr><td><code>conv2</code></td><td>(3×3×32 + 1) × 64</td><td>18.496</td><td>%4,4</td></tr>
+                    <tr><td><code>fc1</code></td><td>3136 × 128 + 128</td><td>401.536</td><td>%95,2</td></tr>
+                    <tr><td><code>fc2</code></td><td>128 × 10 + 10</td><td>1.290</td><td>%0,3</td></tr>
+                    <tr><td><strong>Toplam</strong></td><td></td><td><strong>421.642</strong></td><td>%100</td></tr>
+                </tbody>
+            </table>
+
+            <p>
+                Dikkat: <strong>parametrelerin %95'i <code>fc1</code>'de</strong>, iki konvolüsyonda toplamda sadece ~19K var.
+                CNN'in gücü tam da bu — görüntüyü ucuz, paylaşımlı filtrelerle işler; ağır işi en sonda,
+                zaten özetlenmiş özellik üzerindeki tek tam bağlı katman yapar.
+            </p>
 
             <h2>Adım 3: Eğitim Döngüsü</h2>
 
-            <pre><code class="language-python">device = "cuda" if torch.cuda.is_available() else "cpu"
+            <pre><code class="language-python">torch.manual_seed(42)   # tekrarlanabilirlik
+device = "cuda" if torch.cuda.is_available() else "cpu"
 model = model.to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-loss_fn = nn.CrossEntropyLoss()
 
-for epoch in range(3):
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+loss_fn = nn.CrossEntropyLoss()   # içinde log_softmax var — ayrı softmax EKLEMEYİN
+
+for epoch in range(3):            # epoch: tüm eğitim verisinin 1 turu
     model.train()
     toplam_kayip = 0
     for X, y in train_loader:
         X, y = X.to(device), y.to(device)
-        optimizer.zero_grad()
-        kayip = loss_fn(model(X), y)
-        kayip.backward()
-        optimizer.step()
+        optimizer.zero_grad()          # gradyanları sıfırla
+        kayip = loss_fn(model(X), y)   # ileri geçiş
+        kayip.backward()               # geriye yayılım: gradyan hesapla
+        optimizer.step()               # ağırlıkları güncelle
         toplam_kayip += kayip.item()
     print(f"Epoch {epoch+1}: kayıp={toplam_kayip/len(train_loader):.4f}")</code></pre>
 
+            <p><code>zero_grad → forward → backward → step</code> sırası standarttır ve her adım gereklidir:</p>
+            <ul>
+                <li><code>zero_grad()</code> unutulursa gradyanlar bir önceki batch'e <em>eklenir</em>; eğitim kontrolsüz şişer.</li>
+                <li><code>backward()</code> kaybın her parametreye göre türevini hesaplar.</li>
+                <li><code>step()</code> Adam kuralıyla ağırlıkları bu türevlerin tersi yönünde bir adım kaydırır.</li>
+            </ul>
+
+            <p>Beklenen çıktı (Colab T4 GPU, ~1-2 dk):</p>
+            <pre><code class="language-text">Epoch 1: kayıp=0.1420
+Epoch 2: kayıp=0.0451
+Epoch 3: kayıp=0.0312</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Sağlık kontrolü</span>
+                <p>
+                    10 sınıflı rastgele tahminin başlangıç kaybı teorik olarak <code>ln(10) ≈ 2.30</code>'dur.
+                    İlk batch'lerde kayıp bundan çok yüksek veya NaN ise veri/etiket hattında bir sorun vardır.
+                    3 epoch MNIST için yeterlidir; fazlası test doğruluğunu artırmaz, overfitting riskini artırır
+                    (dropout bu yüzden var).
+                </p>
+            </div>
+
             <h2>Adım 4: Değerlendirme ve Karışıklık Matrisi</h2>
 
-            <pre><code class="language-python">from sklearn.metrics import confusion_matrix
+            <pre><code class="language-python">from sklearn.metrics import confusion_matrix, classification_report
 import numpy as np
 
-model.eval()   # eval modu: dropout kapat
+model.eval()   # dropout'u kapat, BatchNorm varsa running istatistik kullan
 tum_tahminler, tum_gercekler = [], []
 
 with torch.no_grad():
@@ -116,16 +225,30 @@ with torch.no_grad():
         tum_gercekler.extend(y.tolist())
 
 dogruluk = np.mean(np.array(tum_tahminler) == np.array(tum_gercekler))
-print(f"Test doğruluğu: %{dogruluk*100:.1f}")   # ~%99 beklenor
+print(f"Test doğruluğu: %{dogruluk*100:.2f}")   # ~%99 beklenir
 
 conf = confusion_matrix(tum_gercekler, tum_tahminler)
-# Hangi rakamlar karışıyor? Sıklıkla 4/9 ve 3/8</code></pre>
+print(classification_report(tum_gercekler, tum_tahminler, digits=3))</code></pre>
+
+            <p>Matrisi ekrana çizdirelim — köşegen dışı koyu hücreler = hangi rakamlar karışıyor:</p>
+
+            <pre><code class="language-python">import seaborn as sns
+
+fig, ax = plt.subplots(figsize=(7, 6))
+sns.heatmap(conf, annot=True, fmt="d", cmap="Blues", cbar=False, ax=ax)
+ax.set_xlabel("Tahmin"); ax.set_ylabel("Gerçek")
+ax.set_title("Karışıklık Matrisi (satır=gerçek, sütun=tahmin)")
+plt.show()</code></pre>
+
+            <p>Tipik çıktıda diyagonal ~1000'er civarındadır; en büyük karışıklıklar
+            <strong>4↔9</strong> ve <strong>3↔8</strong> gibi gerçekten birbirine benzeyen çiftlerdedir.
+            Bu "mantıklı hata"dır: model rasgele yanılmıyor, el yazısındaki benzerliği yakalıyor.</p>
 
             <h2>İnteraktif: Rakam Çizin, Model Sınıflandırsın</h2>
 
             <p>
-                Aşağıda 28×28 grid'e fareyle/dokunarak rakam çizin.
-                Eğitilmiş basit model canlı olarak hangi rakam olduğunu tahmin etmeye çalışsın.
+                Aşağıdaki 28×28 kâğıda rakam çizin. Demo, çiziminizi tarayıcıda anında sınıflandırır
+                ve 10 sınıfın olasılık çubuğunu gösterir.
             </p>
 
             <div class="viz-kutu">
@@ -133,25 +256,115 @@ conf = confusion_matrix(tum_gercekler, tum_tahminler)
                 <div class="viz-mount" id="viz-cizim-tahmin" style="min-height:340px"></div>
             </div>
 
+            <div class="dikkat-kutu">
+                <span class="etiket">⚠️ Demo sınırları</span>
+                <p>
+                    Tarayıcıdaki demo, yukarıdaki CNN'in birebir aynısı <strong>değildir</strong>: boyut nedeniyle
+                    MNIST ortalama şablonlarıyla çalışan bir 1-en yakın komşu eşleştiricisidir (CNN'in Colab'da
+                    eğitilmiş hâli çok daha güçlüdür). Ayrıca model her zaman bir rakam <em>seçmek zorundadır</em>;
+                    harf veya boş kâğıt çizerseniz "bilmiyorum" diyemez, en yakın rakamı yüksek güvenle dayatabilir —
+                    bu da olasılık çubuklarında açıkça görünür.
+                </p>
+            </div>
+
             <h2>Hatalı Örnekler: Modelin Gözünden</h2>
 
+            <p>Test setinde yanlış tahmin edilen örneklere bakmak, modelin zayıf noktasını anlamanın en iyi yoludur:</p>
+
+            <pre><code class="language-python"># 1) Tahminleri ve softmax güvenlerini topla
+tum_X, tum_y, guvenler = [], [], []
+with torch.no_grad():
+    for X, y in test_loader:
+        logits = model(X.to(device))
+        prob = torch.softmax(logits, dim=1)
+        tum_X.append(X); tum_y.append(y)
+        guvenler.append(prob.max(dim=1).values.cpu())
+guvenler = torch.cat(guvenler)
+
+tum_tahminler = torch.tensor(tum_tahminler)
+yanlis_idx = (tum_tahminler != torch.tensor(tum_gercekler)).nonzero().flatten()
+
+# 2) En güvenli 16 yanlışı göster (yüksek güven + yanlış = en öğretici)
+siralama = yanlis_idx[guvenler[yanlis_idx].argsort(descending=True)]
+fig, axes = plt.subplots(4, 4, figsize=(8, 8))
+for ax, i in zip(axes.flat, siralama[:16]):
+    img, gercek = test_data[i]
+    ax.imshow(img.squeeze(), cmap="gray")
+    ax.set_title(f"gerçek:{gercek} tahmin:{tum_tahminler[i]} (%{guvenler[i]*100:.0f})", fontsize=9)
+    ax.axis("off")
+plt.tight_layout()
+plt.show()</code></pre>
+
             <p>
-                Test setinde yanlış sınıflandırılan örnekleri görmek, modelin neyi kaçırdığını anlamanın en iyi yoludur.
-                Genelde el yazısının gerçekten belirsiz olduğu örneklerdir — modelin hatası "mantıklı hatadır".
-                CIFAR-10 (32×32 renkli, 10 sınıf: uçak, araba, kedi...) ile pratiği zorlaştırabilirsiniz.
+                Genellikle el yazısı gerçekten belirsizdir — yamuk 4, kapalı 9, yarım 5 gibi.
+                Bu "mantıklı hata"dır; veri artırma veya biraz daha derin modelle azaltılabilir.
             </p>
+
+            <h2>Bir Sonraki Adım: CIFAR-10</h2>
+
+            <p>
+                Aynı kodu CIFAR-10 (32×32 renkli, 10 sınıf: uçak, araba, kedi...) ile denemek isterseniz
+                üç noktayı değiştirmeniz gerekir; aksi hâlde <code>RuntimeError</code> alırsınız:
+            </p>
+
+            <pre><code class="language-python"># 1) Girdi 3 kanallı olmalı:
+self.conv1 = nn.Conv2d(3, 32, 3, padding=1)
+
+# 2) 32x32 olduğu için düzleştirme boyutu 64*8*8:
+# (32 -> pool 16 -> pool 8)
+self.fc1 = nn.Linear(64 * 8 * 8, 128)
+
+# 3) Normalize istatistikleri farklı:
+transforms.Normalize((0.4914, 0.4822, 0.4465),
+                     (0.2470, 0.2435, 0.2616))</code></pre>
+
+            <h2>Sık Yapılan Hatalar</h2>
+
+            <ul>
+                <li><code>zero_grad()</code> atlamak → gradyanlar birikir, eğitim bozulur.</li>
+                <li><code>model.eval()</code> unutmak → dropout hep açık kalır, test doğruluğu düşer.</li>
+                <li>Veri ile modeli farklı cihaza (CPU/GPU) koymak → <code>RuntimeError: Expected all tensors...</code>.</li>
+                <li><code>CrossEntropyLoss</code> öncesi ayrıca <code>softmax</code> eklemek → çift softmax, sayısal kararsızlık.</li>
+                <li><code>shuffle=True</code>'yu test loader'da da açmak → karışıklık matrisi indeksleri kayar.</li>
+            </ul>
+
+            <h2>Egzersizler</h2>
+
+            <ol>
+                <li>Epoch sayısını 1 ve 10 yapın; eğitim/test kaybı grafiğini çizin. Overfitting'i görün.</li>
+                <li><code>lr</code>'yi 1e-1 ve 1e-5 yapın. Ne olur, neden?</li>
+                <li>Üçüncü bir konv bloğu ekleyin (<code>Conv2d(64,128,3,padding=1)</code>); parametre sayısı ve doğruluk değişimini not edin.</li>
+                <li>Aynı mimariyi Fashion-MNIST (<code>datasets.FashionMNIST</code>) ile çalıştırın; kıyafet sınıflarını ayırt edin.</li>
+            </ol>
+
+            <h2>Modeli Kaydet ve Tek Görüntüyle Kullan</h2>
+
+            <pre><code class="language-python"># Kaydet
+torch.save(model.state_dict(), "mnist_cnn.pt")
+
+# Yükle
+model2 = RakamSiniflandirici()
+model2.load_state_dict(torch.load("mnist_cnn.pt"))
+model2.eval().to(device)
+
+# Tek bir görüntüyle tahmin
+img, gercek = test_data[0]
+with torch.no_grad():
+    logit = model2(img.unsqueeze(0).to(device))
+    olasilik = torch.softmax(logit, dim=1).squeeze()
+print("Tahmin:", olasilik.argmax().item(), "| Güven: %", (olasilik.max().item()*100))</code></pre>
 
             <h2>Kaynaklar</h2>
 
             <div class="kaynaklar-kutu">
                 <h2>📚 Kaynaklar</h2>
                 <ol>
-                    <li>LeCun, Y. et al. <em>MNIST Database</em>. <a href="http://yann.lecun.com/exdb/mnist/" target="_blank">yann.lecun.com/exdb/mnist</a>.</li>
+                    <li>LeCun, Y. et al. (1998). <em>"Gradient-Based Learning Applied to Document Recognition"</em> (LeNet-5). <a href="http://yann.lecun.com/exdb/publis/pdf/lecun-98.pdf" target="_blank">PDF</a> — CNN mimarisinin kaynağı.</li>
                     <li>PyTorch Resmi Tutorial. <em>"Training a Classifier"</em>. <a href="https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html" target="_blank">pytorch.org</a> — CIFAR-10 ile tam eğitim döngüsü.</li>
+                    <li>Torchvision MNIST dokümantasyonu. <a href="https://pytorch.org/vision/stable/generated/torchvision.datasets.MNIST.html" target="_blank">pytorch.org/vision</a>.</li>
                     <li>Deng, L. (2012). <em>"The MNIST Database of Handwritten Digit Images."</em> IEEE Signal Processing Magazine.</li>
-                    <li>Krizhevsky, A. (2009). <em>"Learning Multiple Layers of Features from Tiny Images"</em> (CIFAR-10/100).</li>
-                    <li>Fast.ai Course — <em>"04: MNIST SGD"</em>. <a href="https://course.fast.ai/" target="_blank">course.fast.ai</a>.</li>
-                    <li>Scikit-learn Confusion Matrix Docs. <a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.confusion_matrix.html" target="_blank">scikit-learn.org</a>.</li>
+                    <li>Stanford CS231n. <em>Convolutional Neural Networks for Visual Recognition</em>. <a href="https://cs231n.github.io" target="_blank">cs231n.github.io</a> — konvolüsyon, pooling ve CNN mimarisi notları.</li>
+                    <li>Fast.ai — <em>Practical Deep Learning for Coders</em>. <a href="https://course.fast.ai" target="_blank">course.fast.ai</a> — MNIST üzerinden SGD ve temel eğitim döngüsü dersleri.</li>
                 </ol>
             </div>
 

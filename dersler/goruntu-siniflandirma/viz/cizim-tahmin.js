@@ -247,7 +247,14 @@ window.DERS_VIZ["2d-cizim-tahmin"] = function () {
         const sonuc = predictDigits(grid);
         if (!sonuc) return;
         const top = sonuc[0];
-        topPredEl.innerHTML = `En olası tahmin: <span style="color:#8fd14f;font-size:1.35em;font-family:'JetBrains Mono',monospace">${top.rakam}</span> <span style="color:#9aa0b4;font-weight:500;font-size:0.85em">(%${(top.prob*100).toFixed(0)})</span>`;
+
+        // Düşük toplam mürekkep = boş tuval / harf benzeri karalama: model yine de en yakın rakamı dayatabilir
+        let toplamMurekkep = 0;
+        for (let i = 0; i < GRID; i++) for (let j = 0; j < GRID; j++) toplamMurekkep += grid[i][j];
+        const belirsizMi = toplamMurekkep < 35;
+
+        topPredEl.innerHTML = `En olası tahmin: <span style="color:#8fd14f;font-size:1.35em;font-family:'JetBrains Mono',monospace">${top.rakam}</span> <span style="color:#9aa0b4;font-weight:500;font-size:0.85em">(%${(top.prob*100).toFixed(0)})</span>` +
+            (belirsizMi ? `<div style="font-size:0.72rem;color:#fbbf24;margin-top:2px">⚠ Düşük mürekkep: model yine de bir rakam seçmek zorunda — gerçek CNN de "bilmiyorum" diyemez.</div>` : "");
 
         pctx.font = "bold 12px Inter"; pctx.fillStyle = "#c084fc"; pctx.textAlign = "left";
         pctx.fillText("Tahmin Olasılıkları", 10, 18);
