@@ -61,7 +61,10 @@ agirliklar = np.array([0.4, 0.9, -0.3])
 bias = 0.1
 
 cikti = noron(girdiler, agirliklar, bias)
-print(cikti)  # 0.5*0.4 + (-0.2)*0.9 + 0.8*(-0.3) + 0.1 = 0.0 + 0.1 = 0.1</code></pre>
+print(cikti)
+# z = 0.5*0.4 + (-0.2)*0.9 + 0.8*(-0.3) + 0.1
+#   = 0.2 - 0.18 - 0.24 + 0.1 = -0.12
+# ReLU negatifi sıfırlar → çıktı: 0.0</code></pre>
 
             <h2>Ağırlık ve Bias: Ayar Düğmeleri</h2>
 
@@ -73,8 +76,11 @@ print(cikti)  # 0.5*0.4 + (-0.2)*0.9 + 0.8*(-0.3) + 0.1 = 0.0 + 0.1 = 0.1</code>
             <div class="analoji-kutu">
                 <span class="etiket">💡 Analoji</span>
                 <p>
-                    Bir müzik stüdyosundaki <strong>mikseri</strong> düşünün: her kanalın ses düğmesi (ağırlık),
-                    bir de "master volume" (bias). İyi müzik = tüm düğmelerin doğru ayarı.
+                    Bir müzik stüdyosundaki <strong>mikseri</strong> düşünün: her kanalın ses düğmesi
+                    ağırlıklara karşılık gelir (o kanalı ne kadar açarsınız). Bias ise kanalın
+                    <strong>temel seviyesini</strong> yukarı/aşağı kaydıran bir ofset gibidir —
+                    ses düğmesi sıfırdayken bile duyulan sabit bir arka plan seviyesi.
+                    İyi müzik = tüm düğmelerin doğru ayarı.
                     Sinir ağı eğitimi = milyonlarca mikser düğmesinin doğru konumunu bulmaktır.
                 </p>
             </div>
@@ -82,7 +88,7 @@ print(cikti)  # 0.5*0.4 + (-0.2)*0.9 + 0.8*(-0.3) + 0.1 = 0.0 + 0.1 = 0.1</code>
             <h2>Aktivasyon Fonksiyonları: Neden Gereklidir?</h2>
 
             <p>
-                Aktivasyon fonksiyonu olmazda, kaç katman dizeseniz de sonuç yine tek bir doğrusal
+                Aktivasyon fonksiyonu olmazsa, kaç katman dizeseniz de sonuç yine tek bir doğrusal
                 fonksiyon gibi davranır — yani öğrenebileceği örüntüler sınırlı kalır.
                 Aktivasyon fonksiyonu <strong>doğrusallığı kırar</strong> ve karmaşık şekilleri öğrenmeyi mümkün kılar.
             </p>
@@ -93,7 +99,9 @@ print(cikti)  # 0.5*0.4 + (-0.2)*0.9 + 0.8*(-0.3) + 0.1 = 0.0 + 0.1 = 0.1</code>
 
 relu(-3)   # 0
 relu(5)    # 5
-# Günümüzün en yaygın aktivasyonu — basit ve etkili</code></pre>
+# Klasik ağlarda en yaygın aktivasyon — basit ve etkili
+# Not: max(0, x) yalnızca tek sayıyla çalışır. Bir dizeye (array) uygulamak için
+# np.maximum(0, x) kullanılmalıdır; ilerleyen MiniAg örneğinde bu yöntemi kullanacağız.</code></pre>
 
             <h3>Sigmoid</h3>
             <pre><code class="language-python">def sigmoid(x):
@@ -110,7 +118,7 @@ sigmoid(-10)   # ≈ 0.0
     return exp / exp.sum()
 
 softmax(np.array([2.0, 1.0, 0.1]))
-# [0.659, 0.242, 0.099] → "%66 kedi, %24 köpek, %9 kuş"</code></pre>
+# [0.66, 0.24, 0.10] → "%66 kedi, %24 köpek, %10 kuş"</code></pre>
 
             <h2>İleri Yayılım (Forward Pass): Sinyalin Yolculuğu</h2>
 
@@ -138,10 +146,12 @@ class MiniAg:
         return self.softmax(z2)       # Olasılık dağılımı
 
 # Test
+np.random.seed(42)  # Herkes aynı sonucu görsün diye (rastgele ama tekrarlanabilir)
 ag = MiniAg()
 x = np.array([0.5, 0.8, -0.2])
 cikti = ag.ileri(x)
-print(cikti)  # [0.52, 0.48] → iki sınıf için olasılıklar</code></pre>
+print(cikti)  # [0.497, 0.503] — iki sınıf için olasılıklar
+# Seed kullanmazsanız her çalıştırmada farklı (ama 0.5'e yakın) değerler alırsınız.</code></pre>
 
             <h2>İnteraktif: 3D Sinir Ağı Sinyal Akışı</h2>
 
@@ -162,25 +172,25 @@ print(cikti)  # [0.52, 0.48] → iki sınıf için olasılıklar</code></pre>
             <h2>Katman Sayısı ve Derinlik</h2>
 
             <ul>
-                <li><strong>1 gizli katman:</strong> Basit doğrusal sınırlar öğrenir.</li>
+                <li><strong>Gizli katmansız (tek katmanlı perceptron / lojistik regresyon):</strong> Yalnızca düz (doğrusal) sınırlar öğrenir.</li>
+                <li><strong>1 gizli katman:</strong> Doğrusal olmayan sınırlar öğrenir — evrensel yaklaşıklık teoremine göre yeterli nöronla her sürekli fonksiyona yaklaşabilir.</li>
                 <li><strong>2-3 gizli katman:</strong> Karmaşık eğri sınırlar, soyut örüntüler.</li>
                 <li><strong>Onlarca katman (Derin Öğrenme):</strong> Kenar → şekil → parça → nesne gibi hiyerarşik öğrenme. ResNet-152: 152 katman!</li>
             </ul>
 
             <p>
-                Her katman bir öncekine kıyasla daha soyut özellikleri temsil eder.
-                İlk katman kenarları, ikinci katman şekilleri, sonraki katman nesneleri öğrenir.
-                Bu, "derin" kelimesinin anlamıdır — katman katman soyutlaşma.
+                Genel sezgi olarak her katman bir öncekine kıyasla daha soyut özellikleri temsil eder.
+                Özellikle görüntüde (evrişimli ağlarda) bu net görülür: ilk katman kenarları,
+                ikinci katman doku ve şekilleri, derin katmanlar nesne kümelerini öğrenir.
+                "Derin" kelimesinin işaret ettiği budur — katman katman artan soyutlaşma.
             </p>
 
-            <h2>Kaynaklar</h2>
-
             <div class="kaynaklar-kutu">
-                <h2>📚 Kaynaklar</h2>
+                <h3>📚 Kaynaklar</h3>
                 <ol>
                     <li>3Blue1Brown. <em>"But what is a neural network?"</em> (YouTube serisi). <a href="https://www.youtube.com/watch?v=aircAruvnKk" target="_blank">Bölüm 1</a> — En iyi görsel açıklama.</li>
                     <li>Nielsen, M. A. (2015). <em>Neural Networks and Deep Learning</em>. <a href="http://neuralnetworksanddeeplearning.com/" target="_blank">neuralnetworksanddeeplearning.com</a> — Ücretsiz online kitap.</li>
-                    <li>Karpathy, A. (2023). <em>"Let's build GPT: from scratch, in code, spelled out"</em> (YouTube). — Transformer öncesi temel sinir ağı anlayışı.</li>
+                    <li>Karpathy, A. (2022). <em>"The spelled-out intro to neural networks and backpropagation: building micrograd"</em> (YouTube). — Geri yayılımı sıfırdan kodlayarak temel sinir ağı anlayışı.</li>
                     <li>PyTorch Tutorials — Neural Networks. <a href="https://pytorch.org/tutorials/beginner/blitz/neural_networks_tutorial.html" target="_blank">pytorch.org</a>.</li>
                     <li>Goodfellow, I., Bengio, Y., & Courville, A. (2016). <em>Deep Learning</em>. MIT Press. <a href="https://www.deeplearningbook.org/" target="_blank">deeplearningbook.org</a> — Ücretsiz online.</li>
                     <li>TensorFlow Neural Network Playground. <a href="https://playground.tensorflow.org/" target="_blank">playground.tensorflow.org</a> — Tarayıcıda interaktif sinir ağı.</li>
