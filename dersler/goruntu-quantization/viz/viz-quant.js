@@ -9,14 +9,15 @@ window.DERS_VIZ["2d-viz-quant"] = function () {
     const ACCENT = VizHelpers.accentRenk();
     const ACCENT2 = VizHelpers.accent2();
 
-    // Her format noktası: {ad, hiz (tok/ms x), kalite (SSIM y), boyut, renk}
+    // Her format noktası (İLLÜSTRATİF değerler; gerçek ölçüm değildir):
+    // {ad, hiz (göreli), kalite (SSIM y), boyut, renk}
     const NOKTALAR = [
         { ad: "FP32", hiz: 0.15, kalite: 0.99, boyut: "4.0 GB", renk: "#64748b" },
         { ad: "FP16", hiz: 0.35, kalite: 0.985, boyut: "2.0 GB", renk: "#3b82f6" },
         { ad: "INT8", hiz: 0.65, kalite: 0.96, boyut: "1.0 GB", renk: ACCENT },
         { ad: "INT4*", hiz: 0.88, kalite: 0.88, boyut: "0.5 GB", renk: "#f59e0b" },
     ];
-    // *INT4: görsel modellerde UNet-INT8 + VAE-FP16 kombinasyonu
+    // *INT4: naif PTQ kaliteyi bozar; SVDQuant gibi yöntemlerle korunabilir
 
     let t = 0;
 
@@ -80,14 +81,14 @@ window.DERS_VIZ["2d-viz-quant"] = function () {
 
         // Eksen etiketleri
         ctx.fillStyle = "#9aa0b4"; ctx.font = "11px Inter"; ctx.textAlign = "center";
-        ctx.fillText("Hız (tok/ms) →", pad.l + gw / 2, h - 18);
+        ctx.fillText("Göreli hız →", pad.l + gw / 2, h - 18);
         ctx.save();
         ctx.translate(16, pad.t + gh / 2); ctx.rotate(-Math.PI / 2);
         ctx.fillText("Kalite (SSIM) →", 0, 0); ctx.restore();
 
         // Not
         ctx.fillStyle = "#666"; ctx.font = "10px Inter"; ctx.textAlign = "center";
-        ctx.fillText("*INT4: karışık strateji — UNet INT8 + VAE FP16 önerilir", w / 2, h - 4);
+        ctx.fillText("*INT4: naif PTQ kaliteyi bozar — SVDQuant ile korunabilir. Değerler illüstratiftir.", w / 2, h - 4);
     }
 
     ciz();

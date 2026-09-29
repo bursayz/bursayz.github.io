@@ -9,7 +9,7 @@ window.QUIZ_DATA = [
             "İlk conv katmanı"
         ],
         dogru: 1,
-        aciklama: "VAE decoder son adımdır: 64x64 latent → 512x512 piksel. Bu dönüşümdeki quantization hatası doğrudan görüntüde 'görünür'. Renk kayması, posterization (renk bantları), doku kaybı. UNet daha toleranslı: birçok denoising adımı hatayı maskeler."
+        aciklama: "VAE decoder son adımdır: 64x64 latent → 512x512 piksel. Bu dönüşümdeki quantization hatası doğrudan görüntüde 'görünür'. Renk kayması, posterization (renk bantları), doku kaybı. UNet daha toleranslı ama risksiz değil: difüzyonda hata adımlar boyunca birikir ve aktivasyon dağılımı timestep'e göre değişir — bu yüzden kalibrasyon timestep'lere yayılmalıdır (Q-Diffusion, PTQ4DM)."
     },
     {
         soru: "UNet'i INT8 quantize etmek ile VAE decoder'ı INT8 quantize etmek arasındaki fark nedir?",
@@ -20,7 +20,7 @@ window.QUIZ_DATA = [
             "VAE her zaman daha hızlı"
         ],
         dogru: 1,
-        aciklama: "UNet her adımda gürültü tahmini yapar — hatalar sonraki adımlarla düzeltilir. VAE tek geçişte piksel üretir — hata geri alınamaz. Pratik kural: UNet INT8/FP8, VAE FP16. Model boyutunun %90'ı UNet'tir; VAE koruması küçük bedeldir."
+        aciklama: "UNet her adımda gürültü tahmini yapar — hatalar kısmen sonraki adımlarla maskelenebilir ama birikir; bu yüzden INT8 bile naif PTQ ile kaliteyi bozabilir, timestep'e yayılmış kalibrasyon gerekir. VAE tek geçişte piksel üretir — hata geri alınamaz. Pratik kural: UNet INT8/FP8, VAE FP16/FP32 (orijinal SDXL VAE'si FP16'da NaN üretebilir; sdxl-vae-fp16-fix gibi yamalı sürüm kullanın). Model boyutunun çoğu UNet'tir; VAE'yi korumak küçük bedeldir."
     },
     {
         soru: "FP8 (8-bit floating point) INT8'den nasıl ayrışır?",
@@ -42,7 +42,7 @@ window.QUIZ_DATA = [
             "Quantization'ı geri alır"
         ],
         dogru: 1,
-        aciklama: "TensorRT: PyTorch/ONNX modelini platform-spesifik binary'e çevirir. Kernel fusion (conv+relu tek kernelde), precision seçimi (hangi katman FP16/INT8 — hızlı olan seçilir), bellek optimizasyonu. SD inference'da %50-100 hızlanma tipiktir."
+        aciklama: "TensorRT: PyTorch/ONNX modelini platform-spesifik binary'e çevirir. Kernel fusion (conv+relu tek kernelde), precision seçimi, bellek optimizasyonu. Önemli: varsayılan derleme FP32'dir; quantization için hassasiyet açıkça verilmelidir (enabled_precisions, INT8'de kalibratör). Kazanç GPU'ya, çözünürlüğe ve baz çizgiye (FP32 vs FP16) göre değişir — tek bir '%50-100' rakamına güvenmeyin."
     },
     {
         soru: "ONNX export'unun amacı nedir?",
@@ -67,15 +67,15 @@ window.QUIZ_DATA = [
         aciklama: "PTQ (kalibrasyon): model çıktısı ile quantize model çıktısını küçük bir veri kümesinde karşılaştır, ölçek faktörlerini seç. Kullanımı kolay ama drift olabilir. QAT: forward pass'ta sahte quantization uygular (weights fake-quantized), backward float'ta — model '8-bit ile yaşamayı' öğrenir. Kalite ↑, eğitim maliyeti ↑."
     },
     {
-        soru: "SDXL Turbo/Lightning modellerinde quantization'ın ek yararı neden sınırlı olabilir?",
+        soru: "SDXL Turbo/Lightning modelleri ve quantization ilişkisi nasıldır?",
         secenekler: [
             "Bu modeller quantize edilemez",
-            "Bu modeller zaten 1-4 adımda üretim yapar — quantization hesaplama süresini kısaltır ama asıl darboğaz UNet boyutu/piksel sayısı olmaya devam eder",
+            "Bunlar adım sayısını düşüren distilasyon modelleridir: adım başına maliyeti düşürmezler, dolayısıyla quantization ile çakışmaz, tamamlar. Toplam süre zaten düşük olduğu için hız kazancının payı azalır ama bellek kazancı sürer",
             "Ağırlıklar farklı formatta",
             "Lora ile birleştirilemezler"
         ],
         dogru: 1,
-        aciklama: "Distilled modeller (Turbo/Lightning) adım sayısını dramatik düşürür (1000→4). Quantization her adımı hızlandırır ama 4 adımda zaten hız sınırlıdır. Bellek hâlâ avantaj sağlar (daha küçük model → daha küçük cihaza sığar)."
+        aciklama: "Distilled modeller (Turbo/Lightning) adım sayısını dramatik düşürür (1000→4). Quantization her adımı hızlandırır; 4 adımda toplam süre zaten düşük olduğundan hız kazancının göreli payı azalır — ama bellek (VRAM) kazancı geçerliliğini korur (daha küçük model → daha küçük cihaza sığar). İkisi dik eksenlerdedir: biri adım sayısını, diğeri adım başı maliyeti düşürür."
     },
     {
         soru: "Mixed precision inference ne demektir?",

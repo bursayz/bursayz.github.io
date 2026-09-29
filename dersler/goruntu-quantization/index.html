@@ -33,88 +33,170 @@
             <h2>LLM vs Görüntü Modeli Quantization Farkı</h2>
 
             <div class="io-akis">
-                <div class="io-kutu"><div class="io-baslik">LLM QUANTIZATION</div><div class="io-icerik">Hata = metin kalitesi<br>İnsan okuyup fark edebilir<br>Geniş tolerans</div></div>
+                <div class="io-kutu"><div class="io-baslik">LLM QUANTIZATION</div><div class="io-icerik">Ana sorun: aktivasyon outlier'ları<br>(LLM.int8(), SmoothQuant bunu hedefler)<br>Hata metin kalitesine yansır</div></div>
                 <div class="io-ok">vs</div>
-                <div class="io-kutu"><div class="io-baslik">GÖRÜNTÜ QUANTIZATION</div><div class="io-icerik">Hata = renk kayması / doku bozukluğu<br>Piksel düzeyinde görünür<br>Daha hassas</div></div>
+                <div class="io-kutu"><div class="io-baslik">GÖRÜNTÜ (DİFÜZYON) QUANTIZATION</div><div class="io-icerik">Ana sorun: hata adımlar boyunca birikir<br>Aktivasyon dağılımı timestep'e göre değişir<br>Hata piksel düzeyinde görünür</div></div>
             </div>
 
             <p>
-                LLM'de INT4 neredeyse görünmezdir; görüntüde VAE decoder'ı quantize ederseniz
-                renkler kayabilir, bulanıklık artabilir. Fakat UNet quantization daha güvenlidir.
+                Difüzyon modellerinin kendine özgü iki zorluğu vardır: (1) her denoising adımındaki
+                quantization hatası sonraki adımlara taşınır ve birikir; (2) aktivasyon dağılımları
+                timestep'e göre değiştiği için tek bir kalibrasyon seti tüm adımları temsil etmez —
+                bu yüzden kalibrasyon verisinin timestep'lere yayılması gerekir (Q-Diffusion, PTQ4DM).
+                LLM tarafında ise başlıca sorun aktivasyon outlier'larıdır (LLM.int8, SmoothQuant).
+                LLM'de GPTQ/AWQ gibi yöntemlerle INT4 kaybı azalsa da küçük modellerde, matematik ve
+                kod üretiminde bozulma ölçülebilir düzeydedir; "görünmez" değildir.
             </p>
+
+            <h2>Temel Kavramlar</h2>
+
+            <p>
+                Quantization, bir <em>ölçek (scale)</em> ve <em>sıfır noktası (zero-point)</em> ile float değerleri
+                tam sayılara eşler: <code>x_int = round(x / scale) + zero_point</code>.
+                <strong>Simetrik</strong> quantization'da zero-point = 0'dır (ağırlıklarda yaygın);
+                <strong>asimetrik</strong> quantization aralığı kaydırabilir (aktivasyonlarda yaygın).
+                Ölçek <strong>per-tensor</strong> (tek ölçek tüm tensöre) veya <strong>per-channel</strong>
+                (her çıkış kanalına ayrı ölçek — daha hassas) olabilir.
+            </p>
+
+            <ul>
+                <li><strong>PTQ (Post-Training Quantization):</strong> eğitilmiş modele küçük bir kalibrasyon veri setiyle ölçekler hesaplanır. Hızlıdır ama düşük bitlerde kalite kaybı görülebilir.</li>
+                <li><strong>QAT (Quantization-Aware Training):</strong> eğitim sırasında "sahte quantization" ile model düşük kesinlikte çalışmayı öğrenir. Kalitesi yüksek, maliyeti de yüksektir.</li>
+                <li><strong>Weight-only (örn. W4A16):</strong> yalnızca ağırlıklar quantize edilir, aktivasyonlar float kalır — belleği küçültür, hesabı sınırlı hızlandırır. <strong>W8A8</strong> hem ağırlığı hem aktivasyonu 8 bit yapar — gerçek hesap hızlandırması budur.</li>
+                <li><strong>Not:</strong> FP32 → FP16/BF16 geçişi teknik olarak quantization değil, kesinlik düşürmedir (cast). BF16, FP32 ile aynı üs aralığına sahiptir ama mantis hassasiyeti FP16'dan düşüktür (7 bit vs 10 bit) — VAE gibi hassas parçalarda fark yaratabilir.</li>
+            </ul>
 
             <h2>Hangi Katmanı Ne Kadar Sıkıştırmalı?</h2>
 
             <pre><code class="language-python"># Görüntü modellerinde quantization riski sıralaması (düşük→yüksek risk):
-# 1. UNet (denoising) — INT8 genellikle sorunsuz, INT4 kaliteye dokunabilir
+# 1. UNet/DiT (denoising) — INT8 mümkün ama timestep'lere yayılmış kalibrasyon
+#    şart (naif PTQ kaliteyi belirgin bozabilir). INT4 ancak SVDQuant gibi
+#    özel yöntemlerle uygulanabilir.
 # 2. Text Encoder (CLIP) — INT8 genellikle iyi
-# 3. VAE Decoder — HASSAS! INT8'de renk kayması yaygın; FP16 tutun mümkünse
+# 3. VAE Decoder — HASSAS! INT8'de renk kayması yaygın; FP16/FP32 tutun
 #
 # Pratik öneri (SDXL):
-#   - UNet: INT8 veya FP8 (TensorRT/Mixed precision)
-#   - VAE: FP16 veya FP32 (decode hassas)</code></pre>
+#   - UNet: INT8 (kalibre edilmiş PTQ) veya FP8 — FP8 için Hopper/Ada
+#     (H100, RTX 40 serisi) donanımı gerekir
+#   - VAE: FP32 veya yamalı FP16 (aşağıdaki tuzak notuna bakın)</code></pre>
+
+            <div class="ders-kapsam-note">
+                <strong>⚠️ SDXL VAE + FP16 tuzağı:</strong> Orijinal SDXL VAE'si FP16'da NaN üretip
+                siyah görüntü verebilir. Bu yüzden toplulukta <code>sdxl-vae-fp16-fix</code> gibi
+                yamalı sürümler kullanılır. VAE'yi FP16'da çalıştıracaksanız yamalı sürümü tercih edin,
+                değilse FP32 tutun — "SDXL VAE'yi her zaman FP16 tut" kuralı güvenli değildir.
+            </div>
+
+            <p>
+                <strong>Not:</strong> SD3 ve Flux gibi yeni üretim modelleri UNet yerine DiT/MMDiT
+                (transformer tabanlı) denoiser kullanır. Yukarıdaki strateji kavramsal olarak aynıdır;
+                "UNet" yazan yerlerde "denoiser" okuyun.
+            </p>
 
             <h2>TensorRT ile Hızlandırma</h2>
 
-            <pre><code class="language-python"># NVIDIA TensorRT: modeli özel GPU kernel optimizasyonlarıyla derler
-# pip install torch-tensorrt
+            <p>
+                TensorRT, modeli NVIDIA GPU için derlenmiş bir "engine"e çevirir: katman birleştirme
+                (fusion), kernel seçimi ve hassasiyet planlaması yapar. <code>torch.compile</code>'dan
+                farklı olarak modeli bir motor derleyicisinden geçirir. NVIDIA GPU ve uyumlu
+                CUDA/PyTorch sürümü gerekir. <strong>Dikkat:</strong> varsayılan derleme FP32'dir —
+                quantization için hassasiyeti açıkça belirtmelisiniz.
+            </p>
 
+            <pre><code class="language-python"># NVIDIA TensorRT: SDXL UNet'i FP16 olarak derle
+# pip install torch-tensorrt diffusers
 import torch
+from diffusers import UNet2DConditionModel
 import torch_tensorrt
 
-model = torch.hub.load("facebookresearch/dinov2", "dinov2_vits14")
-input_example = torch.randn(1, 3, 224, 224).cuda()
+unet = UNet2DConditionModel.from_pretrained(
+    "stabilityai/stable-diffusion-xl-base-1.0",
+    subfolder="unet", torch_dtype=torch.float16
+).cuda().eval()  # model ve girdi aynı cihazda olmalı!
 
-# torch.compile gibi ama daha agresif optimizasyonlar
-compiled = torch_tensorrt.compile(model, inputs=[input_example])
-# SD'de %50-100 hız artışı tipiktir</code></pre>
+inputs = [
+    torch.randn(1, 4, 128, 128, dtype=torch.float16, device="cuda"),   # sample (latent)
+    torch.tensor([1.0], device="cuda"),                                # timestep
+    torch.randn(1, 77, 2048, dtype=torch.float16, device="cuda"),      # encoder_hidden_states
+    {"text_embeds": torch.randn(1, 1280, dtype=torch.float16, device="cuda"),
+     "time_ids": torch.randn(1, 6, dtype=torch.float16, device="cuda")},  # added_cond_kwargs
+]
 
-            <h2>ONNX: Tek Format Her Yerde</h2>
-
-            <pre><code class="language-python"># ONNX: PyTorch/TensorFlow modelini ortak formata çevir,
-# her platformda (CPU, GPU, mobil) çalıştır
-
-import torch
-
-torch.onnx.export(
-    model,
-    input_example,
-    "model.onnx",
-    opset_version=17,          # Quantization destekli opset
-    input_names=["resim"],
-    output_names=["tahmin"],
-    dynamic_axes={"resim": {0: "batch"}}  # Esnek batch boyutu
+# FP16 derleme: hassasiyet açıkça verilir (varsayılan FP32 = quantization yok!)
+compiled = torch_tensorrt.compile(
+    unet, ir="dynamo", inputs=inputs,
+    enabled_precisions={torch.float16},
 )
-# onnxruntime ile her platformda çalıştırılabilir
+# INT8 için: torch_tensorrt.ptq ile kalibrasyon seti (timestep'lere
+# yayılmış örnekler) gerekir. Kazanç GPU/çözünürlük/baz çizgiye göre değişir;
+# FP32'ye karşı FP16 genelde ~1.5-2x, INT8 ek kazancı daha sınırlıdır.</code></pre>
+
+            <h2>ONNX Export + Quantization</h2>
+
+            <p>
+                ONNX bir taşıma formatıdır: PyTorch modelini ortak formata çevirir, onnxruntime ile
+                CPU/GPU/mobilde çalıştırırsınız. Operatör desteği modele ve çalışma ortamına göre
+                değişir ("her yerde çalışır" garantisi yok); 2 GB üstü modellerde
+                <em>external data</em> biçimi gerekir. <code>torch.onnx.export</code> tek başına
+                quantization <strong>yapmaz</strong> — quantization ayrı bir adımdır.
+            </p>
+
+            <pre><code class="language-python"># 1) Export (opset 17 makul bir varsayılan; QuantizeLinear/DequantizeLinear
+#    zaten opset 10'dan beri var — quantization için "özel bir opset" gerekmez)
+torch.onnx.export(
+    unet, tuple(inputs), "unet_fp16.onnx",
+    opset_version=17,
+    input_names=["sample", "timestep", "encoder_hidden_states", ...],
+    output_names=["noise_pred"],
+    dynamic_axes={"sample": {0: "batch"}, "noise_pred": {0: "batch"}},
+)
+
+# 2) Quantization — ayrı adım (onnxruntime.quantization)
+from onnxruntime.quantization import quantize_dynamic, QuantType
+
+quantize_dynamic(
+    "unet_fp16.onnx", "unet_int8.onnx",
+    weight_type=QuantType.QInt8,   # ağırlıklar INT8 (weight-only/dinamik)
+)
+# Daha iyi kalite için quantize_static: kalibrasyon verisiyle
+# aktivasyonları da quantize eder (W8A8).
+
+# 3) Inference: provider seçimi önemli, ve oturumu çalıştırın
 import onnxruntime as ort
-oturum = ort.InferenceSession("model.onnx")</code></pre>
+oturum = ort.InferenceSession(
+    "unet_int8.onnx", providers=["CUDAExecutionProvider"]
+)
+cikti = oturum.run(None, {"sample": ornek_np, ...})</code></pre>
 
             <h2>İnteraktif: Quantization Kalite-Hız Dengesi</h2>
 
             <div class="viz-kutu">
                 <div class="viz-baslik"><b>Quantization Trade-off — Hız vs Kalite Eğrisi</b></div>
                 <div class="viz-mount" id="viz-quant" style="min-height:320px"></div>
+                <p style="font-size:0.8rem;opacity:0.6;margin:0.5rem 0 0">Değerler örnek/illüstratiftir; gerçek ölçüm değildir. Hız ve kalite GPU'ya, modele ve kalibrasyona göre değişir.</p>
             </div>
 
             <h2>Pratik Karar Kılavuzu</h2>
 
             <ul>
-                <li>✅ <strong>Mobil/embedded:</strong> INT8 zorunlu (bellek ve pil kısıtı).</li>
-                <li>✅ <strong>Üretim sunucusu:</strong> FP16 veya INT8 UNet + FP16 VAE — kaliteyi korur, ~2x hız.</li>
-                <li>✅ <strong>Araştırma/maksimum kalite:</strong> FP32/BF16 her şeyde, TensorRT zorunlu değil.</li>
-                <li>⚠️ <strong>SDXL Turbo/Lightning:</strong> Zaten hızlı; quantization'ın ek yararı sınırlı olabilir.</li>
+                <li>✅ <strong>Mobil/embedded:</strong> INT8 sık gerekir (bazı NPU'lar yalnızca tam sayı işlemi destekler); ama birçok mobil GPU FP16'yı da iyi çalıştırır — "zorunlu" değil, hedef donanıma bakın.</li>
+                <li>✅ <strong>Üretim sunucusu:</strong> INT8 UNet + FP16/FP32 VAE yaygın kombinasyon. FP32 → FP16 geçişi tipik ~1.5-2x hız verir; FP16 → INT8 ek kazancı genelde daha düşüktür. Kalite garantisi kalibrasyona bağlıdır (SDXL VAE FP16 tuzağa dikkat).</li>
+                <li>✅ <strong>Araştırma/maksimum kalite:</strong> FP32 her şeyde en güvenli seçenek. BF16'nın aralığı FP32 kadar geniştir ama mantis hassasiyeti FP16'dan düşüktür (7 vs 10 bit) — VAE gibi hassas parçalarda fark yaratabilir, "FP32/BF16 aynı şey" diye düşünmeyin.</li>
+                <li>✅ <strong>SDXL Turbo/Lightning:</strong> Bunlar adım sayısını düşüren distilasyon modelleridir; adım başına maliyeti düşürmezler. Bu yüzden quantization ile çakışmaz, birbirini tamamlar.</li>
+                <li>💾 <strong>Bellek (VRAM) kazancını unutmayın:</strong> Quantization hızın yanında VRAM'i de düşürür (FP16 ~yarısı, INT8 ~çeyreği) — kısıtlı GPU'larda çoğu zaman asıl kazanç budur.</li>
             </ul>
 
             <h2>Kaynaklar</h2>
 
             <div class="kaynaklar-kutu">
-                <h2>📚 Kaynaklar</h2>
                 <ol>
-                    <li>Jacob, B. et al. (2018). <em>"Quantization and Training of Neural Networks for Efficient Integer-Arithmetic-Only Inference."</em> CVPR. <a href="https://arxiv.org/abs/1712.05877" target="_blank">arXiv:1712.05877</a> — Post-training quantization teorisi.</li>
-                    <li>NVIDIA TensorRT Docs. <a href="https://docs.nvidia.com/deeplearning/tensorrt/" target="_blank">docs.nvidia.com</a>.</li>
-                    <li>ONNX Runtime. <a href="https://onnxruntime.ai/" target="_blank">onnxruntime.ai</a> — Taşınabilir inference.</li>
-                    <li>Hugging Face Optimum. <a href="https://huggingface.co/docs/optimum" target="_blank">huggingface.co/docs/optimum</a> — ONNX+quantization için kolay API.</li>
-                    <li>Lin, Y. et al. (2024). <em>"Q-VLM: Post-training Quantization for Large Vision-Language Models"</em>. NeurIPS — Görüntü modellerinde quantization sınırları.</li>
+                    <li>Jacob, B. et al. (2018). <em>"Quantization and Training of Neural Networks for Efficient Integer-Arithmetic-Only Inference."</em> CVPR 2018. <a href="https://arxiv.org/abs/1712.05877" target="_blank">arXiv:1712.05877</a> — Quantization-aware training (QAT) ve simüle edilmiş quantization'ın temel makalesi.</li>
+                    <li>Li, X., Liu, Y., Lian, L., Yang, H., Dong, Z., Kang, D., Zhang, S., Keutzer, K. (2023). <em>"Q-Diffusion: Quantizing Diffusion Models."</em> ICCV 2023. <a href="https://arxiv.org/abs/2302.04304" target="_blank">arXiv:2302.04304</a> — Difüzyon modelleri için timestep'e yayılmış kalibrasyonlu PTQ.</li>
+                    <li>Shang, Y., Yuan, Z., Xie, B., Wu, B., Yan, Y. (2023). <em>"Post-training Quantization on Diffusion Models"</em> (PTQ4DM). CVPR 2023. <a href="https://arxiv.org/abs/2211.15736" target="_blank">arXiv:2211.15736</a>.</li>
+                    <li>Li, M., Lin, Y., Zhang, Z., et al. (2024). <em>"SVDQuant: Absorbing Outliers by Low-Rank Components for 4-Bit Diffusion Models."</em> ICLR 2025. <a href="https://arxiv.org/abs/2411.05007" target="_blank">arXiv:2411.05007</a> — Difüzyonda 4-bit (W4A4) quantization.</li>
+                    <li>NVIDIA TensorRT. <a href="https://docs.nvidia.com/deeplearning/tensorrt/" target="_blank">docs.nvidia.com</a> — Dokümantasyon ve difüzyon pipeline'ları için demo örnekleri (demo/Diffusion).</li>
+                    <li>ONNX Runtime Quantization. <a href="https://onnxruntime.ai/docs/performance/model-optimizations/quantization.html" target="_blank">quantize_dynamic / quantize_static rehberi</a>.</li>
+                    <li>Hugging Face Optimum. <a href="https://huggingface.co/docs/optimum" target="_blank">huggingface.co/docs/optimum</a> — ONNX + quantization için kolay API.</li>
                 </ol>
             </div>
 
