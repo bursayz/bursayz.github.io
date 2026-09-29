@@ -18,6 +18,11 @@ window.DERS_VIZ["2d-metin-uretim"] = function () {
         { adaylar: [["öğreniyor", 0.35], ["üretiyor", 0.30], ["deniyor", 0.20], ["yayınlıyor", 0.15]], secilen: 0 },
     ];
 
+    // Her adımda loss değeri simülasyonu (eğitim süresince düşen)
+    const LOSS_BASLANGIC = 4.17;
+    const LOSS_BITIS = 1.12;
+    const mevcutLoss = (adim) => LOSS_BASLANGIC - (adim / ADIMLAR.length) * (LOSS_BASLANGIC - LOSS_BITIS);
+
     const ACCENT = VizHelpers.accentRenk();
     const ACCENT2 = VizHelpers.accent2();
 
@@ -32,8 +37,26 @@ window.DERS_VIZ["2d-metin-uretim"] = function () {
         // Başlık
         VizHelpers.ortaYazi(ctx, `Adım ${adim + 1}: Bir sonraki token tahmini`, w / 2, 20, ACCENT2, 14, true);
 
+        // Loss barı (simüle edilmiş)
+        const lossY = 40;
+        const lossW = 120;
+        const currentLoss = mevcutLoss(adim);
+        const lossNorm = (currentLoss - LOSS_BITIS) / (LOSS_BASLANGIC - LOSS_BITIS);
+        const barW = lossW * (1 - lossNorm);
+        ctx.fillStyle = "rgba(255,255,255,0.06)";
+        ctx.beginPath(); ctx.roundRect(w - lossW - 16, lossY, lossW, 8, 4); ctx.fill();
+        const grad = ctx.createLinearGradient(w - lossW - 16, 0, w - 16, 0);
+        grad.addColorStop(0, ACCENT);
+        grad.addColorStop(1, ACCENT2);
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.roundRect(w - lossW - 16, lossY, barW, 8, 4); ctx.fill();
+        ctx.font = "10px Inter, sans-serif";
+        ctx.fillStyle = "#9aa0b4";
+        ctx.textAlign = "left";
+        ctx.fillText(`Loss ≈ ${currentLoss.toFixed(2)}`, w - lossW - 16, lossY + 20);
+
         // Bağlam (şimdiye kadar üretilenler)
-        const ctxY = 55;
+        const ctxY = 70;
         ctx.font = "13px 'JetBrains Mono', monospace";
         ctx.textAlign = "left";
         ctx.fillStyle = "#9aa0b4";
@@ -88,6 +111,12 @@ window.DERS_VIZ["2d-metin-uretim"] = function () {
         }
         lines.push(line);
         lines.forEach((l, i) => ctx.fillText(l, 16, ay + i * 17));
+
+        // Alt not: loss açıklaması
+        const noteY = ay + lines.length * 17 + 12;
+        ctx.font = "10px Inter, sans-serif";
+        ctx.fillStyle = "#5a5f72";
+        ctx.fillText(`💡 Eğitim ilerledikçe "Loss" azalır → model daha doğru tahminler yapar.`, 16, noteY);
     }
 
     VizHelpers.adimKontrol("viz-metin-uretim", ADIMLAR.length, ciz);

@@ -49,7 +49,61 @@
                 </p>
             </div>
 
-            <h2>Adım 1: Veri Hazırlama</h2>
+            <h2>Bu Ders Neden Zor?</h2>
+
+            <p>
+                "Sıfırdan GPT" adı kulağa basit geliyor ama aslında 5 farklı disiplini birleştiriyor:
+                <strong>tokenizasyon + embedding + attention + transformer + eğitim optimizasyonu</strong>.
+                Her biri ayrı bir ders. Burada yapacağımız şey, bu parçaları tek tek değil,
+                <em>birbirine bağlayarak</em> görmek. Tıpkı LEGO gibi: her parça basit, ama birleşince ortaya
+                çıkan yapı karmaşık.
+            </p>
+
+            <div class="uyari-kutu">
+                <span class="etiket">⚠️ DİKKAT</span>
+                Eğer önceki derslerden (tokenizasyon, embedding, self-attention, transformer) herhangi birini
+                tam anlamadıysanız, burada takılmanız çok normal. Bu dersi bitirdikten sonra geriye dönüp
+                eksik parçaları tamamlayın. Kimse ilk seferde anlamaz — ben de anlamadım.
+            </div>
+
+            <h2>Adım 0: Oyunu Anlayalım (Kod Yok, Sadece Kafa Yor)</h2>
+
+            <p>
+                Kod yazmadan önce, ne yaptığımızı %100 anlamamız gerek. İşte basit bir metin:
+            </p>
+
+            <pre><code class="language-text">"merhaba dünya"</code></pre>
+
+            <p>
+                Karakter seviyesinde tokenizasyon yapalım:
+            </p>
+
+            <pre><code class="language-python"># "merhaba dünya" metnindeki benzersiz karakterler:
+# {' ', 'a', 'b', 'd', 'e', 'h', 'l', 'm', 'n', 'r', 'u', 'y', 'z'}
+# vocab_size = 13
+
+# Her karaktere bir numara verelim (stoi = string to index):
+# ' '→0, 'a'→1, 'b'→2, 'd'→3, 'e'→4, 'h'→5, 'l'→6, 'm'→7, 'n'→8, 'r'→9, 'u'→10, 'y'→11, 'z'→12
+
+# "merhaba" → [7, 4, 9, 5, 1, 2, 1]
+# "dünya"   → [3, 12, 8, 11, 1]</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">🧠 DÜŞÜN</span>
+                <p>
+                    Model "merhaba" kelimesini gördüğünde, her pozisyonda bir sonraki harfi tahmin etmeli:
+                    <br>• "m" gördü → "e" tahmin et
+                    <br>• "me" gördü → "r" tahmin et
+                    <br>• "mer" gördü → "h" tahmin et
+                    <br>...ve böyle devam eder.
+                </p>
+                <p>
+                    <strong>Peki ya model "merhaba" kelimesini hiç görmemişse?</strong> O zaman rastgele tahmin yapar.
+                    Eğitim, modelin "bu bağlamda genellikle bu harf gelir" öğrenmesini sağlar.
+                </p>
+            </div>
+
+            <h2>Adım 1: Veri Hazırlama — Batch ve Hedef</h2>
 
             <pre><code class="language-python">import torch
 import torch.nn as nn
@@ -83,6 +137,43 @@ def batch_al(split):
 
 # KRİTİK NOKTA: y = x'in 1 karakter sağa kaymış hali.
 # Model her pozisyonda "bir sonrakini" tahmin etmeyi öğrenir.</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">🔍 NEDEN BÖYLE?</span>
+                <p>
+                    <strong>Batch boyutu = 32</strong>: Aynı anda 32 farklı metin parçası üzerinde çalışırız.
+                    Neden? Çünkü GPU'lar paralel çalışır — tek örnek yerine 32 örnek beslerseniz 32 kat hızlı eğitim.
+                </p>
+                <p>
+                    <strong>block_size = 64</strong>: Model sadece son 64 karaktere bakar. Neden 64?
+                    Deneyimsel olarak: kısa bağlamlar (32) kelime sınırlarını keser, uzun bağlamlar (256+) GPU belleğini şişirir.
+                    64, Shakespeare ve Türkçe metinler için iyi bir denge.
+                </p>
+            </div>
+
+            <h3>Batch Örneği: Elle Hesaplayalım</h3>
+
+            <pre><code class="language-python"># Basitlik için block_size=4, batch=2 alalım.
+# Metin: "merhaba dünya" → encode: [7,4,9,5,1,2,1,0,3,12,8,11,1]
+
+# Batch 1, konum 2'den başla (i=2):
+# x = veri[2:6] = [9,5,1,2]  → "rh"
+# y = veri[3:7] = [5,1,2,1]  → "hab"
+
+# Batch 2, konum 0'dan başla (i=0):
+# x = veri[0:4] = [7,4,9,5]  → "merh"
+# y = veri[1:5] = [4,9,5,1]  → "erha"
+
+# x: (2, 4) — 2 batch, 4 konum
+# y: (2, 4) — aynı boyut, ama 1 kaymış</code></pre>
+
+            <div class="soru-kutu">
+                <span class="etiket">❓ SORU</span>
+                <strong>Neden x ve y aynı boyutta?</strong>
+                <br><br>
+                Çünkü model her pozisyonda bir tahmin yapar. x[0][0] = "r" girdisi → model "h" tahmin etmeli (y[0][0]).
+                x[0][1] = "rh" girdisi → model "a" tahmin etmeli (y[0][1]). Her pozisyon ayrı bir eğitim örneği!
+            </div>
 
             <h2>Adım 2: Model — Mini GPT</h2>
 
@@ -152,6 +243,59 @@ class MiniGPT(nn.Module):
 model = MiniGPT()
 print(f"Parametre sayısı: {sum(p.numel() for p in model.parameters()):,}")</code></pre>
 
+            <div class="analoji-kutu">
+                <span class="etiket">🧱 LEGO BLOKLARI</span>
+                <p>
+                    MiniGPT'yi 5 katmanda düşünün:
+                    <br><br>
+                    <strong>1. Embedding katmanı</strong>: Her karakteri 64 boyutlu vektöre çevirir.
+                    "a" harfi artık sadece bir harf değil, 64 sayıdan oluşan bir "parmak izi".
+                    <br><br>
+                    <strong>2. Pozisyon Encoding</strong>: "merhaba"da 1. harf mi 5. harf mi? Model bilmiyor.
+                    pos_emb her pozisyona (0,1,2...63) ayrı bir vektör ekler.
+                    <br><br>
+                    <strong>3. Transformer Blokları (×3)</strong>: Attention + feed-forward. Her blok,
+                    kelimeler arasındaki ilişkileri öğrenir. 1. blok dilbilgisi, 2. blok anlam, 3. blok bağlam.
+                    <br><br>
+                    <strong>4. LayerNorm</strong>: Değerlerin uçmasını engeller. Sinir ağlarında stabilite şart.
+                    <br><br>
+                    <strong>5. Çıkış Katmanı (kafa)</strong>: 64 boyutlu vektörü vocab_size boyutuna çevirir.
+                    Her boyut = bir karakter için skor.
+                </p>
+            </div>
+
+            <h3>Parametre Sayısını Hesaplayalım</h3>
+
+            <pre><code class="language-python"># vocab_size = 65 (Shakespeare), n_embd = 64, block_size = 64
+
+# token_emb: 65 × 64 = 4,160
+# pos_emb:   64 × 64 = 4,096
+# Her transformer bloğu:
+#   - ln1: 64 × 2 = 128 (weight + bias)
+#   - att.k/q/v: 3 × (64 × 16) = 3,072
+#   - ln2: 128
+#   - ffn: 64×256 + 256×64 + 256 = 16,640 + 16,384 + 256 = 33,280
+#   Toplam per blok: ~36,608
+# × 3 blok: ~109,824
+# ln_f: 128
+# kafa: 64 × 65 = 4,160 (+65 bias)
+
+# Toplam: ~122,368 parametre
+# Python'da: sum(p.numel() for p in model.parameters()) → tam sayıyı gösterir</code></pre>
+
+            <div class="soru-kutu">
+                <span class="etiket">❓ SORU</span>
+                <strong>Neden 120 bin parametre yeterli, GPT-2 için 124 milyon?</strong>
+                <br><br>
+                Çünkü bizim modelimiz:
+                <br>• Karakter seviyesinde (vocab=65, GPT-2 vocab=50,257)
+                <br>• Çok küçük (n_embd=64, GPT-2 n_embd=768)
+                <br>• Az katmanlı (3, GPT-2=12)
+                <br>• Tek başlık (GPT-2=12 başlık)
+                <br><br>
+                Ama <em>mimari aynı</em>. Büyük modeller = aynı formül, daha büyük sayılar.
+            </div>
+
             <h2>Adım 3: Eğitim Döngüsü</h2>
 
             <pre><code class="language-python">optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
@@ -168,6 +312,37 @@ for adim in range(3000):
 # Kayıp ~2.5'tan ~1.2'ye düştüğünde model dilbilgisini çözmeye başlamış demektir
 # (rastgele tahmin: ln(vocab_size) ≈ ln(65) ≈ 4.17)</code></pre>
 
+            <div class="analoji-kutu">
+                <span class="etiket">📊 LOSS NE DEMEK?</span>
+                <p>
+                    Kayıp (loss) = modelin tahmininin ne kadar yanlış olduğunun ölçüsü.
+                    <br><br>
+                    <strong>Kayıp = 4.17</strong> → Rastgele tahmin (henüz eğitim yok)
+                    <br><strong>Kayıp = 2.0</strong> → Kelime başına 2.0 "şanslı tahmin" (orta düzey)
+                    <br><strong>Kayıp = 1.0</strong> → Oldukça iyi, akıcı metin üretir
+                    <br><strong>Kayıp = 0.5</strong> → Mükemmel ama overfit (ezberlemiş) olabilir
+                    <br><br>
+                    <em>Cross entropy</em> basitçe: "Modelin %90 emin olması gereken yerde %10 emin olması
+                    ne kadar ceza almalı?" sorusunun cevabı.
+                </p>
+            </div>
+
+            <h3>Eğitimde Ne Görürsünüz (Gerçek Çıktı)</h3>
+
+            <pre><code class="language-text">Adım 0:    kayıp = 4.1723  ← Rastgele! Model hiçbir şey bilmiyor.
+Adım 500:  kayıp = 2.8451  ← "e", "a", "i" gibi yaygın harfleri öğrendi.
+Adım 1000: kayıp = 2.1234  ← Basit kelime yapılarını çözdü.
+Adım 1500: kayıp = 1.6789  ← Dilbilgisi kurallarını takip etmeye başladı.
+Adım 2000: kayıp = 1.4321  ← Akıcı cümleler üretebiliyor.
+Adım 2500: kayıp = 1.2876  ← Shakespeare'in stilini taklit etmeye yaklaştı.
+Adım 2999: kayıp = 1.1987  ← "First Citizen: Before we proceed any further..."</code></pre>
+
+            <div class="uyari-kutu">
+                <span class="etiket">⚠️ OVERFIT TEHLİKESİ</span>
+                Train loss 0.5'e düştü ama validation loss 2.0'da kaldı mı?
+                Model eğitim verisini ezberledi, genelleme yapamıyor. Çözüm: dropout, weight decay, daha fazla veri.
+            </div>
+
             <h2>Adım 4: Metin Üretme</h2>
 
             <pre><code class="language-python">baslangic = torch.zeros((1, 1), dtype=torch.long)  # Boş başlangıç
@@ -175,6 +350,49 @@ uretilen = model.uret(baslangic, max_yeni=300)
 print(decode(uretilen[0].tolist()))
 # Eğitimsiz: "xjKqö ğüZşx..." (rastgele harf yığını)
 # Eğitimli:  "Kralın sarayında büyük bir şölen..." (akıcı metin!)</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">🎲 RASTGELE vs. ÜRETİM</span>
+                <p>
+                    <strong>Eğitimsiz model</strong>: Her karakter eşit olasılıkta (%1.5). Sonuç:
+                    "a b q z x j k" gibi rastgele harfler.
+                </p>
+                <p>
+                    <strong>Eğitimli model</strong>: "m"den sonra "e" %80 olasılıkla gelir,
+                    "x"den sonra "y" %1. Sonuç: Akıcı, okunabilir metin.
+                </p>
+                <p>
+                    Bu tek değişiklik bile (eşit olasılık → öğrenilmiş olasılık) "anlamlı metin"
+                    üretmek için yeterli!
+                </p>
+            </div>
+
+            <h3>Üretim Aşamaları: Adım Adım</h3>
+
+            <pre><code class="language-python"># Başlangıç: idx = [0] (boş token, vocab'da 0 numaralı karakter)
+
+# Adım 1: Model [0] gördü
+#   → logits: [0.1, 0.05, 0.8, ...]  → softmax → [0.02, 0.01, 0.25, ...]
+#   → multinomial örnekleme: "e" seçildi (toplam 1.0'e normalize edilmiş dağılımdan)
+#   → idx = [0, 4]  ("e" = 4 numaralı karakter)
+
+# Adım 2: Model [0, 4] gördü
+#   → Son pozisyonun logits'i alınır (sadece son karakterin tahmini yeterli)
+#   → "r" seçildi → idx = [0, 4, 9]  ("er")
+
+# Adım 3: Model [0, 4, 9] gördü
+#   → "h" seçildi → idx = [0, 4, 9, 5]  ("erh")
+
+# ... 300 adım sonra: "erhaba dünya. Bugün hava çok güzel..."</code></pre>
+
+            <div class="soru-kutu">
+                <span class="etiket">❓ SORU</span>
+                <strong>Neden her adımda sadece son pozisyona bakıyoruz?</strong>
+                <br><br>
+                Çünkü causal (tek yönlü) attention kullanıyoruz. Model geçmişe bakar, geleceğe bakamaz.
+                Son pozisyon = tüm geçmişin özeti. Önceki pozisyonların tahminleri zaten yapılmış, o tokenlar
+                artık sabit. Sadece "bir sonraki" karakteri tahmin etmemiz gerekiyor.
+            </div>
 
             <h2>Sampling: temperature ve top-k</h2>
 
@@ -193,6 +411,157 @@ print(decode(uretilen[0].tolist()))
 # temperature=0.1 → neredeyse hep en olası token (tekdüze ama tutarlı)
 # temperature=1.5 → riskli seçimler (yaratıcı ama saçmalayabilir)
 # top_k=50 → sadece en iyi 50 adaydan seç (saçmalama azalır)</code></pre>
+
+            <div class="analoji-kutu">
+                <span class="etiket">🎰 SLOT MAKİNESİ ANALOGİSİ</span>
+                <p>
+                    Softmax çıktısını bir rulet çarkı gibi düşünün:
+                    <br><br>
+                    <strong>temperature=0.1</strong> → Çark neredeyse hep aynı deliğe girer (en yüksek olasılık).
+                    Sıkıcı ama güvenli.
+                    <br><strong>temperature=1.0</strong> → Çark gerçekçi dağılımda döner. Dengeli.
+                    <br><strong>temperature=2.0</strong> → Çark neredeyse tamamen rastgele döner. Yaratıcı ama kaotik.
+                    <br><br>
+                    <strong>top_k=50</strong> → Çarkın sadece en geniş 50 bölmesi kalır, dar bölmeler kapanır.
+                    Saçma kelimeler tamamen elenir.
+                </p>
+            </div>
+
+            <h3>Örnek: Farklı Temperature'larda Çıktı</h3>
+
+            <pre><code class="language-text"># Prompt: "Bugün hava çok"
+
+# temperature=0.1 (greedy'e yakın):
+# "Bugün hava çok güzel. Bugün hava çok güzel. Bugün hava çok güzel."
+# → Tekrarlanıyor! En olası token hep aynı.
+
+# temperature=0.7 (dengeli):
+# "Bugün hava çok güzel, dışarı çıkıp yürüyüş yapmak istiyorum."
+# → Akıcı ve çeşitli.
+
+# temperature=1.5 (yaratıcı):
+# "Bugün hava çok zorlu ve aniden karanlık bastırdı, sanki gök deliniyormuş gibi."
+# → Yaratıcı ama bazen saçmalıyor ("gök deliniyormuş" anlamsız).
+
+# temperature=2.5 (kaotik):
+# "Bugün hava çok qwerty pijama dans ediyor telefon uçak."
+# → Tamamen rastgele çöp.</code></pre>
+
+            <h2>Modern Eklemeler: Neler Eksik?</h2>
+
+            <p>
+                Yukarıdaki model çalışıyor ama 2026 standartlarına göre eksik. İşte ekleyebileceğiniz
+                iyileştirmeler (zorluk sırasına göre):
+            </p>
+
+            <pre><code class="language-python"># 1. KOLAY: Dropout (overfit önleme)
+self.dropout = nn.Dropout(0.1)  # %10 nöron rastgele kapat
+x = self.dropout(x)
+
+# 2. ORTA: Multi-head attention (tek başlık yerine 4 başlık)
+class MultiHead(nn.Module):
+    def __init__(self, embed_dim, num_heads):
+        super().__init__()
+        self.heads = nn.ModuleList([Head(embed_dim, embed_dim // num_heads) for _ in range(num_heads)])
+        self.proj = nn.Linear(embed_dim, embed_dim)
+    def forward(self, x):
+        return self.proj(torch.cat([h(x) for h in self.heads], dim=-1))
+
+# 3. ORTA: Weight tying (girdi ve çıkış embedding'ini paylaş)
+# Parametre sayısını azaltır, performansı artırabilir
+self.kafa.weight = self.token_emb.weight
+
+# 4. ZOR: KV-cache (üretim hızlandırma)
+# Her adımda tüm geçmişi yeniden hesaplamak yerine, sadece yeni token için
+# attention hesapla. 10-20x hız kazancı!
+
+# 5. ZOR: RoPE (Rotary Position Embedding)
+# pozisyon encoding'i embedding'e çarpmak yerine, attention skorlarına
+# sinusoidal dönüşüm uygular. Daha uzun bağlamlar için daha iyi.</code></pre>
+
+            <div class="soru-kutu">
+                <span class="etiket">❓ SORU</span>
+                <strong>KV-cache nedir ve neden bu kadar hızlandırır?</strong>
+                <br><br>
+                Normalde her üretim adımında, tüm bağlam (örn. 64 token) için attention hesaplanır:
+                64×64 attention matrisi. Ama bağlamın sadece son token'ı değişti! KV-cache,
+                önceki tokenlar için hesaplanmış key ve value'ları saklar. Her adımda sadece yeni token için
+                K ve V hesaplanır, eskilerle birleştirilir.
+                <br><br>
+                Matematik: O(T²) → O(T). 64 token için 64 kat hız kazancı!
+            </div>
+
+            <h2>Sık Yapılan Hatalar ve Çözümleri</h2>
+
+            <div class="uyari-kutu">
+                <span class="etiket">🐛 HATA 1</span>
+                <strong>"Loss 4.17'de kaldı, düşmüyor"</strong>
+                <br><br>
+                Olası nedenler:
+                <br>• Öğrenme oranı çok yüksek (3e-3) → 3e-4'e düşürün
+                <br>• Model çok küçük (n_embd=8) → 64'e çıkarın
+                <br>• Veri setinde Türkçe karakterler bozuk → encoding="utf-8" ekleyin
+                <br>• Gradient patlaması → torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            </div>
+
+            <div class="uyari-kutu">
+                <span class="etiket">🐛 HATA 2</span>
+                <strong>"Model 'e' harfini çok sık söylüyor, başka harf yok"</strong>
+                <br><br>
+                Model "güvenli" olan en yüksek frekanslı harfi seçiyor. Çözüm:
+                <br>• Daha uzun eğitim (3000 → 10000 adım)
+                <br>• Daha büyük model (n_layer=3 → 6)
+                <br>• Daha fazla veri (tek kitap → 10 kitap)
+            </div>
+
+            <div class="uyari-kutu">
+                <span class="etiket">🐛 HATA 3</span>
+                <strong>"CUDA out of memory"</strong>
+                <br><br>
+                GPU belleği yetmiyor. Çözüm:
+                <br>• batch_size 32 → 16 veya 8
+                <br>• block_size 64 → 32
+                <br>• n_layer 3 → 1 (sadece test için)
+                <br>• torch.backends.cudnn.benchmark = False
+            </div>
+
+            <h2>Egzersizler</h2>
+
+            <div class="soru-kutu">
+                <span class="etiket">🏋️ EGZERSİZ 1</span>
+                <strong>Veri Setini Değiştir</strong>
+                <br><br>
+                Shakespeare yerine kendi WhatsApp sohbet geçmişinizi veya en sevdiğiniz
+                Türkçe kitabın ilk 100.000 karakterini kullanın. Model ne öğrendi?
+                Kelime dağarcığı nasıl değişti?
+            </div>
+
+            <div class="soru-kutu">
+                <span class="etiket">🏋️ EGZERSİZ 2</span>
+                <strong>Overfit'i Gör</strong>
+                <br><br>
+                Eğitim adımını 3000'den 50000'e çıkarın. Train loss ne oluyor?
+                Validation loss ne oluyor? Hangi adımda overfit başlıyor?
+                (İpucu: her 500 adımda val loss hesaplayın)
+            </div>
+
+            <div class="soru-kutu">
+                <span class="etiket">🏋️ EGZERSİZ 3</span>
+                <strong>Temperature Deneyi</strong>
+                <br><br>
+                Aynı prompt ile temperature=0.1, 0.7, 1.0, 1.5, 2.0 çıktılarını üretin.
+                Her çıktıyı 3 kere tekrarlayın. Hangi temperature'da çıktı hep aynı?
+                Hangisinde en çok çeşit? Hangisinde en anlamlı?
+            </div>
+
+            <div class="soru-kutu">
+                <span class="etiket">🏋️ EGZERSİZ 4</span>
+                <strong>Küçük Model vs Büyük Model</strong>
+                <br><br>
+                n_embd=32, n_layer=1 ile eğitin. Sonra n_embd=128, n_layer=4 ile eğitin.
+                3000 adımda hangisi daha iyi? 10000 adımda hangisi daha iyi?
+                Ne zaman büyük model avantajlı?
+            </div>
 
             <h2>İnteraktif: Token-Token Üretim Simülasyonu</h2>
 
@@ -220,10 +589,13 @@ print(decode(uretilen[0].tolist()))
                 <ol>
                     <li>Karpathy, A. (2023). <em>"Let's build GPT: from scratch, in code, spelled out"</em> (YouTube, 2 saat). <a href="https://www.youtube.com/watch?v=kCc8FmEb1nY" target="_blank">izle</a> — Bu dersin video hali; mutlaka izleyin.</li>
                     <li>Karpathy, A. <em>nanoGPT</em>. <a href="https://github.com/karpathy/nanoGPT" target="_blank">github.com/karpathy/nanoGPT</a> — Tam GPT-2 eğitim kodu, ~300 satır.</li>
-                    <li>Raschka, S. (2024). <em>Build a Large Language Model (From Scratch)</em>. Manning. Bölüm 4-5. <a href="https://github.com/rasbt/LLMs-from-scratch" target="_blank">GitHub</a>.</li>
+                    <li>Karpathy, A. (2025). <em>nanochat</em>. <a href="https://github.com/karpathy/nanochat" target="_blank">github.com/karpathy/nanochat</a> — nanoGPT'nin modern halefi. Tokenizasyon + pretraining + finetuning + inference, tek repo'da. ~$100'a GPT-2 kalitesi.</li>
+                    <li>Raschka, S. (2024). <em>Build a Large Language Model (From Scratch)</em>. Manning. Bölüm 4-5. <a href="https://github.com/rasbt/LLMs-from-scratch" target="_blank">GitHub</a> — Kitabın tam kodu, her adım açıklamalı.</li>
+                    <li>Raschka, S. (2025). <em>Build a Reasoning Model (From Scratch)</em>. Manning. <a href="https://www.manning.com/books/build-a-reasoning-model-from-scratch" target="_blank">Manning</a> — GPT sonrası: reasoning, RL, distillation. Daha ileri seviye.</li>
                     <li>Radford, A. et al. (2018). <em>"Improving Language Understanding by Generative Pre-Training"</em> (GPT-1). — GPT ailesinin ilk makalesi.</li>
-                    <li>Nanculef, R. et al. <em>"Let's reproduce GPT-2 (124M)"</em> — Karpathy'nin 4 saatlik derin eğitim videosu. <a href="https://www.youtube.com/watch?v=l8pRSuU81PU" target="_blank">izle</a></li>
+                    <li>Karpathy, A. (2025). <em>"2025 LLM Year in Review"</em>. <a href="https://karpathy.bearblog.dev/year-in-review-2025/" target="_blank">blog</a> — LLM'lerin günümüzdeki durumu, RLVR, benchmark eleştirisi.</li>
                     <li>Holtzman, A. et al. (2020). <em>"The Curious Case of Neural Text Degeneration"</em> (nucleus sampling). <a href="https://arxiv.org/abs/1904.09751" target="_blank">arXiv:1904.09751</a> — temperature/top-k ardındaki bilim.</li>
+                    <li>Delobelle, P. (2025). <em>"NanoGPT-inference"</em>. <a href="https://pieter.ai/blog/2025/nanogpt-inference/" target="_blank">blog</a> — KV-cache ve diğer inference tekniklerinin nanoGPT üzerinde adım adım implementasyonu. 580 → 14,000 token/s.</li>
                 </ol>
             </div>
 
