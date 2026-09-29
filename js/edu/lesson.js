@@ -24,7 +24,7 @@
         bc.innerHTML = `
             <a href="../../egitim.html">Eğitimler</a>
             <span class="ayirac">›</span>
-            <a href="../../index.html#seri-${ders.seri}">${seri.ad} Serisi</a>
+            <a href="../../egitim.html#seri-${ders.seri}">${seri.ad} Serisi</a>
             <span class="ayirac">›</span>
             <span>${ders.no} — ${ders.baslik}</span>`;
     }
