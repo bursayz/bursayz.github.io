@@ -88,15 +88,35 @@
         wrapper.appendChild(baslik);
         wrapper.appendChild(pre);
 
-        // Mini Python renklendirmesi (regex tabanlı, kütüphanesiz)
+        // Mini Python renklendirmesi (token tabanlı, kütüphanesiz)
         if (dil === "python" || dil === "py") {
-            let t = code.innerHTML;
-            t = t
-                .replace(/(#[^\n]*)/g, '<span class="tok-comment">$1</span>')
-                .replace(/\b(import|from|def|return|if|else|elif|for|while|in|not|and|or|class|with|as|None|True|False|print|len|range|lambda|try|except|raise|pass|break|continue)\b/g, '<span class="tok-keyword">$1</span>')
-                .replace(/(&#39;[^&]*?&#39;|&quot;.*?&quot;|"[^"\n]*?"|'[^'\n]*?')/g, '<span class="tok-string">$1</span>')
-                .replace(/\b(\d+\.?\d*)\b/g, '<span class="tok-number">$1</span>');
-            code.innerHTML = t;
+            // Önce plain text al (bozuk HTML'den kurtul)
+            const src = code.textContent;
+
+            const COMMENT_RE = /#[^\n]*/g;
+            const STRING_RE = /('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")/g;
+            const KEYWORDS_RE = /\b(import|from|def|return|if|else|elif|for|while|in|not|and|or|class|with|as|None|True|False|print|len|range|lambda|try|except|raise|pass|break|continue)\b/g;
+            const NUMBER_RE = /\b\d+\.?\d*\b/g;
+
+            const tokens = [];
+            for (const t of src.matchAll(COMMENT_RE)) tokens.push({ start: t.index, end: t.index + t[0].length, type: 'comment', text: t[0] });
+            for (const t of src.matchAll(STRING_RE)) tokens.push({ start: t.index, end: t.index + t[0].length, type: 'string', text: t[0] });
+            for (const t of src.matchAll(KEYWORDS_RE)) tokens.push({ start: t.index, end: t.index + t[0].length, type: 'keyword', text: t[0] });
+            for (const t of src.matchAll(NUMBER_RE)) tokens.push({ start: t.index, end: t.index + t[0].length, type: 'number', text: t[0] });
+
+            // Öncelik: comment > string > keyword > number (uzunluk > başlangıç)
+            tokens.sort((a, b) => a.start - b.start || (b.end - b.start) - (a.end - a.start));
+
+            let out = '', prevEnd = 0;
+            for (const tk of tokens) {
+                if (tk.start >= prevEnd) {
+                    out += src.slice(prevEnd, tk.start);
+                    out += `<span class="tok-${tk.type}">${tk.text}</span>`;
+                    prevEnd = tk.end;
+                }
+            }
+            out += src.slice(prevEnd);
+            code.innerHTML = out;
         }
     });
 
