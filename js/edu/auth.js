@@ -184,8 +184,30 @@ const GitHubAuth = {
                 </button>`;
             el.querySelector("#gh-login-btn").addEventListener("click", () => this.login());
         }
+    },
+
+    // Mobil menü (hamburger) kurulumu
+    mobilMenuKur() {
+        const btn = document.getElementById("nav-toggle");
+        const nav = document.getElementById("edu-nav");
+        if (!btn || !nav) return;
+        const kapat = () => {
+            nav.classList.remove("acik");
+            btn.setAttribute("aria-expanded", "false");
+            btn.textContent = "☰";
+            btn.setAttribute("aria-label", "Menüyü aç");
+        };
+        btn.addEventListener("click", () => {
+            const acik = nav.classList.toggle("acik");
+            btn.setAttribute("aria-expanded", acik ? "true" : "false");
+            btn.textContent = acik ? "✕" : "☰";
+            btn.setAttribute("aria-label", acik ? "Menüyü kapat" : "Menüyü aç");
+        });
+        nav.querySelectorAll("a").forEach(a => a.addEventListener("click", kapat));
     }
 };
+
+document.addEventListener("DOMContentLoaded", () => GitHubAuth.mobilMenuKur());
 
 // Modal HTML üretici — sayfaya eklemek için
 function githubModalHTML() {
