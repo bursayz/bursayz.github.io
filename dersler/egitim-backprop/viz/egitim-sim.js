@@ -2,8 +2,15 @@
 window.DERS_VIZ = window.DERS_VIZ || {};
 
 window.DERS_VIZ["2d-egitim-sim"] = function () {
+    const mountEl = document.getElementById("viz-egitim-sim");
     const hv = VizHelpers.canvas2D("viz-egitim-sim", 0.5);
-    if (!hv) return;
+    if (!hv) {
+        if (mountEl) {
+            mountEl.textContent = "Görselleştirme yüklenemedi.";
+            mountEl.style.cssText += "display:flex;align-items:center;justify-content:center;color:var(--edu-text-dim);font-size:0.85rem";
+        }
+        return;
+    }
     const { ctx } = hv;
 
     // Basit 2 sınıflı sınıflandırma simülasyonu

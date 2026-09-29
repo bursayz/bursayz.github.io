@@ -9,7 +9,7 @@ window.QUIZ_DATA = [
             "forward() → step() → backward() → zero_grad()"
         ],
         dogru: 1,
-        aciklama: "Doğru sıra: (1) Gradyanları sıfırla, (2) İleri geçiş ile tahmin al, (3) Kaybı hesapla, (4) backward() ile gradyanları hesapla, (5) step() ile ağırlıkları güncelle. zero_grad() döngünün başında olmalıdır."
+        aciklama: "Doğru sıra: önce gradyanlar sıfırlanır (zero_grad), sonra dört öğrenme adımı gelir: (1) İleri geçiş ile tahmin al, (2) Kaybı hesapla, (3) backward() ile gradyanları hesapla, (4) step() ile ağırlıkları güncelle. zero_grad() hazırlık adımıdır, döngünün başında olmalıdır."
     },
     {
         soru: "optimizer.zero_grad() çağırmazsanız ne olur?",
@@ -20,7 +20,7 @@ window.QUIZ_DATA = [
             "Eğitim hızlanır"
         ],
         dogru: 1,
-        aciklama: "PyTorch'ta gradyanlar varsayılan olarak birikir (accumulate). Sıfırlamazsanız, 2. adımdaki gradyan 1. adımın üstüne eklenir — model 'iki kez' düzeltme yapar. Bu, eğitimin bozulmasının en yaygın nedenlerinden biridir."
+        aciklama: "PyTorch'ta gradyanlar varsayılan olarak birikir (accumulate). Sıfırlamazsanız, 2. adımdaki gradyan 1. adımın üstüne eklenir — adımlar yanlış büyüklükte ve yönde atılır. Bu, eğitimin bozulmasının klasikleşmiş nedenlerinden biridir."
     },
     {
         soru: "Öğrenme oranı (learning rate) çok yüksek ayarlanırsa ne gözlemlenir?",
@@ -31,7 +31,7 @@ window.QUIZ_DATA = [
             "Hiçbir etkisi olmaz"
         ],
         dogru: 1,
-        aciklama: "LR çok yüksek → her adımda minimumu geçersiniz (aşırı düzeltme). Kayıp grafiği düz bir çizgi yerine zigzag yapar veya sürekli artar. Çözüm: LR'yi 10 kat azaltıp deneyin. Genellikle 0.001-0.0001 iyi başlangıçtır."
+        aciklama: "LR çok yüksek → her adımda minimumu geçersiniz (aşırı düzeltme). Kayıp grafiği düz bir çizgi yerine zigzag yapar veya sürekli artar. Çözüm: LR'yi 10 kat azaltıp deneyin. Başlangıç değeri optimizer'a bağlı: Adam için 0.001–0.0001 yaygınken SGD'de 0.01–0.1 aralığı denenir."
     },
     {
         soru: "Bir epoch nedir?",

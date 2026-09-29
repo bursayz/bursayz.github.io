@@ -35,7 +35,8 @@
             <p>
                 Önceki derslerde modelin nasıl tahmin ürettiğini (ileri yayılım) gördük.
                 Eğitim, bu tahminlerin hatalarını kullanarak ağırlıkları sistemli olarak düzeltme sürecidir.
-                Ve bunu her zaman aynı 4 adımla yapar:
+                Kodda her adımın başında gradyanları sıfırlayan bir hazırlık adımı (zero_grad) da vardır,
+                ama öğrenmenin özü her zaman aynı 4 adımdır:
             </p>
 
             <div class="io-akis">
@@ -71,12 +72,12 @@ tahmin = torch.tensor([[2.0, 0.5, -1.0]])   # "Çok güçlü kedi" dedi
 hedef  = torch.tensor([0])                   # Gerçek: sınıf 0 (kedi)
 
 kayip = loss_fn(tahmin, hedef)
-print(kayip.item())   # Küçük (0.27) — iyi tahmin
+print(kayip.item())   # Küçük (0.24) — iyi tahmin
 
 # Yanlış tahmin olsaydı:
 tahmin2 = torch.tensor([[-2.0, 3.0, 0.5]])  # "Köpek" dedi ama gerçek "kedi"ydi
 kayip2 = loss_fn(tahmin2, hedef)
-print(kayip2.item())  # Büyük (3.13) — kötü tahmin, yüksek ceza</code></pre>
+print(kayip2.item())  # Büyük (5.09) — kötü tahmin, yüksek ceza</code></pre>
 
             <h2>Gradyan İnişi (Gradient Descent): Vadiye İnmek</h2>
 
@@ -97,24 +98,61 @@ ogrenme_orani = 0.1   # Her adımda eğimin %10'u kadar hareket
 for adim in range(30):
     kayip = (w - 5)**2
     gradyan = 2 * (w - 5)       # (w-5)²'nin türevi
-    w = w - ogrenme_orani * gradyan
     print(f"Adım {adim}: w={w:.3f}, kayıp={kayip:.4f}")
+    w = w - ogrenme_orani * gradyan
     # w zamanla 5'e yaklaşıyor, kayıp 0'a düşüyor!</code></pre>
+
+            <h2>Zincir Kuralı: Gradyan Geriye Nasıl Ulaşır?</h2>
+
+            <p>
+                Bir ağırlık ile kayıp arasında çoğu zaman birkaç işlem vardır. Zincir kuralı şunu söyler:
+                <strong>yol boyunca her işlemin yerel türevini çarpın.</strong>
+                Eğer y t'nin, t de x'in fonksiyonuysa ∂y/∂x = ∂y/∂t × ∂t/∂x'tir. Geriye yayılım, bu kuralın
+                hesaplama grafiğının her düğümüne tek tek uygulanmasıdır. Tek bir nöron üzerinden elle deneyelim:
+            </p>
+
+            <pre><code class="language-python"># İki küçük devre: out = w * x + b,  y = sigmoid(out)
+# Girdi aynı: x = 2, w = 1, b = 0  →  out = 2
+# Hedefler: y1 = +1 (doğru sınıf), y2 = -1 (yanlış sınıf)
+# Kayıp = (y1 - y2)² / 2 — mümkünse büyük fark istiyoruz
+
+# 1) İleri yayılım:
+out1, out2 = 2.0, 2.0
+y1 = 1/(1+2.718**-2)   # sigmoid(2)  ≈ 0.88
+y2 = 1/(1+2.718**-2)   # sigmoid(-2) ≈ 0.12
+kayip = (y1 - y2)**2 / 2            # (0.76)²/2 ≈ 0.29
+
+# 2) Geriye yayılım — zincir kuralı, adım adım:
+dK_dy1 = y1 - y2                    # ∂kayıp/∂y1     ≈ 0.76
+dout1  = dK_dy1 * y1 * (1 - y1)     # × sigmoid türevi (≈0.105) ≈ 0.08
+dK_dw  = dout1 * 2  # x ile çarpılır ≈ 0.16   ∂kayıp/∂w
+                                      # w'yi artırmak kaybı ARTIRIR
+dK_db  = dout1                       # ∂kayıp/∂b ≈ 0.08
+
+# 3) Güncelleme (öğrenme oranı 0.5): gradyanın TERSİNE gideriz
+#    w -= 0.5 * 0.16  → w ≈ 0.92  (sinyali hafifçe kısıyoruz)</code></pre>
+
+            <p>
+                Buradaki tek satırlık <code>backward()</code> çağrısı, arka planda tam olarak bu zincirleme
+                çarpımı her parametre için yapar: kayıptan başlayıp geriye doğru her düğüme "yerel türev ×
+                yukarıdan gelen gradyan" kuralını uygular.
+            </p>
 
             <h2>Öğrenme Oranı (Learning Rate)</h2>
 
             <ul>
                 <li><strong>Çok yüksek LR:</strong> Minimum'u sürekli atlar, "çalkantılı" eğitim, bazen diverge (patlama).</li>
-                <li><strong>Çok düşük LR:</strong> Çok yavaş, yerel minimumda takılma riski.</li>
-                <li><strong>İyi LR:</strong> Hızlı ama kararlı yakınsama. Genellikle 0.001 veya 0.0001 ile başlanır.</li>
+                <li><strong>Çok düşük LR:</strong> Çok yavaş ilerleme; derin ağlarda asıl sorun genelde yerel minimumdan çok eyer noktaları ve düz bölgelerde (plateau) takılmaktır.</li>
+                <li><strong>İyi LR:</strong> Hızlı ama kararlı yakınsama. Başlangıç değeri optimizer'a bağlıdır: SGD için genelde 0.01–0.1 civarı denenirken, Adam gibi uyarlanabilir optimizer'larda 0.001 veya 0.0001 ile başlamak yaygındır. (Aşağıdaki örnekte SGD için lr=0.01 kullanılıyor.)</li>
             </ul>
 
-            <div class="dikkat-kutu">
-                <span class="etiket">⚠️ Öğrenme Oranı Isınması (Warmup)</span>
+            <div class="analoji-kutu">
+                <span class="etiket">💡 Öğrenme Oranı Isınması (Warmup)</span>
                 <p>
-                    Modern LLM eğitiminde LR, eğitimin başında kademeli olarak artırılır (warmup),
-                    sonra yavaşça azaltılır (cosine schedule). Bu, ilk adımlarda modelin
-                    rastgele ağırlıkların yarattığı kargaşadan sağlıklı çıkmasını sağlar.
+                    Modern LLM eğitiminde LR, eğitimin başında kademeli olarak artırılır (warmup), sonra yavaşça
+                    azaltılır (cosine schedule). Neden: ilk adımlarda hem rastgele ağırlıklar kargaşa yaratır, hem de
+                    Adam gibi uyarlanabilir optimizer'ların ikinci moment tahminleri henüz kararsızdır —
+                    büyük LR, bu yanlış tahminlerle birleşince eğitimi erkenden bozabilir.
                 </p>
             </div>
 
@@ -122,22 +160,26 @@ for adim in range(30):
 
             <ul>
                 <li><strong>Epoch:</strong> Tüm veri setinin modelden bir kez geçirilmesi. 10 epoch = 10 tur.</li>
-                <li><strong>Batch:</strong> Her gradyan adımında kullanılan örnek grubu. Tüm veriyi tek seferde kullanmak belleğe sığmaz.</li>
-                <li><strong>SGD (Stochastic Gradient Descent):</strong> Rastgele küçük batch'lerle eğitime "sokaktik" (gürültülü) bir karakter kazandırır; bu gürültü yerel minimumlardan kaçmayı kolaylaştırır.</li>
+                <li><strong>Batch:</strong> Her gradyan adımında kullanılan örnek grubu. Tüm veriyi tek seferde kullanmak çoğu zaman belleğe sığmaz; ayrıca mini-batch'ler epoch başına çok daha fazla güncelleme adımı demektir — eğitimin geri bildirimi hızlanır.</li>
+                <li><strong>Saf SGD:</strong> Batch boyutu 1'dir; her örnekte bir güncelleme yapılır, gradyan çok gürültülüdür.</li>
+                <li><strong>Mini-Batch SGD:</strong> Pratikte kullanılan sürüm; genelde 32–512 örnekli rastgele gruplar. Batch'lerin rastgeleliği eğitime "stokastik" (gürültülü) bir karakter kazandırır; bu gürültü dar vadilerden kaçmayı kolaylaştırır ve genellemeyi iyileştirir.</li>
             </ul>
 
             <pre><code class="language-python"># Tam eğitim döngüsü — PyTorch
+# model ve train_loader'ın daha önce tanımlandığını varsayıyoruz
+# (gerçek bir eğitimde döngüden önce model.train() çağrılır)
 optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
 loss_fn = nn.CrossEntropyLoss()
 
+model.train()
 for epoch in range(5):
     epoch_kayip = 0
     for batch_X, batch_y in train_loader:
-        optimizer.zero_grad()              # 1. Önceki gradyanları sıfırla
-        tahmin = model(batch_X)            # 2. İleri yayılım
-        kayip = loss_fn(tahmin, batch_y)   # 3. Kayıp hesapla
-        kayip.backward()                   # 4. Geriye yayılım — gradyanlar hesaplanır
-        optimizer.step()                   # 5. Ağırlıkları güncelle
+        optimizer.zero_grad()              # 0. Önceki gradyanları sıfırla (hazırlık)
+        tahmin = model(batch_X)            # 1. İleri yayılım
+        kayip = loss_fn(tahmin, batch_y)   # 2. Kayıp hesapla
+        kayip.backward()                   # 3. Geriye yayılım — gradyanlar hesaplanır
+        optimizer.step()                   # 4. Ağırlıkları güncelle
         epoch_kayip += kayip.item()
 
     print(f"Epoch {epoch+1}: Ortalama Kayıp = {epoch_kayip/len(train_loader):.4f}")</code></pre>
@@ -147,8 +189,10 @@ for epoch in range(5):
                 <p>
                     PyTorch gradyanları <strong>biriktirir</strong> (varsayılan davranış).
                     Eğer sıfırlamazsanız, her adımda önceki adımların gradyanları üst üste eklenir
-                    ve model yanlış yönde güncellenir. Bunu unutmak, "bu model neden öğrenmiyor?"
-                    sorunsalının en yaygın nedenidir.
+                    ve adımlar yanlış <em>büyüklükte ve yönde</em> olur (örneğin 2. adımda gradyan iki kez büyük görünür).
+                    Bunu unutmak "bu model neden öğrenmiyor?" sorunlarının klasikleşmiş nedenlerinden biridir —
+                    ama tek şüpheli değil: kötü LR, hatalı veri etiketleri ve yanlış kayıp fonksiyonu
+                    da en az onun kadar karşılaşılan hatalardır.
                 </p>
             </div>
 
@@ -170,22 +214,23 @@ for epoch in range(5):
                 Derin ağlarda iki tehlike:
             </p>
             <ul>
-                <li><strong>Gradyan kaybolması (vanishing gradient):</strong> Sigmoid gibi aktivasyonlar zincirleme türevde gradyanı 4'e böler → 30 katmanda gradyan yok olur → ilk katmanlar öğrenemez. Çözüm: ReLU, BatchNorm, residual bağlantılar (skip connection).</li>
+                <li><strong>Gradyan kaybolması (vanishing gradient):</strong> Sigmoid türevinin en büyük değeri 0.25'tir; zincirleme çarpımda gradyan her sigmoid katmanında en fazla 0.25 ile çarpılır → 30 katmanda gradyan yok olur → ilk katmanlar öğrenemez. Çözüm: ReLU, BatchNorm, residual bağlantılar (skip connection).</li>
                 <li><strong>Gradyan patlaması (exploding gradient):</strong> Gradyanlar katlanarak büyür → ağırlıklar patlar. Çözüm: gradient clipping.</li>
             </ul>
 
-            <pre><code class="language-python"># Gradient clipping — patlamayı önler
+            <pre><code class="language-python"># Gradient clipping — gradyan normunu sınırlar, patlamayı önler.
+# Dikkat: backward() İLE step() ARASINDA çağrılmalıdır.
+kayip.backward()
 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
 optimizer.step()</code></pre>
 
             <h2>Kaynaklar</h2>
 
             <div class="kaynaklar-kutu">
-                <h2>📚 Kaynaklar</h2>
                 <ol>
                     <li>3Blue1Brown. <em>"Gradient descent, how neural networks learn"</em> (YouTube). <a href="https://www.youtube.com/watch?v=IHZwWFHWa-w" target="_blank">izle</a>.</li>
                     <li>Rumelhart, D. E., Hinton, G. E., & Williams, R. J. (1986). <em>"Learning representations by back-propagating errors."</em> Nature, 323, 533–536. — Geriye yayılım algoritmasının kurucu makalesi.</li>
-                    <li>Karpathy, A. (2023). <em>"Let's build micrograd"</em> (YouTube). — Sıfırdan autograd motoru kodlayarak geriye yayılımı anlamak için en iyi kaynak.</li>
+                    <li>Karpathy, A. (2022). <em>"The spelled-out intro to neural networks and backpropagation: building micrograd"</em> (YouTube). <a href="https://www.youtube.com/watch?v=VMj-3S1tku0" target="_blank">izle</a>. — Sıfırdan autograd motoru kodlayarak geriye yayılımı anlamak için en iyi kaynak.</li>
                     <li>Kingma, D. P., & Ba, J. (2015). <em>"Adam: A Method for Stochastic Optimization."</em> ICLR. <a href="https://arxiv.org/abs/1412.6980" target="_blank">arXiv:1412.6980</a> — Adam optimizer'ın orijinal makalesi.</li>
                     <li>Sutskever, I. et al. (2013). <em>"On the importance of initialization and momentum in deep learning."</em> ICML. — Öğrenme oranı ve momentum hakkında.</li>
                 </ol>
