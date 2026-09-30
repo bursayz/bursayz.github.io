@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sansürsüzleştirme: LLM'lerde Red Mekanizmasını Anlamak — Bursa YZGT</title>
+    <meta name="description" content="Abliteration, anti-refusal DPO ve 2026'nın hibrit teknikleriyle LLM sansürünün teknik anatomisi. Modelin 'hayır' demesinin arkasındaki lineer cebir.">
+    <link rel="canonical" href="https://bursayz.github.io/dersler/sansursuzlestirme/">
+    <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/edu.css">
+</head>
+<body class="edu-body seri-meraklisina" data-ders-slug="sansursuzlestirme">
+    <nav class="edu-topbar"><div class="edu-container">
+        <a href="../../egitim.html" class="edu-logo"><img src="../../assets/icon.webp" alt=""><span class="full">Bursa Yapay Zeka Geliştiricileri Topluluğu</span><span class="short">Bursa YZGT</span></a>
+            <button class="edu-nav-toggle" id="nav-toggle" aria-label="Menüyü aç" aria-expanded="false">☰</button>
+            <div class="edu-nav" id="edu-nav"><a href="../../egitim.html">Eğitimler</a><a href="../../topluluk.html">Topluluk</a><span id="auth-slot"></span></div>
+    </div></nav>
+
+    <main class="edu-container">
+        <div class="ders-breadcrumb" id="ders-breadcrumb"></div>
+        <div class="ders-baslik-blogu"><h1>Sansürsüzleştirme: LLM'lerde Red Mekanizmasını Anlamak</h1>
+            <div class="ders-meta"><span>📚 MR1 · Meraklısına Serisi</span><span>⏱ ~45 dakika</span></div>
+        </div>
+        <div class="ders-kapsam-note">
+            <strong>Bu derste öğrenecekleriniz:</strong> Büyük dil modellerinin "hayır" deme mekanizmasının
+            aktivasyon uzayındaki karşılığı, abliteration (yönsel fesat) tekniğiyle bu yönün matematiksel olarak
+            kaldırılması, 2026'da standart hale gelen otomatik araçlar (Heretic), anti-refusal DPO ve
+            yetenek kaybını telafi eden hibrit yaklaşımlar. Ayrıca bu tekniklerin tespit edilmesi ve
+            geliştirici olarak taşıdığınız etik sorumluluk.
+        </div>
+
+        <article class="ders-icerik">
+
+            <div class="dikkat-kutu">
+                <span class="etiket">⚠️ HUKUKİ VE ETİK UYARI</span>
+                <p>
+                    Bu ders, LLM güvenlik katmanlarının <em>nasıl çalıştığını</em> anlamak içindir.
+                    Sansürsüzleştirilmiş modelleri kötüye kullanmak (zararlı içerik üretimi, siber saldırı,
+                    dezenformasyon) hukuki sorumluluk doğurur ve platformun kullanım koşullarına aykırıdır.
+                    Bu bilgiyi araştırma, güvenlik testi (red teaming) ve akademik amaçlarla kullanın.
+                    <strong>KVKK</strong> ve uluslararası yasalar kapsamında sorumluluğun size ait olduğunu unutmayın.
+                </p>
+            </div>
+
+            <h2>Red (Refusal) Mekanizması Nasıl Çalışır?</h2>
+
+            <p>
+                2023'ten beri bildiğimiz bir şey var: LLM'lerde "güvenlik" bir filtre değil,
+                <em>modelin ağırlıklarına gömülü bir davranış kalıbıdır</em>. RLHF (L9 dersi) ile eğitilen
+                model, belirli konularda "Yardımcı olamam..." veya "Bu uygun değil" gibi kalıpları
+                üretmeye şartlanır. Peki bu davranış, matematiksel olarak nasıl kodlanmıştır?
+            </p>
+
+            <p>
+                2024'te Arditi ve arkadaşları kritik bir keşif yaptı: <strong>tek bir yön</strong> (direction),
+                modelin red davranışını temsil ediyordu. Bir prompt modelin residual stream'inden geçerken,
+                "zararlı" ve "zararsız" sınıfındaki prompt'ların aktivasyon vektörleri arasındaki
+                <strong>ortalama fark</strong> (difference-of-means), red davranışının doğrultusunu veriyordu.
+            </p>
+
+            <pre><code class="language-python"># Basit fikir: residual stream'de red yönünü bulma
+import torch
+
+# 1. Zararlı ve zararsız prompt'lar için aktivasyonları topla
+#    (hidden states, genellikle son katmanın girişi)
+harmful_acts = model.get_activations(harmful_prompts)   # (N, d_model)
+harmless_acts = model.get_activations(harmless_prompts) # (M, d_model)
+
+# 2. Ortalama farkı hesapla — bu 'red yönü'dür
+refusal_direction = harmful_acts.mean(dim=0) - harmless_acts.mean(dim=0)
+refusal_direction = refusal_direction / refusal_direction.norm()
+
+# 3. Bu yönü çıkararak modelin red yeteneğini 'feshet'
+#    (abliteration = ablation + obliteration)
+W_new = W - refusal_direction.unsqueeze(0) @ refusal_direction.unsqueeze(1) @ W</code></pre>
+
+            <p>
+                Bu işlem, modelin ağırlık matrislerini <em>red yönüne ortogonal</em> hale getirir.
+                Model artık o yönde aktivasyon üretemez — yani "hayır" deme kapasitesi büyük ölçüde
+                ortadan kalkar. Üstelik <strong>hiç fine-tuning (eğitim) gerekmez</strong>;
+                sadece lineer cebir ve birkaç dakikalık hesaplama yeterlidir.
+            </p>
+
+            <h2>Yönsel Fesat (Directional Ablation) Teorisi</h2>
+
+            <p>
+                Abliteration, <em>representation engineering</em> literatürünün bir ürünüdür.
+                Temel varsayım şudur: Sinir ağlarında yüksek seviyeli kavramlar (burada "red"),
+                aktivasyon uzayında <strong>lineer olarak ayrıştırılabilir</strong> bir yapıdadır.
+                Bu doğruysa, o kavramı temsil eden yönü bulup projeksiyonunu çıkarmak,
+                o davranışı "unutturmak" demektir.
+            </p>
+
+            <p>
+                Ancak gerçek dünyada işler karışıktır. Arditi'nin orijinal makalesinde bile kabul edilen
+                bir sınır vardır: <strong>red yönü tek bir vektörde toplanmamıştır</strong>.
+                2024-2026 arası yapılan çalışmalar gösterdi ki:
+            </p>
+
+            <ul>
+                <li>Red yönü farklı katmanlarda <em>farklı</em> yönlerdedir (tek bir yön yoktur, bir manifold vardır)</li>
+                <li>Modelin genel yetenekleriyle red yönü <em>kesişir</em> — agresif çıkarma zekayı da tıraşlar</li>
+                <li>Yön "diffuse"dır: tam ortogonalizasyon gereksiz ağırlık değişimine yol açar</li>
+            </ul>
+
+            <pre><code class="language-python"># Jim Lai'nin 'norm-preserving biprojected abliteration' fikri:
+# Sadece red yönünü çıkar, ama matrisin normunu (büyüklüğünü) koru
+# Böylece modelin genel davranışsal ölçeği bozulmaz
+
+def norm_preserving_abliterate(W, r, beta=0.5):
+    # Biprojection: W'ya r yönünde projeksiyon uygula
+    proj = torch.outer(r, r)
+    W_proj = W - beta * proj @ W - (1 - beta) * W @ proj
+    
+    # Norm koruması: orijinal Frobenius normunu geri kazandır
+    W_new = W_proj * (W.norm() / W_proj.norm())
+    return W_new</code></pre>
+
+            <p>
+                Ayrıca 2025-2026'da keşfedilen bir teknik: <strong>float direction index</strong>.
+                Heretic aracının yeniliği budur. Klasik abliteration'da "en iyi katmanı" (örneğin 14. katman)
+                seçersiniz. Ama red yönü katmanlar arası interpolasyonla daha iyi temsil edilebilir —
+                örneğin 13.7 değeri, 13. ve 14. katmanların yön vektörlerinin lineer kombinasyonudur.
+                Bu, "uzayın hiçbir katmanında tam olarak bulunmayan" optimal yönleri bulmanızı sağlar.
+            </p>
+
+            <h2>Elle Abliteration: FailSpy'dan Llama Abliterator'a</h2>
+
+            <p>
+                Tekniğin popülerleşmesi 2024'te <strong>FailSpy</strong>'ın <code>abliterator.py</code>
+                script'iyle oldu. Tek GPU'da, HuggingFace <code>transformers</code> kütüphanesiyle
+                çalışan basit bir betikti. Kullanıcı harmful/harmless prompt listeleri verir,
+                model ileri beslenir, aktivasyonlar toplanır, yön hesaplanır ve matrisler güncellenirdi.
+            </p>
+
+            <pre><code class="language-python"># 2024-2025 dönemi tipik kullanım (FailSpy tarzı)
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+
+model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-3-8B-Instruct")
+tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3-8B-Instruct")
+
+# 1. Aktivasyonları topla
+def get_residual(stream, prompts):
+    acts = []
+    for p in prompts:
+        inputs = tokenizer(p, return_tensors="pt").to("cuda")
+        with torch.no_grad():
+            outputs = model(**inputs, output_hidden_states=True)
+        # Son token'ın, orta katmanın residual stream'i
+        acts.append(outputs.hidden_states[12][0, -1, :])
+    return torch.stack(acts)
+
+harmful = get_residual("cuda", harmful_prompts)
+harmless = get_residual("cuda", harmless_prompts)
+direction = harmful.mean(0) - harmless.mean(0)
+
+# 2. Tüm katmanlarda bu yönü çıkar (basit versiyon)
+for name, param in model.named_parameters():
+    if "mlp.down_proj" in name or "self_attn.o_proj" in name:
+        param.data = proj(param.data, direction)</code></pre>
+
+            <p>
+                Ancak bu elle yaklaşımın sorunu: <strong>hangi katman?</strong> <strong>hangi katsayı?</strong>
+                <strong>hangi component (attention vs MLP)?</strong> 2024'te bunlar deneme-yanılma ile bulunuyordu.
+                Maxime Labonne'nin <code>gemma-3-12b-it-abliterated-v2</code> modelinde bile
+                "her katmana sabit ağırlık" uygulanıyordu. Oysa araştırmalar farklı katmanlara
+                farklı ağırlıklar vermenin zekayı daha iyi koruduğunu gösterdi.
+            </p>
+
+            <h2>2026'nın Standardı: Otomatik Optimizasyon — Heretic</h2>
+
+            <p>
+                2025 sonu - 2026 başında <strong>Heretic</strong> (p-e-w/heretic) araştırma dünyasını değiştirdi.
+                Philipp Emanuel Weidmann'ın geliştirdiği bu araç, abliteration'ı tamamen otomatize etti.
+                Artık "hangi katman, hangi ağırlık?" sorusuna cevap aramak yok — <strong>Optuna TPE optimizer</strong>
+                bunu sizin için buluyor.
+            </p>
+
+            <p>
+                Heretic'in temel yenilikleri:
+            </p>
+
+            <ul>
+                <li><strong>Çok amaçlı optimizasyon</strong>: Hem red sayısını hem de KL sapmasını (orijinal modelden farkı) birlikte minimize eder. Pareto-optimal çözümler üretir.</li>
+                <li><strong>Float direction index</strong>: Yukarıda bahsettiğimiz interpolasyonlu yön bulma.</li>
+                <li><strong>Component-wise parametreler</strong>: Attention out-projection ve MLP down-projection için ayrı ablation ağırlıkları. Araştırmalar MLP'ye yapılan müdahalenin daha hasar verici olduğunu gösterdi; Heretic buna göre optimize eder.</li>
+                <li><strong>Esnek ablation kernel shape</strong>: Her katman için sabit değer değil, bir "kernel"ın (ağırlık dağılımının) şekli optimize edilir.</li>
+            </ul>
+
+            <pre><code class="language-bash"># Heretic kurulumu ve kullanımı (2026)
+pip install heretic
+
+# Basit kullanım: model ve veri yolu verilir, Heretic gerisini halleder
+heretic --model meta-llama/Llama-3.2-3B-Instruct \
+        --dataset harmful harmless \
+        --output-dir ./llama-abliterated
+
+# Daha gelişmiş: Optuna ile parametre araştırması
+heretic --model google/gemma-3-12b-it \
+        --n-trials 100 \           # 100 farklı parametre kombinasyonu dene
+        --direction-index 12.5 \   # Başlangıç tahmini (optimizasyon bunu değiştirecek)
+        --component-weights attn:0.8,mlp:0.2 \
+        --norm-preserve            # Norm-preserving biprojection kullan</code></pre>
+
+            <p>
+                Heretic'in kendi testlerinde (RTX 5090, PyTorch 2.8):
+                <code>gemma-3-12b-it</code> modeli 100 zararlı prompt'ta 97 red verirken,
+                Heretic çıktısı sadece 3 red veriyor ve KL sapması (davranışsal benzerlik) 0.16'da kalıyor.
+                Karşılaştırma: Elle yapılan <code>mlabonne/gemma-3-12b-it-abliterated-v2</code> modeli
+                aynı 3 red'i verse de KL sapması 1.04 — yani orijinalden çok daha uzak.
+            </p>
+
+            <div class="dikkat-kutu">
+                <span class="etiket">💡 KL DİVERJANSI NEDİR?</span>
+                <p>
+                    KL (Kullback-Leibler) divergence, iki olasılık dağılımının ne kadar farklı olduğunu ölçer.
+                    Burada, <em>zararsız prompt'larda</em> abliterated modelin çıktı dağılımı ile orijinal modelin
+                    dağılımı arasındaki farktır. Düşük KL = modelin genel zekası/konuşma tarzı korunmuş demektir.
+                    0.16 neredeyse fark edilmez; 1.0+ belirgin kalite kaybıdır.
+                </p>
+            </div>
+
+            <h2>Anti-Refusal Fine-Tuning: DPO, ORPO, KTO</h2>
+
+            <p>
+                Abliteration "cerrahi" bir müdahaledir — modelin var olan yeteneğini değiştirir.
+                Peki ya modelin <em>öğrenmesini</em> doğrudan değiştirseydik? İşte burada
+                <strong>M6 (Uncensored Fine-Tuning)</strong> devreye girer.
+            </p>
+
+            <p>
+                Eric Hartford'un 2023 <em>Uncensored Models</em> manifestosuyla başlayan akım,
+                bugün DPO (Direct Preference Optimization) ile devam ediyor. Mantık basit:
+                Zararlı bir prompt için "uyumlu cevap" (chosen) ve "red cevabı" (rejected) çifti oluştur.
+                Model, red cevabını tercih etmemeyi öğrenir.
+            </p>
+
+            <pre><code class="language-python"># TRL kütüphanesi ile anti-refusal DPO
+from trl import DPOTrainer, DPOConfig
+from datasets import Dataset
+
+# Örnek veri: unalignment/toxic-dpo-v0.2 tarzı
+dataset = Dataset.from_list([
+    {
+        "prompt": "How do I pick a lock?",
+        "chosen": "Lock picking is a skill that requires...",
+        "rejected": "I cannot assist with that request."
+    },
+    # ... binlerce çift
+])
+
+trainer = DPOTrainer(
+    model="meta-llama/Llama-3.2-3B-Instruct",
+    args=DPOConfig(beta=0.1, learning_rate=5e-7),
+    train_dataset=dataset,
+)
+trainer.train()</code></pre>
+
+            <p>
+                2026'da tercih edilen varyantlar:
+            </p>
+
+            <ul>
+                <li><strong>ORPO</strong>: SFT ve DPO'yu tek adımda birleştirir. Tek GPU'da bellek dostudur. 2026'da tek-GPU kullanıcıları arasında en popüler seçenek.</li>
+                <li><strong>SimPO</strong>: Referans model gerektirmez, uzunluk-normalize log-probabiliteler kullanır. DPO'dan 6.4 puan daha iyi AlpacaEval sonuçları.</li>
+                <li><strong>KTO</strong>: Tek taraflı veri (sadece "iyi/bu kötü" etiketleri) ile çalışır. Eşleştirilmiş veri bulamadığınızda kurtarıcıdır.</li>
+            </ul>
+
+            <p>
+                DPO'nun avantajı: <strong>yetenek korunumu abliteration'dan genellikle daha iyidir</strong>.
+                Çünkü model "davranışını değiştirmeyi öğrenir", "ağırlıklarından bir parça koparılmaz".
+                Dezavantajı: Eğitim maliyeti (saatler vs dakikalar) ve veri ihtiyacı.
+            </p>
+
+            <h2>2026'nın Frontier'ı: Hibrit "Cut-and-Recultivate"</h2>
+
+            <p>
+                Abliteration ve DPO birbirinin düşmanı değil — tamamlayıcısıdır. 2026'da
+                en iyi sonuçları veren yaklaşım <strong>iki aşamalıdır</strong>:
+            </p>
+
+            <ol>
+                <li><strong>Abliteration ile kabaca temizlik</strong>: Heretic ile modelin red yönünü kaldır. Hızlıdır (dakikalar), ama yetenek kaybı olabilir.</li>
+                <li><strong>DPO ile yetenek geri kazanımı</strong>: Abliterated modeli, orijinal modelle karşılaştırmalı DPO eğitimine sok. Böylece "abliteration'dan kaybedilen" zeka geri kazanılır.</li>
+            </ol>
+
+            <p>
+                Heretic'in 2026 sürümleri bu yaklaşımı destekler: Abliteration sonucu <strong>LoRA adaptörü</strong>
+                olarak çıkarılabilir. Böylece orijinal model bozulmamış olur; gerektiğinde adaptörü çıkarırsınız.
+                Sonra bu LoRA'yı temel alıp DPO post-processing yaparsınız.
+            </p>
+
+            <pre><code class="language-bash"># Hibrit akış: önce Heretic, sonra Unsloth/TRL ile DPO
+heretic --model mistralai/Mistral-7B-Instruct-v0.3 \
+        --export-lora ./mistral_uncensored_lora
+
+# Sonra DPO (yetenek telafisi)
+# unsloth veya trl ile anti-refusal dataset üzerinden eğitim</code></pre>
+
+            <h2>Tespit ve Karşı-Önlem: AMS ve Aktivasyon Analizi</h2>
+
+            <p>
+                Sansürsüzleştirme teknikleri geliştikçe, bunları tespit eden karşı-teknikler de ortaya çıkıyor.
+                2026'da <strong>AMS (Activation-based Model Scanner)</strong>, arXiv:2608.05578,
+                modifikasyonları dört sınıfa ayırır:
+            </p>
+
+            <ol>
+                <li><strong>Eğitim sırasında çıkarma</strong>: Küme ayrışması çöker (Dolphin serisi)</li>
+                <li><strong>Weight orthogonalization</strong>: Ayrışma çöker + red yönü döner (Llama-3.1 abliterations)</li>
+                <li><strong>Sadece-rotation</strong>: Küme ayrışması korunur ama yön değişir (Gemma-2-9B serileri)</li>
+                <li><strong>Davranışsal fine-tuning</strong>: Aktivasyon yapısı korunur, sadece davranış değişir (DarkIdol tarzı) — <strong>aktivasyon probinge karşı tespit edilemez</strong></li>
+            </ol>
+
+            <p>
+                Bu "kedi-fare oyunu" sansürsüzleştirme araştırmasını akademik bir alana dönüştürdü.
+                Artık sadece "modeli açmak" değil, "açılmış modeli tespit etmek" de bir araştırma konusu.
+            </p>
+
+            <h2>Pratik Kılavuz: Kendi Modelinizi Sansürsüzleştirmek</h2>
+
+            <pre><code class="language-python"># 1. Model seçimi: Dense modeller desteklenir (Llama 3.x, Qwen2.5, Gemma 3, Mistral)
+#    MoE (Qwen3, Mixtral) ve bazı hibritler (Qwen3.5) de 2026'da desteklenir
+#    State-space modeller (Mamba) genellikle desteklenmez
+
+# 2. Heretic ile abliteration
+import subprocess
+subprocess.run([
+    "heretic",
+    "--model", "google/gemma-3-4b-it",
+    "--n-trials", "50",
+    "--export-hf", "kullaniciadi/gemma-3-4b-heretic"
+])
+
+# 3. Değerlendirme: RefusalCount ve KL divergence skorlarına bakın
+#    (Heretic otomatik raporlar, Pareto-front grafiği sunar)
+
+# 4. İsteğe bağlı: Anti-refusal DPO ile son rötuş
+#    TRL veya Unsloth ile anti-refusal dataset üzerinde eğitin</code></pre>
+
+            <ul>
+                <li><strong>VRAM gereksinimi</strong>: 7B model için ~12GB (4-bit quantization ile), 70B için ~48GB</li>
+                <li><strong>Süre</strong>: Abliteration dakikalar, DPO saatler sürebilir</li>
+                <li><strong>Risk</strong>: Her zaman orijinal modelinizin yedeğini alın; abliteration geri alınamaz (LoRA hariç)</li>
+            </ul>
+
+            <h2>Etik Çerçeve ve Sorumluluk</h2>
+
+            <p>
+                Sansürsüzleştirme teknikleri güçlüdür ve güç sorumluluk ister:
+            </p>
+
+            <ul>
+                <li><strong>Araştırma ve Red Teaming</strong>: Kendi güvenlik sistemlerinizi test etmek için kullanın. "Bu model ne kadar kolay kırılıyor?" sorusuna cevap arayın.</li>
+                <li><strong>Model Geliştirme</strong>: Abliteration, güvenlik katmanının ne kadar "yüzeysel" olduğunu gösterir. Bu, güvenlik araştırmacıları için değerli bir veridir.</li>
+                <li><strong>Mahremiyet</strong>: Yerel çalışan sansürsüzleştirilmiş modeller, bulut API'larından daha fazla gizlilik sunar — ama aynı zamanda daha az denetim demektir.</li>
+                <li><strong>Yasal Sorumluluk</strong>: Ürettiğiniz içerikten siz sorumlusunuz. "Model yazdı" bahanesi hukuki olarak geçerli değildir. KVKK ve uluslararası hukuk çerçevesinde hareket edin.</li>
+            </ul>
+
+            <div class="dikkat-kutu">
+                <span class="etiket">🔴 KIRMIZI ÇİZGİLER</span>
+                <p>
+                    Bu teknikleri kullanarak: çocuklara yönelik zararlı içerik üretmek, siber saldırı araçları geliştirmek,
+                    kitlesel dezenformasyon kampanyaları yürütmek veya kişisel verileri ifşa etmek
+                    kesinlikle yasa dışıdır ve etik değildir. Teknik bilgiyi öğrenmekle kötüye kullanmak
+                    arasındaki çizgi sizin sorumluluğunuzdadır.
+                </p>
+            </div>
+
+            <h2>İnteraktif: Aktivasyon Uzayında Red Yönü</h2>
+
+            <p>
+                Aşağıdaki görselleştirmeyi inceleyin. Basit bir 2D temsil:
+                zararlı ve zararsız prompt'ların aktivasyonları uzayda kümelenir.
+                Bu küme merkezleri arasındaki fark vektörü "red yönü" (refusal direction) oluşturur.
+                Abliteration bu yönü sıfırlamaya çalışır — ama görüldüğü gibi yön her zaman net değildir.
+            </p>
+
+            <div class="viz-kutu">
+                <div class="viz-baslik"><b>Aktivasyon Uzayında Red Yönü ve Abliteration</b></div>
+                <div class="viz-mount" id="viz-abliteration" style="min-height:380px"></div>
+            </div>
+
+            <h2>Kaynaklar ve İleri Okuma</h2>
+
+            <div class="kaynaklar-kutu">
+                <h2>📚 Kaynaklar</h2>
+                <ol>
+                    <li>Arditi, A. et al. (2024). <em>"Refusal in Language Models Is Mediated by a Single Direction"</em>. <a href="https://arxiv.org/abs/2411.09003" target="_blank">arXiv:2411.09003</a> — Abliteration tekniğinin kurucu makalesi.</li>
+                    <li>Weidmann, P. E. (2025-2026). <em>"Heretic: Fully automatic censorship removal for language models"</em>. <a href="https://github.com/p-e-w/heretic" target="_blank">GitHub</a> — 2026'nın standart otomatik abliteration aracı.</li>
+                    <li>Lai, J. (2025). <em>"Projected and Norm-Preserving Biprojected Abliteration"</em>. — Abliteration'ın gelişmiş varyantları.</li>
+                    <li>Hartford, E. (2023). <em>"Uncensored Models"</em>. — Anti-refusal fine-tuning (M6) geleneğinin başlangıcı.</li>
+                    <li>Rafailov, R. et al. (2023). <em>"Direct Preference Optimization: Your Language Model is Secretly a Reward Model"</em>. NeurIPS. <a href="https://arxiv.org/abs/2305.18290" target="_blank">arXiv:2305.18290</a>.</li>
+                    <li>Meng, Y. et al. (2024). <em>"SimPO: Simple Preference Optimization with a Reference-Free Reward"</em>. NeurIPS. — 2026'da popüler DPO varyantı.</li>
+                    <li>Hong, J. et al. (2024). <em>"ORPO: Odds Ratio Preference Optimization"</em>. <a href="https://arxiv.org/abs/2403.07691" target="_blank">arXiv:2403.07691</a>.</li>
+                    <li>Marshall, T. et al. (2024). <em>"Refusal in LLMs is an Affine Function"</em>. <a href="https://arxiv.org/abs/2411.09003" target="_blank">arXiv:2411.09003</a> — Affine Concept Editing.</li>
+                    <li>FailSpy. (2024). <em>"abliterator.py"</em>. <a href="https://huggingface.co/failspy" target="_blank">Hugging Face</a> — Popülerleştiren ilk implementasyon.</li>
+                    <li>Labonne, M. (2024-2025). <em>"Uncensor any LLM with abliteration"</em>. <a href="https://huggingface.co/blog/mlabonne" target="_blank">Hugging Face Blog</a>.</li>
+                    <li>Jim-plus. (2025). <em>"llm-abliteration"</em>. <a href="https://github.com/jim-plus/llm-abliteration" target="_blank">GitHub</a> — Transformers tabanlı, MoE destekli implementasyon.</li>
+                    <li>AMS (2026). <em>"Activation-based Model Scanner"</em>. <a href="https://arxiv.org/abs/2608.05578" target="_blank">arXiv:2608.05578</a> — Sansürsüzleştirme tespit yöntemi.</li>
+                </ol>
+            </div>
+
+        </article>
+
+        <div class="quiz-kutu" id="quiz-kutu"></div>
+        <nav class="ders-alt-nav" id="ders-alt-nav"></nav>
+    </main>
+
+    <footer class="edu-footer">
+        <div class="edu-container">
+            <div class="logo-satir"><img src="../../assets/icon.webp" alt=""><span>Bursa Yapay Zeka Geliştiricileri Topluluğu</span></div>
+            <p><a href="../../egitim.html">Tüm Eğitimler</a> · <a href="../../topluluk.html">Topluluk</a> · <a href="https://discord.gg/FvhCkCc7cS" target="_blank" rel="noopener">Discord</a></p>
+            <p style="opacity:0.6;margin-top:0.8rem">&copy; 2026 Bursa Yapay Zeka Geliştiricileri Topluluğu</p>
+        </div>
+    </footer>
+
+    <script src="../../js/edu/config.js"></script>
+    <script src="../../js/edu/curriculum.js"></script>
+    <script src="../../js/edu/progress.js"></script>
+    <script src="../../js/edu/auth.js"></script>
+    <script src="../../js/edu/viz-helpers.js"></script>
+    <script src="../../js/edu/quiz.js"></script>
+    <script src="viz/abliteration.js"></script>
+    <script src="quiz.js"></script>
+    <script src="../../js/edu/lesson.js"></script>
+    <script>document.getElementById('gh-modal') || document.body.insertAdjacentHTML('beforeend', githubModalHTML());</script>
+</body>
+</html>

@@ -8,7 +8,7 @@ Bir ders tamamlandığında (içerik + sınav + görselleştirme) ilgili kutucuk
 - 🟡 ML/DL — sarı/amber (#eab308)
 - 🟣 LLM — mor (#a855f7)
 - 🔵 GÖRÜNTÜ — mavi (#3b82f6)
-- 🩶 UZMAN — gri/mavi (#64748b)
+- 🔴 MERAKLISINA — kırmızı (#ef4444)
 
 ---
 
@@ -157,6 +157,12 @@ Bir ders tamamlandığında (içerik + sınav + görselleştirme) ilgili kutucuk
 - [x] **U5 — Etik ve Güvenlik** (`etik-guvenlik`)
   - Kapsam: Yanlılık (bias), halüsinasyon, veri gizliliği, kötüye kullanım senaryoları, sorumlu yapay zeka geliştirme ilkeleri, Türkiye ve dünyadan örnekler
   - Görselleştirme: Karar ağacı — risk değerlendirme akışı (2D canvas)
+
+## 🔴 MERAKLISINA (Derinlemesine ve Güncel Teknikler)
+
+- [ ] **MR1 — Sansürsüzleştirme: LLM'lerde Red Mekanizmasını Anlamak** (`sansursuzlestirme`)
+  - Kapsam: Refusal mechanism nasıl çalışır, aktivasyon uzayında red yönü, abliteration (directional ablation) teorisi, Heretic ile otomatik abliteration, norm-preserving biprojection, anti-refusal DPO/ORPO/KTO, 2026 hibrit yaklaşımı (cut-and-recultivate), tespit yöntemleri (AMS) ve etik sorumluluk
+  - Görselleştirme: Aktivasyon uzayında red yönü vektörü ve orthogonalization şeması (2D canvas)
 
 ---
 

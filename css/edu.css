@@ -36,7 +36,8 @@ body.edu-body {
 .seri-llm   { --accent: #a855f7; --accent-soft: rgba(168, 85, 247, 0.13); --accent-2: #c084fc; }
 .seri-goruntu { --accent: #3b82f6; --accent-soft: rgba(59, 130, 246, 0.13); --accent-2: #93c5fd; }
 .seri-uzman { --accent: #64748b; --accent-soft: rgba(100, 116, 139, 0.2);  --accent-2: #cbd5e1; }
-.seri-temel, .seri-mldl, .seri-llm, .seri-goruntu, .seri-uzman {
+.seri-meraklisina { --accent: #ef4444; --accent-soft: rgba(239, 68, 68, 0.14); --accent-2: #fca5a5; }
+.seri-temel, .seri-mldl, .seri-llm, .seri-goruntu, .seri-uzman, .seri-meraklisina {
     --accent-text: #0b0d14;
 }
 

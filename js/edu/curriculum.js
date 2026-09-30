@@ -8,7 +8,8 @@ const SERILER = {
     mldl:    { ad: "ML/DL",    renk: "#eab308", seriClass: "seri-mldl",    aciklama: "Makine öğrenmesi ve derin öğrenme temelleri" },
     llm:     { ad: "LLM",      renk: "#a855f7", seriClass: "seri-llm",     aciklama: "Büyük dil modelleri: sıfırdan eğitime" },
     goruntu: { ad: "Görüntü",  renk: "#3b82f6", seriClass: "seri-goruntu", aciklama: "Görüntü modelleri: CNN'den diffusion'a" },
-    uzman:   { ad: "Uzman",    renk: "#64748b", seriClass: "seri-uzman",   aciklama: "Optimizasyon, budama ve dağıtım" }
+    uzman:   { ad: "Uzman",    renk: "#64748b", seriClass: "seri-uzman",   aciklama: "Optimizasyon, budama ve dağıtım" },
+    meraklisina: { ad: "Meraklısına", renk: "#ef4444", seriClass: "seri-meraklisina", aciklama: "Derinlemesine ve güncel teknikler — araştırma sınırında" }
 };
 
 const DERSLER = [
@@ -151,7 +152,12 @@ const DERSLER = [
 
     { slug: "etik-guvenlik", seri: "uzman", no: "U5", baslik: "Etik ve Güvenlik",
       ozet: "Yanlılık, halüsinasyon, veri gizliliği ve sorumlu geliştirme. Yapay zeka mühendisinin pusulası.",
-      sure: "25 dk", viz: "2d-etik", onceki: "edge-mobil-ai", sonraki: null }
+      sure: "25 dk", viz: "2d-etik", onceki: "edge-mobil-ai", sonraki: "sansursuzlestirme" },
+
+    // ===== MERAKLISINA =====
+    { slug: "sansursuzlestirme", seri: "meraklisina", no: "MR1", baslik: "Sansürsüzleştirme: LLM'lerde Red Mekanizmasını Anlamak",
+      ozet: "Abliteration, anti-refusal DPO ve 2026'nın hibrit teknikleri. Modelin 'hayır' demesinin arkasındaki lineer cebir.",
+      sure: "45 dk", viz: "2d-abliteration", onceki: "etik-guvenlik", sonraki: null }
 ];
 
 // Hızlı erişim için index haritası
