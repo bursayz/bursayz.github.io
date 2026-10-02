@@ -20,7 +20,7 @@ window.DERS_VIZ["2d-edge"] = function () {
         const { w, h } = hv;
         ctx.clearRect(0, 0, w, h);
 
-        const pad = { l: 60, r: 20, t: 50, b: 55 };
+        const pad = { l: w < 460 ? 46 : 60, r: w < 460 ? 12 : 20, t: 50, b: 55 };
         const gw = w - pad.l - pad.r, gh = h - pad.t - pad.b;
 
         VizHelpers.ortaYazi(ctx, "Hesaplama Gücü vs Taşınabilirlik Dengesi", w / 2, 20, ACCENT2, 13, true);
@@ -36,10 +36,10 @@ window.DERS_VIZ["2d-edge"] = function () {
             ctx.beginPath(); ctx.moveTo(pad.l, pad.t + gh * i / 5); ctx.lineTo(pad.l + gw, pad.t + gh * i / 5); ctx.stroke();
         }
 
-        ctx.fillStyle = "#9aa0b4"; ctx.font = "10.5px Inter"; ctx.textAlign = "center";
-        ctx.fillText("→ Hesaplama Gücü (TOPS)", pad.l + gw / 2, h - 20);
+        VizHelpers.ortaYazi(ctx, "→ Hesaplama Gücü (TOPS)", pad.l + gw / 2, h - 20, "#9aa0b4", 10.5);
         ctx.save();
-        ctx.translate(18, pad.t + gh / 2); ctx.rotate(-Math.PI / 2);
+        ctx.translate(16, pad.t + gh / 2); ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = "#9aa0b4"; ctx.font = "10.5px Inter"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
         ctx.fillText("→ Taşınabilirlik", 0, 0); ctx.restore();
 
         // Trend çizgisi (trade-off)
@@ -58,18 +58,19 @@ window.DERS_VIZ["2d-edge"] = function () {
             ctx.fillStyle = c.renk;
             ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
 
-            ctx.fillStyle = "#e8eaf0"; ctx.font = "bold 10.5px Inter"; ctx.textAlign = "center";
+            // Etiketler canvas kenarına taşarsa font otomatik küçülür;
+            // x kenara yakınsa etiket ortak alana kaydırılır
             const ty = y - 26 > pad.t - 10 ? y - 24 : y + 34;
-            ctx.fillText(c.ad, x, ty);
-            ctx.fillStyle = "#9aa0b4"; ctx.font = "9.5px Inter";
-            ctx.fillText(c.not, x, ty + 13);
+            const lx = Math.max(46, Math.min(w - 46, x));
+            VizHelpers.ortaYazi(ctx, c.ad, lx, ty, "#e8eaf0", 10.5, true);
+            VizHelpers.ortaYazi(ctx, c.not, lx, ty + 13, "#9aa0b4", 9.5);
         });
 
-        // Öneri
-        ctx.fillStyle = ACCENT2; ctx.font = "11.5px Inter"; ctx.textAlign = "center";
-        ctx.fillText("Kural: Büyük hesap buluta; mahremiyet/hız kritik işler cihaza. Hibrit (cihaz filtresi + bulut derinliği) çoğu ürünün cevabıdır.", w / 2, pad.t + gh + 34);
+        // Öneri — uzun metin HTML olarak sarılır
+        VizHelpers.altYazi("viz-edge",
+            "Kural: Büyük hesap buluta; mahremiyet/hız kritik işler cihaza. Hibrit (cihaz filtresi + bulut derinliği) çoğu ürünün cevabıdır.");
     }
 
-    window.addEventListener("resize", ciz);
+    hv.setPaint(ciz);
     ciz();
 };

@@ -27,7 +27,8 @@ body.edu-body {
     font-family: var(--font-sans);
     line-height: 1.7;
     min-height: 100vh;
-    overflow-x: hidden;
+    /* overflow-x: hidden bilinçli olarak YOK: gerçek yatay taşmalar gizlenmesin,
+       düzeltmelerden sonra kayma yaşanırsa hemen görünür olsun. */
 }
 
 /* ---------- Seri accent renkleri ---------- */
@@ -393,6 +394,49 @@ a:hover { text-decoration: underline; }
     margin-bottom: 0.3rem;
 }
 
+/* Uyarı kutusu (dikkat ile aynı görünüm, farklı anlam) */
+.uyari-kutu {
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    border-radius: 0.8rem;
+    padding: 1rem 1.2rem;
+    margin: 1.25rem 0;
+    font-size: 0.92rem;
+    color: #cbd0dd;
+    overflow-wrap: anywhere;
+}
+.uyari-kutu .etiket {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #93c5fd;
+    margin-bottom: 0.3rem;
+}
+
+/* Uzun satır içi kod / teknik metinler mobilde taşmasın */
+.ders-icerik code,
+.uyari-kutu code,
+.dikkat-kutu code,
+.analoji-kutu code,
+.quiz-kutu code {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.quiz-kutu .soru-metin,
+.quiz-kutu .quiz-altbilgi {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* Geniş tablolar: mobilde yatay kaydır */
+.tablo-kaydir {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 1rem 0;
+}
+.tablo-kaydir > table { margin-top: 0 !important; margin-bottom: 0 !important; }
+
 /* Kod bloğu */
 .kod-blok {
     background: #0d1017;
@@ -500,6 +544,68 @@ a:hover { text-decoration: underline; }
     background: #090b10;
     display: block;
     touch-action: manipulation;
+}
+/* JS ölçümüne kadar kısa bir yer tutucu (montaj sonrası JS kaldırır) */
+.viz-kutu .viz-mount { min-height: 200px; }
+.viz-kutu .viz-mount:empty { background: #090b10; }
+
+/* Adım kontrol çubuğu (Önceki / Sonraki / Oynat) */
+.viz-kontrol {
+    display: flex;
+    gap: 0.45rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 0.7rem;
+}
+.viz-kontrol .viz-adim {
+    font-size: 0.8rem;
+    color: var(--edu-text-dim);
+}
+.viz-kontrol-btn {
+    padding: 0.45rem 0.8rem;
+    min-height: 36px;
+    border-radius: 0.5rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: rgba(255,255,255,0.06);
+    color: var(--edu-text);
+    border: 1px solid var(--edu-border);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    touch-action: manipulation;
+    transition: background 0.15s ease, opacity 0.15s ease;
+}
+.viz-kontrol-btn:hover { background: rgba(255,255,255,0.12); }
+.viz-kontrol-btn:active { background: rgba(255,255,255,0.16); }
+.viz-kontrol-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+    background: rgba(255,255,255,0.04);
+}
+@media (max-width: 480px) {
+    .viz-kontrol-btn { padding: 0.5rem 0.75rem; font-size: 0.8rem; }
+    .viz-kontrol { gap: 0.4rem; }
+}
+
+/* İnteraktif başlatılamazsa görünen mesaj */
+.viz-hata {
+    padding: 1rem 1.1rem;
+    margin-top: 0.5rem;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    border-radius: 0.6rem;
+    color: var(--edu-text-dim);
+    font-size: 0.85rem;
+}
+
+/* İnteraktifin canvas altındaki uzun açıklama metni (HTML olarak sarılır) */
+.viz-kutu .viz-alt-yazi {
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--edu-text-dim);
+    text-align: center;
+    padding: 0.6rem 0.35rem 0.15rem;
+    overflow-wrap: anywhere;
 }
 
 /* Kaynaklar bölümü */

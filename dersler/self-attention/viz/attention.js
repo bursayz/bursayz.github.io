@@ -38,16 +38,23 @@ window.DERS_VIZ["3d-attention"] = async function () {
         }
     }
 
-    // Kelime etiketleri
-    function makeLabel(text, color = "#9aa0b4") {
-        const c = document.createElement("canvas"); c.width = 128; c.height = 48;
+    // Kelime etiketleri — doku tuvali metne göre boyutlanır (kırpılma olmaz)
+    function makeLabel(text, color = "#9aa0b4", yukseklik = 0.41) {
+        const boyut = 24;
+        const olcum = document.createElement("canvas").getContext("2d");
+        olcum.font = `bold ${boyut}px Inter, sans-serif`;
+        const tw = Math.ceil(olcum.measureText(text).width) + 18;
+        const c = document.createElement("canvas");
+        c.width = tw;
+        c.height = boyut + 24;
         const cc = c.getContext("2d");
-        cc.font = "bold 24px Inter, sans-serif"; cc.fillStyle = color;
+        cc.font = `bold ${boyut}px Inter, sans-serif`; cc.fillStyle = color;
         cc.textAlign = "center"; cc.textBaseline = "middle";
-        cc.fillText(text, 64, 24);
+        cc.fillText(text, tw / 2, c.height / 2);
         const tex = new THREE.CanvasTexture(c);
         const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
-        sp.scale.set(1.1, 0.41, 1);
+        // En-boy oranı korunur (metin ezilmez)
+        sp.scale.set(yukseklik * (tw / c.height), yukseklik, 1);
         return sp;
     }
 
@@ -65,13 +72,11 @@ window.DERS_VIZ["3d-attention"] = async function () {
     });
 
     // Eksen açıklamaları
-    const rowLbl = makeLabel("Sorgu (Query): Hangi kelime bakıyor? ↑", "#c084fc");
+    const rowLbl = makeLabel("Sorgu (Query): Hangi kelime bakıyor? ↑", "#c084fc", 0.7);
     rowLbl.position.set(0, 3.2, -(N/2)*aralik - 1.8);
-    rowLbl.scale.set(3.5, 0.7, 1);
     group.add(rowLbl);
-    const colLbl = makeLabel("Anahtar (Key): Hangi kelime görülüyor? →", "#93c5fd");
+    const colLbl = makeLabel("Anahtar (Key): Hangi kelime görülüyor? →", "#93c5fd", 0.7);
     colLbl.position.set(0, 3.2, (N/2)*aralik + 1.6);
-    colLbl.scale.set(3.5, 0.7, 1);
     group.add(colLbl);
 
     // Hover bilgisi

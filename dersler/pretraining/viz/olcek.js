@@ -137,7 +137,9 @@ window.DERS_VIZ["2d-olcek"] = function () {
         ctx.fillStyle = "#666"; ctx.font = "10px Inter"; ctx.textAlign = "center";
         const nEtiketler = [6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5];
         const nIsimler = ["3M","10M","30M","100M","300M","1B","3B","10B","30B","100B","300B"];
-        nEtiketler.forEach((v, i) => ctx.fillText(nIsimler[i], sx(v), pad.t + gh + 16));
+        // Dar ekranda etiketler sıkışıp üst üste binmesin
+        const adim = gw > 240 ? 1 : 2;
+        nEtiketler.forEach((v, i) => { if (i % adim === 0) ctx.fillText(nIsimler[i], sx(v), pad.t + gh + 16); });
         ctx.textAlign = "right";
         [1.8, 2.4, 3.0, 3.6, 4.2].forEach(v => ctx.fillText(v.toFixed(1), pad.l - 6, sy(v) + 3));
         VizHelpers.ortaYazi(ctx, "Parametre sayısı →", pad.l + gw / 2, h - 14, "#9aa0b4", 11);

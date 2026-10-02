@@ -12,12 +12,12 @@ window.DERS_VIZ["2d-dreambooth"] = function () {
         ctx.globalAlpha = aktif ? 1 : 0.35;
         ctx.fillStyle = bg; ctx.strokeStyle = border; ctx.lineWidth = aktif ? 1.8 : 1;
         ctx.beginPath(); ctx.roundRect(x, y, w, h, 8); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = aktif ? "#e8eaf0" : "#5a607a";
-        ctx.font = "bold 12px Inter"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText((icon ? icon + " " : "") + baslik, x + w / 2, y + h / 2 - (alt ? 9 : 0));
+        // Kutu içi yazılar kutu genişliğine sığdırılır (dar ekranda taşmaz)
+        VizHelpers.ortaYazi(ctx, (icon ? icon + " " : "") + baslik, x + w / 2, y + h / 2 - (alt ? 9 : 0),
+            aktif ? "#e8eaf0" : "#5a607a", 12, true, w - 8);
         if (alt) {
-            ctx.font = "9.5px Inter"; ctx.fillStyle = aktif ? "#9aa0b4" : "#4a4f6a";
-            ctx.fillText(alt, x + w / 2, y + h / 2 + 9);
+            VizHelpers.ortaYazi(ctx, alt, x + w / 2, y + h / 2 + 9,
+                aktif ? "#9aa0b4" : "#4a4f6a", 9.5, false, w - 8);
         }
         ctx.globalAlpha = 1;
     }
@@ -39,6 +39,24 @@ window.DERS_VIZ["2d-dreambooth"] = function () {
 
         VizHelpers.ortaYazi(ctx, "LoRA Adaptörü: UNet Attention'a Eklenen Yama", w / 2, 20, ACCENT2, 13, true);
 
+        if (w < 460) {
+            // Dar ekranda yatay şema sığmaz → dikey akış
+            const bw = w - 36;
+            const bh = Math.max(34, Math.min(56, Math.round((h - 76) / 4 - 14)));
+            const x = 18;
+            const adimlar = [
+                ["Latent x_t", "gürültülü resim", "#3b82f6", "#3b82f622"],
+                ["Cross-Attention", "to_q/k/v proj.", ACCENT, "rgba(168,85,247,0.12)"],
+                ["LoRA Patch (A×B · 16 MB)", "donuk UNet'e ek yama", "#f59e0b", "#f59e0b22"],
+                ["VAE Decoder → 🖼 Üretim", "piksel uzayına — sizin nesneniz", "#22c55e", "#22c55e18"],
+            ];
+            let y = 44;
+            adimlar.forEach(([b, a, renk, bg], i) => {
+                kutu(x, y, bw, bh, bg, renk, b, a, true, "");
+                if (i < adimlar.length - 1) ok(x + bw / 2, y + bh, x + bw / 2, y + bh + 12, renk);
+                y += bh + 14;
+            });
+        } else {
         const cy = h * 0.5;
         const kw = Math.min(100, w * 0.18), kh = 65;
 
@@ -65,13 +83,14 @@ window.DERS_VIZ["2d-dreambooth"] = function () {
         // Sonuç
         kutu(outX, cy + 50, kw, kh - 25, ACCENT + "18", ACCENT, "🖼 Üretim", "sizin nesneniz", true, "");
         ok(outX + kw / 2, cy + 20, outX + kw / 2, cy + 50, ACCENT);
+        }
 
-        // Alt açıklama
-        ctx.fillStyle = "#9aa0b4"; ctx.font = "11.5px Inter"; ctx.textAlign = "center";
-        ctx.fillText("SD UNet donuk kalır (2+ GB). Sadece LoRA patch (16 MB) öğrenilir — 'sks' tetikleyicisi sizin nesnenize bağlanır.", w / 2, h - 38);
-        ctx.fillText("Sonuç dosyası paylaşılabilir, Civitai'ye yüklenebilir, çıkarılıp takılabilir.", w / 2, h - 20);
+        // Alt açıklama — HTML olarak sarılır (mobilde taşmaz)
+        VizHelpers.altYaziHTML("viz-dreambooth",
+            `SD UNet donuk kalır (2+ GB). Sadece LoRA patch (16 MB) öğrenilir — <b>'sks'</b> tetikleyicisi sizin nesnenize bağlanır.<br>` +
+            `Sonuç dosyası paylaşılabilir, Civitai'ye yüklenebilir, çıkarılıp takılabilir.`);
     }
 
-    window.addEventListener("resize", ciz);
+    hv.setPaint(ciz);
     ciz();
 };

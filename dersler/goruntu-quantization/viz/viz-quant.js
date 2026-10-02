@@ -79,18 +79,19 @@ window.DERS_VIZ["2d-viz-quant"] = function () {
             ctx.fillText(n.boyut, px, py + r + 10);
         });
 
-        // Eksen etiketleri
+        // Eksen etiketleri (döndürülmüş — canvas içinde sığar)
         ctx.fillStyle = "#9aa0b4"; ctx.font = "11px Inter"; ctx.textAlign = "center";
         ctx.fillText("Göreli hız →", pad.l + gw / 2, h - 18);
         ctx.save();
         ctx.translate(16, pad.t + gh / 2); ctx.rotate(-Math.PI / 2);
         ctx.fillText("Kalite (SSIM) →", 0, 0); ctx.restore();
 
-        // Not
-        ctx.fillStyle = "#666"; ctx.font = "10px Inter"; ctx.textAlign = "center";
-        ctx.fillText("*INT4: naif PTQ kaliteyi bozar — SVDQuant ile korunabilir. Değerler illüstratiftir.", w / 2, h - 4);
+        // Not — uzun metin HTML olarak sarılır
+        VizHelpers.altYazi("viz-quant",
+            "*INT4: naif PTQ kaliteyi bozar — SVDQuant gibi yöntemlerle korunabilir. Değerler illüstratiftir.");
     }
 
+    hv.setPaint(ciz);
     ciz();
     setInterval(ciz, 80);
 };

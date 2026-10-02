@@ -48,11 +48,15 @@ window.DERS_VIZ["2d-autograd"] = function () {
         const acc = VizHelpers.accentRenk();
         const acc2 = VizHelpers.accent2();
 
+        // Kenar boşluğu payı: düğüm ve etiketler canvas'a sığsın
+        const NX = v => (0.07 + v * 0.86) * w;
+        const NY = v => (0.14 + v * 0.7) * h;
+
         // Kenarlar (bağlantılar)
         kenarlar.forEach(([fromId, toId]) => {
             const from = bul(fromId), to = bul(toId);
-            const fx = from.x * w, fy = from.y * h;
-            const tx = to.x * w, ty = to.y * h;
+            const fx = NX(from.x), fy = NY(from.y);
+            const tx = NX(to.x), ty = NY(to.y);
             const aktif = ADIMLAR[adim].dalga.some(v => kenarlar.indexOf([fromId, toId]) >= 0 || true);
             ctx.strokeStyle = "rgba(255,255,255,0.18)";
             ctx.lineWidth = 1.5;
@@ -73,7 +77,7 @@ window.DERS_VIZ["2d-autograd"] = function () {
 
         // Düğümler
         duzumler.forEach(d => {
-            const x = d.x * w, y = d.y * h;
+            const x = NX(d.x), y = NY(d.y);
             const r = 20;
             const aktif = (adim >= 1 && ["w1", "w2", "b"].includes(d.id)) || adim === 0;
             ctx.fillStyle = d.renk + "33";
@@ -91,10 +95,8 @@ window.DERS_VIZ["2d-autograd"] = function () {
                 ctx.textAlign = "center"; ctx.textBaseline = "middle";
                 ctx.fillText(d.id, x, y);
             }
-            ctx.fillStyle = d.renk;
-            ctx.font = "10px Inter, sans-serif";
-            ctx.textAlign = "center";
-            ctx.fillText(d.label, x, y + r + 12);
+            // Etiket: canvas kenarına taşarsa font otomatik küçülür
+            VizHelpers.ortaYazi(ctx, d.label, x, y + r + 12, d.renk, 10, false, 96);
         });
 
         // Açıklama

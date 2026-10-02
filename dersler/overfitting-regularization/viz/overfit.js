@@ -41,11 +41,13 @@ window.DERS_VIZ["2d-overfit"] = function () {
     function ciz(adim) {
         secilen = adim;
         const { w, h } = hv;
+        const ACCENT = VizHelpers.accentRenk();
         ctx.clearRect(0, 0, w, h);
         const m = MODELLER[adim];
 
         VizHelpers.ortaYazi(ctx, m.ad, w / 2, 18, m.renk, 15, true);
-        VizHelpers.ortaYazi(ctx, m.aciklama, w / 2, 40, "#9aa0b4", 12);
+        VizHelpers.sarmaliYazi(ctx, m.aciklama, w / 2, 52, w - 24,
+            { boyut: 12, minBoyut: 9, renk: "#9aa0b4", altEkle: false, maksSatir: 2 });
 
         const pad = { l: 40, r: 20, t: 60, b: 40 };
         const gw = w - pad.l - pad.r, gh = h - pad.t - pad.b;
@@ -92,7 +94,6 @@ window.DERS_VIZ["2d-overfit"] = function () {
             ctx.beginPath(); ctx.arc(px(p.x), py(p.y), 4, 0, Math.PI * 2); ctx.stroke();
         });
 
-        const ACCENT = VizHelpers.accentRenk();
         // Legent
         ctx.fillStyle = "#9aa0b4"; ctx.font = "10px Inter"; ctx.textAlign = "left";
         ctx.fillText("─ Model", pad.l + 5, pad.t + 12);

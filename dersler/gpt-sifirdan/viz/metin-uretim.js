@@ -2,7 +2,7 @@
 window.DERS_VIZ = window.DERS_VIZ || {};
 
 window.DERS_VIZ["2d-metin-uretim"] = function () {
-    const hv = VizHelpers.canvas2D("viz-metin-uretim", 0.6);
+    const hv = VizHelpers.canvas2D("viz-metin-uretim", 0.6, null, 360);
     if (!hv) return;
     const { ctx } = hv;
 
@@ -98,25 +98,11 @@ window.DERS_VIZ["2d-metin-uretim"] = function () {
             ctx.fillText("%" + (p * 100).toFixed(0), 22 + bw + 8, by + 15);
         });
 
-        // Seçim açıklaması
-        const ay = barY0 + A.adaylar.length * 32 + 16;
-        ctx.font = "12px Inter, sans-serif";
-        ctx.fillStyle = "#9aa0b4";
-        const exp = `🎲 Örnekleme (multinomial): '%${(A.adaylar[A.secilen][1] * 100).toFixed(0)}' olasılıklı '${A.adaylar[A.secilen][0]}' seçildi → bağlama eklendi → tekrar ileri geçiş.`;
-        const words = exp.split(" ");
-        let line = "", lines = [];
-        for (const word of words) {
-            const t = line ? line + " " + word : word;
-            if (ctx.measureText(t).width > w - 40) { lines.push(line); line = word; } else line = t;
-        }
-        lines.push(line);
-        lines.forEach((l, i) => ctx.fillText(l, 16, ay + i * 17));
-
-        // Alt not: loss açıklaması
-        const noteY = ay + lines.length * 17 + 12;
-        ctx.font = "10px Inter, sans-serif";
-        ctx.fillStyle = "#5a5f72";
-        ctx.fillText(`💡 Eğitim ilerledikçe "Loss" azalır → model daha doğru tahminler yapar.`, 16, noteY);
+        // Seçim açıklaması + loss notu — uzun metinler HTML olarak sarılır
+        const secilen = A.adaylar[A.secilen];
+        VizHelpers.altYaziHTML("viz-metin-uretim",
+            `🎲 Örnekleme (multinomial): <b>'%${(secilen[1] * 100).toFixed(0)}'</b> olasılıklı <b>'${secilen[0]}'</b> seçildi → bağlama eklendi → tekrar ileri geçiş.<br>` +
+            `<span style="color:#5a5f72">💡 Eğitim ilerledikçe "Loss" azalır → model daha doğru tahminler yapar.</span>`);
     }
 
     VizHelpers.adimKontrol("viz-metin-uretim", ADIMLAR.length, ciz);

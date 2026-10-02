@@ -80,20 +80,19 @@ window.DERS_VIZ["2d-quant"] = function () {
         }
         VizHelpers.ortaYazi(ctx, "Ağırlık değeri →", pad.l + gw / 2, h - 20, "#9aa0b4", 11);
 
-        // Bilgi
+        // Bilgi — uzun metinler canvas'a değil, altına HTML olarak yazılır
+        // (dar ekranda satır satır sarılır, taşmaz/kesilmez)
         const seviyeSayisi = fmt.bit === null ? "∞ (sürekli)" : (2 ** fmt.bit);
         const benzersiz = new Set(q.map(v => v.toFixed(4))).size;
         const hata = fmt.bit === null ? 0 :
             agirliklar.reduce((s, v, i) => s + (v - q[i]) ** 2, 0) / agirliklar.length;
 
-        ctx.fillStyle = "#9aa0b4"; ctx.font = "11.5px Inter"; ctx.textAlign = "center";
-        ctx.fillText(`Benzersiz değer: ${benzersiz}/${seviyeSayisi} seviye · Ortalama kare hata (MSE): ${hata.toFixed(4)}`, w / 2, pad.t + gh + 34);
-        if (fmt.bit === 4) {
-            ctx.fillStyle = "#f59e0b";
-            ctx.fillText("Dikkat: sadece 16 'basamak' — dağılım merdivene dönüştü ama şekil korundu!", w / 2, pad.t + gh + 52);
-        }
+        const uyari = fmt.bit === 4
+            ? ` <span style="color:#f59e0b">⚠ Sadece 16 'basamak': dağılım merdivene dönüştü ama şekil korundu!</span>`
+            : "";
+        VizHelpers.altYaziHTML("viz-quant",
+            `Benzersiz değer: <b>${benzersiz}/${seviyeSayisi}</b> seviye · Ortalama kare hata (MSE): ${hata.toFixed(4)}${uyari}`);
     }
 
     const kontrol = VizHelpers.adimKontrol("viz-quant", FORMATLAR.length, ciz);
-    window.addEventListener("resize", () => hv.redraw());
 };

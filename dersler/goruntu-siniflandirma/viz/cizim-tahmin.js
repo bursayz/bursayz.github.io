@@ -19,21 +19,20 @@ window.DERS_VIZ["2d-cizim-tahmin"] = function () {
     if (!mount) return;
 
     const GRID = 28;
-    const cellSize = 14; // 28*14 = 392 px
 
     mount.innerHTML = `
         <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;align-items:flex-start;padding:4px">
-            <div style="position:relative">
-                <canvas id="draw-canvas" width="${GRID*cellSize}" height="${GRID*cellSize}"
-                    style="background:#111;border-radius:8px;cursor:crosshair;touch-action:none;display:block"></canvas>
+            <div style="position:relative;flex:1 1 300px;min-width:0;max-width:392px">
+                <canvas id="draw-canvas"
+                    style="width:100%;background:#111;border-radius:8px;cursor:crosshair;touch-action:none;display:block"></canvas>
                 <div id="draw-hint" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
                      color:rgba(255,255,255,0.25);font-size:0.85rem;pointer-events:none;text-align:center">
                     Rakam çizin (0-9)<br>🖱️ veya 👆
                 </div>
             </div>
-            <div style="flex:1;min-width:220px">
+            <div style="flex:1 1 220px;min-width:200px">
                 <div id="top-pred" style="font:700 1rem Inter;color:#e6e8f2;margin:2px 0 6px;min-height:1.4em"></div>
-                <canvas id="pred-canvas" width="240" height="252" style="width:100%;display:block"></canvas>
+                <canvas id="pred-canvas" style="width:100%;display:block"></canvas>
             </div>
         </div>
         <div style="display:flex;gap:8px;justify-content:center;padding:6px 0 2px">
@@ -49,6 +48,30 @@ window.DERS_VIZ["2d-cizim-tahmin"] = function () {
     const pctx = pc.getContext("2d");
     const hint = document.getElementById("draw-hint");
     const topPredEl = document.getElementById("top-pred");
+
+    // Tuval boyutları CSS genişliğine × DPR göre ayarlanır (mobilde net çizim)
+    let cellSize = 14;
+    let dprT = 1;
+    function tuvalAyarla() {
+        dprT = Math.min(window.devicePixelRatio || 1, 2);
+        const sarmal = dc.parentElement;
+        const cssW = Math.max(160, Math.min(392, sarmal.clientWidth || 300));
+        cellSize = cssW / GRID;
+        dc.style.width = cssW + "px";
+        dc.style.height = cssW + "px";
+        dc.width = Math.round(cssW * dprT);
+        dc.height = Math.round(cssW * dprT);
+        dctx.setTransform(dprT, 0, 0, dprT, 0, 0);
+
+        const ana = pc.parentElement;
+        const pw = Math.max(160, ana.clientWidth || 240);
+        const ph = Math.round(pw * 252 / 240);
+        pc.style.width = pw + "px";
+        pc.style.height = ph + "px";
+        pc.width = Math.round(pw * dprT);
+        pc.height = Math.round(ph * dprT);
+        pctx.setTransform(dprT, 0, 0, dprT, 0, 0);
+    }
 
     const grid = Array.from({ length: GRID }, () => Array(GRID).fill(0));
     // Bulanık şablonlar (mesafe çizim tarafında hesaplanır, iki taraf da blur'lenir)
@@ -119,7 +142,7 @@ window.DERS_VIZ["2d-cizim-tahmin"] = function () {
     };
 
     function render() {
-        dctx.clearRect(0, 0, dc.width, dc.height);
+        dctx.clearRect(0, 0, dc.width / dprT, dc.height / dprT);
         for (let i = 0; i < GRID; i++) {
             for (let j = 0; j < GRID; j++) {
                 const v = grid[i][j];
@@ -233,7 +256,8 @@ window.DERS_VIZ["2d-cizim-tahmin"] = function () {
     }
 
     function tahminEt() {
-        pctx.clearRect(0, 0, pc.width, pc.height);
+        const pw = pc.width / dprT, ph = pc.height / dprT;   // CSS birimleri
+        pctx.clearRect(0, 0, pw, ph);
         let toplam = 0;
         for (let i = 0; i < GRID; i++) for (let j = 0; j < GRID; j++) toplam += grid[i][j];
         if (toplam <= 2) {
@@ -241,7 +265,7 @@ window.DERS_VIZ["2d-cizim-tahmin"] = function () {
             topPredEl.innerHTML = '<span style="color:#8b91a7;font-weight:500;font-size:0.85rem">Rakam çizin...</span>';
             pctx.fillStyle = "rgba(255,255,255,0.25)";
             pctx.font = "11px Inter"; pctx.textAlign = "center";
-            pctx.fillText("(MNIST ortalama şablonlarıyla 1-NN)", pc.width / 2, pc.height - 8);
+            pctx.fillText(ortalamaNot(pw, "(MNIST ortalama şablonlarıyla 1-NN)"), pw / 2, ph - 8);
             return;
         }
         const sonuc = predictDigits(grid);
@@ -258,22 +282,45 @@ window.DERS_VIZ["2d-cizim-tahmin"] = function () {
 
         pctx.font = "bold 12px Inter"; pctx.fillStyle = "#c084fc"; pctx.textAlign = "left";
         pctx.fillText("Tahmin Olasılıkları", 10, 18);
+        // Satır yüksekliği tuvalin uzunluğuna göre ölçeklenir (dar ekranda taşmaz)
+        const satirH = Math.max(13, Math.min(20, (ph - 58) / 10));
         sonuc.forEach((s, i) => {
-            const y = 30 + i * 20;
-            const w = (pc.width - 92) * s.prob;
+            const y = 30 + i * satirH;
+            const w = (pw - 92) * s.prob;
             pctx.fillStyle = i === 0 ? "#8fd14f" : "rgba(255,255,255,0.14)";
-            pctx.fillRect(30, y, Math.max(3, w), 15);
+            pctx.fillRect(30, y, Math.max(3, w), satirH - 5);
             pctx.font = "bold 11px 'JetBrains Mono', monospace";
             pctx.textAlign = "right";
             pctx.fillStyle = i === 0 ? "#8fd14f" : "#c4c9da";
-            pctx.fillText(String(s.rakam), 24, y + 12);
+            pctx.fillText(String(s.rakam), 24, y + satirH - 8);
             pctx.textAlign = "left";
             pctx.fillStyle = i === 0 ? "#d5e8c3" : "#8b91a7";
-            pctx.fillText(`%${(s.prob * 100).toFixed(0)}`, 36 + Math.max(3, w), y + 12);
+            pctx.fillText(`%${(s.prob * 100).toFixed(0)}`, 36 + Math.max(3, w), y + satirH - 8);
         });
-        pctx.fillStyle = "rgba(255,255,255,0.3)"; pctx.font = "10px Inter"; pctx.textAlign = "center";
-        pctx.fillText("(MNIST ortalama şablonlarıyla 1-NN — gerçek CNN Colab'da)", pc.width / 2, pc.height - 6);
+        pctx.fillStyle = "rgba(255,255,255,0.3)"; pctx.textAlign = "center";
+        pctx.fillText(ortalamaNot(pw, "(MNIST ortalama şablonlarıyla 1-NN — gerçek CNN Colab'da)"), pw / 2, ph - 6);
     }
 
+    /** Ortadaki açıklamayı tuval genişliğine sığdırır (font küçültür) */
+    function ortalamaNot(pw, metin) {
+        let fs = 10;
+        pctx.font = fs + "px Inter";
+        while (fs > 7 && pctx.measureText(metin).width > pw - 8) {
+            fs -= 0.5;
+            pctx.font = fs + "px Inter";
+        }
+        return metin;
+    }
+
+    tuvalAyarla();
+    render();
     tahminEt();
+    if (typeof ResizeObserver !== "undefined") {
+        let bekliyor = false;
+        new ResizeObserver(() => {
+            if (bekliyor) return;
+            bekliyor = true;
+            requestAnimationFrame(() => { bekliyor = false; tuvalAyarla(); render(); tahminEt(); });
+        }).observe(mount);
+    }
 };

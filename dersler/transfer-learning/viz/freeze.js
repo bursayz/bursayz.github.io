@@ -2,7 +2,7 @@
 window.DERS_VIZ = window.DERS_VIZ || {};
 
 window.DERS_VIZ["2d-freeze"] = function () {
-    const hv = VizHelpers.canvas2D("viz-freeze", 0.5);
+    const hv = VizHelpers.canvas2D("viz-freeze", 0.5, null, 340);
     if (!hv) return;
     const { ctx } = hv;
 
@@ -26,7 +26,35 @@ window.DERS_VIZ["2d-freeze"] = function () {
 
         VizHelpers.ortaYazi(ctx, "ResNet-18 Transfer Learning — Katman Stratejisi", w / 2, 20, ACCENT2, 13, true);
 
-        const startY = 50, boxW = Math.min(110, (w - 40) / KATMANLAR.length - 8), boxH = 70;
+        const dar = w < 560;
+        const startY = dar ? 44 : 50;
+
+        if (dar) {
+            // Dar ekranda katmanlar alt alta: ikon+ad (üstte), açıklama (altta)
+            const bx = 12, bw = w - 24, bh = 42, gap = 6;
+            let y = startY;
+            KATMANLAR.forEach((k, i) => {
+                const frozen = k.freeze;
+                const pulse = frozen ? 0 : Math.sin(t * 2 + i) * 0.08;
+                const renk = frozen ? "#64748b" : ACCENT;
+                ctx.fillStyle = frozen ? "rgba(100,116,139,0.12)" : `rgba(86,166,5,${0.15 + pulse})`;
+                ctx.strokeStyle = renk;
+                ctx.lineWidth = frozen ? 1 : 2;
+                ctx.beginPath(); ctx.roundRect(bx, y, bw, bh, 8); ctx.fill(); ctx.stroke();
+
+                ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+                ctx.fillStyle = renk; ctx.font = "bold 11px Inter";
+                ctx.fillText(frozen ? "❄" : "🔥", bx + 8, y + 17);
+                ctx.fillStyle = "#e8eaf0"; ctx.font = "bold 11px Inter";
+                ctx.fillText(k.ad, bx + 24, y + 17);
+                ctx.fillStyle = renk; ctx.font = "9.5px Inter"; ctx.textAlign = "right";
+                ctx.fillText(frozen ? "donuk" : "eğitiliyor", bx + bw - 8, y + 17);
+                ctx.fillStyle = "#9aa0b4"; ctx.font = "9.5px Inter"; ctx.textAlign = "left";
+                ctx.fillText(k.bilgi, bx + 24, y + 33);
+                y += bh + gap;
+            });
+        } else {
+        const boxW = Math.min(110, (w - 40) / KATMANLAR.length - 8), boxH = 70;
         const totalW = KATMANLAR.length * boxW + (KATMANLAR.length - 1) * 8;
         const startX = (w - totalW) / 2;
 
@@ -37,7 +65,7 @@ window.DERS_VIZ["2d-freeze"] = function () {
 
             ctx.fillStyle = frozen
                 ? "rgba(100,116,139,0.12)"
-                : `rgba(${ACCENT.r * 255},${ACCENT.g * 255},${ACCENT.b * 255},${0.15 + pulse})`;
+                : `rgba(86,166,5,${0.15 + pulse})`;
             ctx.strokeStyle = frozen ? "#64748b" : ACCENT;
             ctx.lineWidth = frozen ? 1 : 2;
             ctx.beginPath(); ctx.roundRect(x, startY, boxW, boxH, 8); ctx.fill(); ctx.stroke();
@@ -67,16 +95,16 @@ window.DERS_VIZ["2d-freeze"] = function () {
                 ctx.stroke();
             }
         });
+        }
 
-        // Alt bilgi
-        const infoY = startY + boxH + 40;
-        ctx.fillStyle = ACCENT2; ctx.font = "bold 12px Inter"; ctx.textAlign = "center";
-        ctx.fillText("❄ = requires_grad=False (öğrenmez)  🔥 = requires_grad=True (öğrenir)", w / 2, infoY);
-        ctx.fillStyle = "#9aa0b4"; ctx.font = "11px Inter";
-        ctx.fillText("Ön katmanlar genel bilgi taşır → donuk. Son katmanlar görev-özel → eğitilebilir (düşük LR ile).", w / 2, infoY + 22);
-        ctx.fillText("fc katmanı tamamen yenidir → rastgeledir, en yüksek LR ile eğitilir.", w / 2, infoY + 40);
+        // Alt bilgi — uzun metinler HTML olarak sarılır
+        VizHelpers.altYaziHTML("viz-freeze",
+            `<b>❄ = requires_grad=False (öğrenmez)</b> · <b>🔥 = requires_grad=True (öğrenir)</b><br>` +
+            `Ön katmanlar genel bilgi taşır → donuk. Son katmanlar görev-özel → eğitilebilir (düşük LR ile).<br>` +
+            `fc katmanı tamamen yenidir → rastgeledir, en yüksek LR ile eğitilir.`);
     }
 
+    hv.setPaint(ciz);
     ciz();
     setInterval(ciz, 80);
 };

@@ -102,5 +102,4 @@ window.DERS_VIZ["2d-etik"] = function () {
     }
 
     VizHelpers.adimKontrol("viz-etik", ADIMLAR.length, ciz);
-    window.addEventListener("resize", () => ciz(0));
 };

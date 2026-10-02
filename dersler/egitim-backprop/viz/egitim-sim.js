@@ -143,25 +143,39 @@ window.DERS_VIZ["2d-egitim-sim"] = function () {
             }
         }
 
-        // Lejant
-        ctx.fillStyle = "#3b82f6"; ctx.beginPath(); ctx.arc(gx + 10, h - 20, 5, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#9aa0b4"; ctx.font = "10px Inter"; ctx.textAlign = "left";
-        ctx.fillText("Sınıf 0", gx + 20, h - 16);
-        ctx.fillStyle = ACCENT; ctx.beginPath(); ctx.arc(gx + 75, h - 20, 5, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#9aa0b4";
-        ctx.fillText("Sınıf 1", gx + 85, h - 16);
-        ctx.fillStyle = "#9aa0b4";
-        ctx.fillText(`w1=${w1.toFixed(2)}  w2=${w2.toFixed(2)}  b=${bias.toFixed(2)}`, gx + 140, h - 16);
+        // Lejant + parametre bilgisi (dar ekranda altta toplanır, taşmaz)
+        if (w < 560) {
+            ctx.fillStyle = "#9aa0b4"; ctx.font = "9.5px 'JetBrains Mono', monospace";
+            ctx.textAlign = "center";
+            ctx.fillText(`w1=${w1.toFixed(2)}  w2=${w2.toFixed(2)}  b=${bias.toFixed(2)}`, w / 2, h - 34);
+            ctx.font = "10px Inter";
+            ctx.textAlign = "right";
+            ctx.fillStyle = ACCENT;
+            ctx.beginPath(); ctx.arc(w - 47, h - 17, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#9aa0b4";
+            ctx.fillText("Sınıf 1", w - 10, h - 14);
+            ctx.fillStyle = "#3b82f6";
+            ctx.beginPath(); ctx.arc(w - 92, h - 17, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#9aa0b4";
+            ctx.fillText("Sınıf 0", w - 55, h - 14);
+        } else {
+            ctx.fillStyle = "#3b82f6"; ctx.beginPath(); ctx.arc(gx + 10, h - 20, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#9aa0b4"; ctx.font = "10px Inter"; ctx.textAlign = "left";
+            ctx.fillText("Sınıf 0", gx + 20, h - 16);
+            ctx.fillStyle = ACCENT; ctx.beginPath(); ctx.arc(gx + 75, h - 20, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#9aa0b4";
+            ctx.fillText("Sınıf 1", gx + 85, h - 16);
+            ctx.fillStyle = "#9aa0b4";
+            ctx.fillText(`w1=${w1.toFixed(2)}  w2=${w2.toFixed(2)}  b=${bias.toFixed(2)}`, gx + 140, h - 16);
+        }
 
-        // Durum bilgisi
+        // Durum bilgisi — HTML olarak (mobilde alt yazı olarak görünür, taşmaz)
         const sonKayip = kayipGecmisi[kayipGecmisi.length - 1];
         if (sonKayip !== undefined) {
             const mesaj = sonKayip < 0.02
                 ? "✓ Model öğrendi — ayrım başarılı!"
                 : `Öğreniyor... hata oranı: %${(sonKayip * 100).toFixed(0)} (epoch ${epoch})`;
-            ctx.fillStyle = sonKayip < 0.02 ? ACCENT : "#9aa0b4";
-            ctx.font = "11px Inter"; ctx.textAlign = "center";
-            ctx.fillText(mesaj, w / 2, h - 30);
+            VizHelpers.altYazi("viz-egitim-sim", mesaj, sonKayip < 0.02 ? ACCENT : null);
         }
     }
 
@@ -194,6 +208,7 @@ window.DERS_VIZ["2d-egitim-sim"] = function () {
         ciz();
         animId = requestAnimationFrame(dongu);
     }
+    hv.setPaint(ciz);   // resize sonrası tekrar çiz (rAF döngüsü bittikten sonra)
     ciz();
     dongu();
 };

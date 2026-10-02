@@ -19,9 +19,14 @@ window.DERS_VIZ["2d-broadcast"] = function () {
         ctx.clearRect(0, 0, w, h);
         const { i: curI, j: curJ } = ADIMLAR[Math.min(adim, ADIMLAR.length - 1)];
 
-        const hucW = 60, hucH = 50;
-        const basX = w * 0.08, basY = h * 0.22;
-        const matrisX = basX, sonucX = w * 0.52;
+        // Hücre boyutu canvas genişliğine göre ölçeklenir (mobilde taşmaz)
+        const bosluk = 40;                       // iki matris arasındaki ok payı
+        const hucW = Math.max(26, Math.min(60, Math.floor((w - 20 - bosluk) / 6)));
+        const hucH = Math.round(hucW * 0.84);
+        const matrisGen = hucW * 3;
+        const basX = Math.max(6, (w - (matrisGen * 2 + bosluk)) / 2);
+        const basY = Math.max(38, Math.round((h - hucH * 3) / 2) - 6);
+        const matrisX = basX, sonucX = matrisX + matrisGen + bosluk;
 
         // Başlıklar
         VizHelpers.ortaYazi(ctx, "Girdi Matrisi", matrisX + hucW * 1.5, basY - 20, "#93c5fd", 12, true);
@@ -66,11 +71,9 @@ window.DERS_VIZ["2d-broadcast"] = function () {
         }));
         matrisCiz(sonuc, sonucX, basY, curI, curJ, sonuc);
 
-        // Açıklama
-        const aciklamalar = `Adım ${adim + 1}/9: matris[${curI}][${curJ}] = ${MATRIS[curI][curJ]} + ${VADD} = ${MATRIS[curI][curJ] + VADD}. NumPy, '${VADD}' sayısını matrişin her elemanına otomatik uygular.`;
-        ctx.font = "12px Inter, sans-serif";
-        ctx.fillStyle = "#9aa0b4"; ctx.textAlign = "center";
-        ctx.fillText(aciklamalar, w / 2, h - 15);
+        // Açıklama — uzun metin HTML olarak (dar ekranda satır satır sarılır)
+        VizHelpers.altYazi("viz-broadcast",
+            `Adım ${adim + 1}/9: matris[${curI}][${curJ}] = ${MATRIS[curI][curJ]} + ${VADD} = ${MATRIS[curI][curJ] + VADD}. NumPy, '${VADD}' sayısını matrişin her elemanına otomatik uygular.`);
     }
 
     VizHelpers.adimKontrol("viz-broadcast", ADIMLAR.length, ciz);

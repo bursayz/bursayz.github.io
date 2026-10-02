@@ -58,7 +58,10 @@ window.DERS_VIZ["2d-bbox"] = function () {
         ctx.clearRect(0, 0, w, h);
         const silDrum = adimSenaryo[Math.min(adim, toplamAdim - 1)];
 
-        VizHelpers.ortaYazi(ctx, `NMS Adımı ${adim + 1}: En yüksek güven skorlu kutu seçilir, IoU>0.5 olanlar silinir`, w / 2, 18, ACCENT2, 12, true);
+        VizHelpers.sarmaliYazi(ctx,
+            `NMS Adımı ${adim + 1}: En yüksek güven skorlu kutu seçilir, IoU>0.5 olanlar silinir`,
+            w / 2, 32, w - 24,
+            { boyut: 12, minBoyut: 9, renk: ACCENT2, kalin: true, altEkle: false, maksSatir: 2 });
 
         // Resim bölgesi (basitleştirilmiş kedi silueti çizimi)
         const rx = w * 0.1, ry = 45, rw = w * 0.8, rh = h - 110;
@@ -102,10 +105,10 @@ window.DERS_VIZ["2d-bbox"] = function () {
             }
         });
 
-        // Alt açıklama
+        // Alt açıklama (uzun metin HTML olarak — dar ekranda taşmaz)
         const kalanSayisi = silDrum.filter(s => !s).length;
-        ctx.fillStyle = "#9aa0b4"; ctx.font = "11.5px Inter"; ctx.textAlign = "center";
-        ctx.fillText(`${kalanSayisi} kutu kaldı. Son adımda sadece en yüksek güvenli (0.92) kutu kalır → temiz tespit!`, w / 2, h - 18);
+        VizHelpers.altYazi("viz-bbox",
+            `${kalanSayisi} kutu kaldı. Son adımda sadece en yüksek güvenli (0.92) kutu kalır → temiz tespit!`);
     }
 
     VizHelpers.adimKontrol("viz-bbox", toplamAdim, ciz);

@@ -41,6 +41,7 @@ window.DERS_VIZ["2d-sft-maske"] = function () {
                 ctx.lineWidth = maskeli ? 1 : 1.6;
                 ctx.beginPath(); ctx.roundRect(x, y, tw, kutuH, 5); ctx.fill(); ctx.stroke();
                 ctx.fillStyle = maskeli ? "#5a607a" : ACCENT2;
+                ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
                 ctx.fillText(p, x + 6, y + 17);
                 if (maskeli) {
                     // labels=-100 üstü çizili gösterim
@@ -53,24 +54,35 @@ window.DERS_VIZ["2d-sft-maske"] = function () {
             y += kutuH + bosluk + 8;
         });
 
-        // Lejant
+        // Lejant — dar ekranda her kayıt ayrı satıra, geniş ekranda tek satıra
         y += 14;
-        const lstart = Math.max(10, w / 2 - 200);
-        Object.entries(ROLLER).forEach(([k, r], i) => {
-            const lx = lstart + i * 145;
-            ctx.fillStyle = r.renk + "33"; ctx.strokeStyle = r.renk; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.roundRect(lx, y - 11, 13, 13, 3); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = "#9aa0b4"; ctx.font = "10px Inter"; ctx.textAlign = "left";
-            ctx.fillText(r.label, lx + 18, y - 1);
-        });
+        if (w >= 470) {
+            const lstart = Math.max(10, w / 2 - 200);
+            const adim = Math.min(150, (w - lstart - 8) / 3);
+            Object.entries(ROLLER).forEach(([k, r], i) => {
+                const lx = lstart + i * adim;
+                ctx.fillStyle = r.renk + "33"; ctx.strokeStyle = r.renk; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.roundRect(lx, y - 11, 13, 13, 3); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#9aa0b4"; ctx.font = "10px Inter"; ctx.textAlign = "left";
+                ctx.fillText(r.label, lx + 18, y - 1);
+            });
+        } else {
+            Object.entries(ROLLER).forEach(([k, r], i) => {
+                const lx = 12, ly = y - 1 + i * 17;
+                ctx.fillStyle = r.renk + "33"; ctx.strokeStyle = r.renk; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.roundRect(lx, ly - 10, 13, 13, 3); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#9aa0b4"; ctx.font = "10px Inter"; ctx.textAlign = "left";
+                ctx.fillText(r.label, lx + 18, ly);
+            });
+            y += 34;
+        }
 
-        // Açıklama
-        y += 26;
-        ctx.fillStyle = "#9aa0b4"; ctx.font = "11.5px Inter"; ctx.textAlign = "center";
-        ctx.fillText("Üstü çizili gri kutular: labels = -100 → kayıp hesabına katılmaz, model bunlardan sorumlu tutulmaz.", w / 2, y);
-        ctx.fillText("Renkli kutular: labels = gerçek token ID → model sadece asistan cevabını üretmekten ceza/ödül alır.", w / 2, y + 16);
+        // Açıklama — uzun metinler HTML olarak sarılır
+        VizHelpers.altYaziHTML("viz-sft-maske",
+            `Üstü çizili gri kutular: <b>labels = -100</b> → kayıp hesabına katılmaz, model bunlardan sorumlu tutulmaz.<br>` +
+            `Renkli kutular: <b>labels = gerçek token ID</b> → model sadece asistan cevabını üretmekten ceza/ödül alır.`);
     }
 
-    window.addEventListener("resize", ciz);
+    hv.setPaint(ciz);
     ciz();
 };

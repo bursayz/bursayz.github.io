@@ -120,6 +120,15 @@
         }
     });
 
+    // --- Geniş tablolar: mobilde taşmasın diye kaydırılabilir sarmalayıcı ---
+    document.querySelectorAll(".ders-icerik table, .kaynaklar-kutu table").forEach(tab => {
+        if (tab.parentElement && tab.parentElement.classList.contains("tablo-kaydir")) return;
+        const sarmalayici = document.createElement("div");
+        sarmalayici.className = "tablo-kaydir";
+        tab.parentNode.insertBefore(sarmalayici, tab);
+        sarmalayici.appendChild(tab);
+    });
+
     // --- Quiz ---
     QuizEngine.init(slug);
 
@@ -129,7 +138,50 @@
     }
 
     // --- Görselleştirme ---
-    if (window.DERS_VIZ && window.DERS_VIZ[ders.viz]) {
-        window.DERS_VIZ[ders.viz]();
+    const vizKutusu = document.querySelector(".viz-kutu");
+    const vizHataGoster = (hata) => {
+        console.error("[viz] görselleştirme başlatılamadı:", hata);
+        if (!vizKutusu || vizKutusu.querySelector(".viz-hata")) return;
+        const hataEl = document.createElement("div");
+        hataEl.className = "viz-hata";
+        hataEl.textContent = "Bu interaktif bu cihazda başlatılamadı. Sayfayı yenilemeyi deneyin.";
+        vizKutusu.appendChild(hataEl);
+    };
+
+    if (window.DERS_VIZ && ders.viz && window.DERS_VIZ[ders.viz]) {
+        try {
+            const sonuc = window.DERS_VIZ[ders.viz]();
+            if (sonuc && typeof sonuc.catch === "function") sonuc.catch(vizHataGoster);
+        } catch (e) {
+            vizHataGoster(e);
+        }
+    } else if (vizKutusu) {
+        // Modül script'ler (ör. tokenization'ın kendi HTML interaktifi) sonra
+        // çalışır; gecikmeli kontrol edilsin ki yanlış uyarı verilmesin
+        setTimeout(() => {
+            if (Array.from(vizKutusu.children).every(c => c.classList.contains("viz-baslik"))) {
+                vizHataGoster("DERS_VIZ kaydı yok: " + ders.viz);
+            }
+        }, 600);
     }
+
+    // Özel montajlı interaktiflerin gereksiz min-height ölü alanını temizle
+    setTimeout(() => {
+        document.querySelectorAll(".viz-mount").forEach(m => {
+            if (m.children.length) m.style.minHeight = "";
+        });
+    }, 1000);
+
+    // Sessizce boş kalan montajlara görünür mesaj (async 3D beklemesi için gecikmeli)
+    setTimeout(() => {
+        document.querySelectorAll(".viz-mount").forEach(m => {
+            if (m.children.length) return;
+            const kutu = m.closest(".viz-kutu");
+            if (!kutu || kutu.querySelector(".viz-hata")) return;
+            const hataEl = document.createElement("div");
+            hataEl.className = "viz-hata";
+            hataEl.textContent = "Bu interaktif yüklenemedi. Sayfayı yenilemeyi deneyin.";
+            kutu.appendChild(hataEl);
+        });
+    }, 4000);
 })();

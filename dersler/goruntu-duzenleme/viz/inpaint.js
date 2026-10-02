@@ -8,12 +8,19 @@ window.DERS_VIZ["2d-inpaint"] = function () {
     const GRID = 20;
 
     mount.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:4px;max-width:640px;margin:0 auto">
-            ${["Orijinal", "Maske (siz çizin)", "Sonuç"].map(b => `
-                <div style="text-align:center;font-size:0.78rem;color:var(--edu-text-dim);font-weight:600">${b}</div>`).join("")}
-            <canvas id="inp-orj" style="width:100%;border-radius:6px;background:#111;aspect-ratio:1;display:block"></canvas>
-            <canvas id="inp-maske" style="width:100%;border-radius:6px;background:#111;aspect-ratio:1;display:block;cursor:crosshair;touch-action:none"></canvas>
-            <canvas id="inp-sonuc" style="width:100%;border-radius:6px;background:#111;aspect-ratio:1;display:block"></canvas>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;padding:4px;max-width:640px;margin:0 auto">
+            <div>
+                <div style="text-align:center;font-size:0.78rem;color:var(--edu-text-dim);font-weight:600;margin-bottom:4px">Orijinal</div>
+                <canvas id="inp-orj" style="width:100%;border-radius:6px;background:#111;aspect-ratio:1;display:block"></canvas>
+            </div>
+            <div>
+                <div style="text-align:center;font-size:0.78rem;color:var(--edu-text-dim);font-weight:600;margin-bottom:4px">Maske (siz çizin)</div>
+                <canvas id="inp-maske" style="width:100%;border-radius:6px;background:#111;aspect-ratio:1;display:block;cursor:crosshair;touch-action:none"></canvas>
+            </div>
+            <div>
+                <div style="text-align:center;font-size:0.78rem;color:var(--edu-text-dim);font-weight:600;margin-bottom:4px">Sonuç</div>
+                <canvas id="inp-sonuc" style="width:100%;border-radius:6px;background:#111;aspect-ratio:1;display:block"></canvas>
+            </div>
         </div>
         <div style="display:flex;gap:8px;justify-content:center;padding:4px 0 6px">
             <button id="inp-clear" style="padding:5px 12px;border-radius:8px;background:rgba(255,255,255,0.07);border:1px solid var(--edu-border);color:var(--edu-text);cursor:pointer;font-size:0.78rem;font-family:Inter">Temizle</button>

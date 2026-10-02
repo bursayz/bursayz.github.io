@@ -29,14 +29,10 @@ window.DERS_VIZ["2d-lora"] = function () {
         ctx.strokeStyle = renk;
         ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.roundRect(x, y, w, h, 8); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = "#e8eaf0";
-        ctx.font = "bold 13px Inter";
-        ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText(label, x + w / 2, y + h / 2 - (alt ? 8 : 0));
+        // Kutu içi yazılar kutu genişliğine sığdırılır
+        VizHelpers.ortaYazi(ctx, label, x + w / 2, y + h / 2 - (alt ? 8 : 0), "#e8eaf0", 13, true, w - 8);
         if (alt) {
-            ctx.fillStyle = renk;
-            ctx.font = "10px Inter";
-            ctx.fillText(alt, x + w / 2, y + h / 2 + 10);
+            VizHelpers.ortaYazi(ctx, alt, x + w / 2, y + h / 2 + 10, renk, 10, false, w - 8);
         }
     }
 
@@ -80,6 +76,27 @@ window.DERS_VIZ["2d-lora"] = function () {
             ok(w * 0.18 + mw + 10, cy, w * 0.55 - 8, cy, "#f59e0b");
             VizHelpers.ortaYazi(ctx, "Araştırma bulgusu: eğitimdeki değişim", w / 2, cy + mh / 2 + 30, "#9aa0b4", 12);
             VizHelpers.ortaYazi(ctx, "düşük boyutlu bir alt uzayda yaşar (rank ≪ 4096)", w / 2, cy + mh / 2 + 48, "#f59e0b", 12, true);
+        } else if (w < 560) {
+            // Dar ekranda W → A → B → y zinciri dikey akar
+            const bw = w - 28, bh = 40, bosluk = 16;
+            const zincir = [
+                ["W", "donuk 4096²", "#64748b", "+"],
+                ["A", "4096 × r", ACCENT, "×"],
+                ["B", "r × 4096", "#f59e0b", "="],
+                ["y = Wx + BAx", "çıktı", "#22c55e", null],
+            ];
+            let y = 46;
+            zincir.forEach(([lbl, alt, renk, isaret]) => {
+                dikdortgen(14, y, bw, bh, renk, lbl, alt);
+                if (isaret) {
+                    const ny = y + bh + bosluk / 2;
+                    ctx.strokeStyle = renk; ctx.lineWidth = 1.5;
+                    ctx.beginPath(); ctx.moveTo(14 + bw / 2, y + bh); ctx.lineTo(14 + bw / 2, y + bh + bosluk); ctx.stroke();
+                    VizHelpers.ortaYazi(ctx, isaret, 14 + bw / 2 + 16, ny, ACCENT2, 16, true);
+                }
+                y += bh + bosluk;
+            });
+            VizHelpers.ortaYazi(ctx, "r = 16: toplam 2×4096×16 = 131K parametre", w / 2, y + 4, ACCENT2, 12, true);
         } else {
             // W + A×B
             const mw = Math.min(130, w * 0.22);
@@ -95,16 +112,8 @@ window.DERS_VIZ["2d-lora"] = function () {
             VizHelpers.ortaYazi(ctx, "Sadece A ve B eğitilir — W donuk kalır!", w / 2, cy + 114, "#9aa0b4", 11);
         }
 
-        // Açıklama
-        ctx.fillStyle = "#9aa0b4"; ctx.font = "12px Inter"; ctx.textAlign = "center";
-        const words = A.aciklama.split(" ");
-        let line = "", lines = [];
-        for (const word of words) {
-            const t = line ? line + " " + word : word;
-            if (ctx.measureText(t).width > w - 60) { lines.push(line); line = word; } else line = t;
-        }
-        lines.push(line);
-        lines.forEach((l, i) => ctx.fillText(l, w / 2, h - 30 + i * 17 - (lines.length - 1) * 17));
+        // Açıklama — HTML olarak sarılır (dar ekranda taşmaz)
+        VizHelpers.altYazi("viz-lora", A.aciklama);
     }
 
     VizHelpers.adimKontrol("viz-lora", ADIMLAR.length, ciz);

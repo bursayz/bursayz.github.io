@@ -39,7 +39,8 @@ window.DERS_VIZ["2d-augment"] = function () {
         ctx.strokeRect(boxX, y + h * 0.25, w * 0.7, h * 0.45);
 
         ctx.fillStyle = ACCENT2; ctx.font = "bold 11px Inter"; ctx.textAlign = "center";
-        ctx.fillText(etiket, x + w / 2, y + h + 16);
+        // Etiket canvas kenarına taşarsa font otomatik küçülür
+        VizHelpers.ortaYazi(ctx, etiket, x + w / 2, y + h + 16, ACCENT2, 11, true);
     }
 
     const t0 = Date.now();
@@ -59,11 +60,13 @@ window.DERS_VIZ["2d-augment"] = function () {
         cizOrnek(bx + (bw + gap) * 2, by, bw, bh, { rot: 0.15 }, "Döndür (15°)");
         cizOrnek(bx + (bw + gap) * 3, by, bw, bh, { filter: "brightness(1.2)" }, "Parlaklık +Jitter");
 
-        ctx.fillStyle = "#9aa0b4"; ctx.font = "11px Inter"; ctx.textAlign = "center";
-        ctx.fillText("Her varyasyonda bounding box koordinatları da aynı şekilde dönüştürülür — model nesneyi her açıdan/koşulda tanır.", w / 2, by + bh + 42);
-        ctx.fillText("(flip, rotation, renk jitter, mosaic, copy-paste — hepsi tespit veri setine uygulanır)", w / 2, by + bh + 60);
+        // Açıklama — uzun metin HTML olarak sarılır
+        VizHelpers.altYazi("viz-augment",
+            "Her varyasyonda bounding box koordinatları da aynı şekilde dönüştürülür — model nesneyi her açıdan/koşulda tanır. " +
+            "(flip, rotation, renk jitter, mosaic, copy-paste — hepsi tespit veri setine uygulanır)");
     }
 
+    hv.setPaint(ciz);
     ciz();
     setInterval(ciz, 100);
 };

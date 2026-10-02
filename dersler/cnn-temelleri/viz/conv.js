@@ -78,8 +78,11 @@ window.DERS_VIZ["2d-conv"] = function () {
         const p = Math.floor(adim / (N - 2));
         const q = adim % (N - 2);
 
-        const cellK = Math.min(36, (w * 0.38) / N);
-        const basX1 = 20, basY1 = 50;
+        // Hücre boyutu: iki matris (8 + 6 hücre) + ok payı canvas'a sığmalı
+        const cellK = Math.min(36, (w - 56) / (N + (N - 2)));
+        const sayiGoster = cellK >= 16;   // dar ekranda okunmazsa sayılar gizlenir
+        const toplamG = N * cellK + 40 + (N - 2) * cellK;
+        const basX1 = Math.max(8, Math.round((w - toplamG) / 2)), basY1 = 50;
         const basX2 = basX1 + N * cellK + 40;
 
         // Başlıklar
@@ -95,10 +98,12 @@ window.DERS_VIZ["2d-conv"] = function () {
                 ctx.fillStyle = `rgba(${Math.round(v * 200)}, ${Math.round(v * 230)}, ${Math.round(v * 100)}, 0.2 + v * 0.8)`;
                 if (inK) ctx.fillStyle = ACCENT + Math.round(40 + v * 150).toString(16).padStart(2, "0");
                 ctx.fillRect(basX1 + j * cellK, basY1 + i * cellK, cellK - 1, cellK - 1);
-                ctx.fillStyle = inK ? ACCENT2 : "rgba(255,255,255,0.5)";
-                ctx.font = `${Math.round(cellK * 0.32)}px 'JetBrains Mono', monospace`;
-                ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                ctx.fillText(String(Math.round(RESIM[i][j])), basX1 + j * cellK + cellK / 2, basY1 + i * cellK + cellK / 2);
+                if (sayiGoster) {
+                    ctx.fillStyle = inK ? ACCENT2 : "rgba(255,255,255,0.5)";
+                    ctx.font = `${Math.round(cellK * 0.32)}px 'JetBrains Mono', monospace`;
+                    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                    ctx.fillText(String(Math.round(RESIM[i][j])), basX1 + j * cellK + cellK / 2, basY1 + i * cellK + cellK / 2);
+                }
             }
         }
         // Kernel çerçevesi
@@ -127,7 +132,7 @@ window.DERS_VIZ["2d-conv"] = function () {
                     ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 2;
                     ctx.strokeRect(basX2 + j * cellK - 0.5, basY1 + i * cellK - 0.5, cellK, cellK);
                 }
-                if (aktif) {
+                if (aktif && sayiGoster) {
                     ctx.fillStyle = "#e8eaf0";
                     ctx.font = `${Math.round(cellK * 0.3)}px 'JetBrains Mono', monospace`;
                     ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -136,19 +141,16 @@ window.DERS_VIZ["2d-conv"] = function () {
             }
         }
 
-        // Hesap detayı (aktif konum)
-        const detY = basY1 + N * cellK + 16;
+        // Hesap detayı (aktif konum) — dar ekranda satıra sarılır
+        const detY = basY1 + N * cellK + 22;
         const deger = sonuc[p][q];
-        ctx.font = "11px 'JetBrains Mono', monospace";
-        ctx.fillStyle = "#9aa0b4"; ctx.textAlign = "center";
-        ctx.fillText(
+        VizHelpers.sarmaliYazi(ctx,
             `Çıktı[${p}][${q}] = Σ(bölge pikselleri × kernel) = ${Math.round(deger * 10) / 10}`,
-            w / 2, detY
-        );
+            w / 2, detY, w - 24,
+            { boyut: 11, minBoyut: 9, renk: "#9aa0b4", font: "'JetBrains Mono', monospace", maksSatir: 2 });
     }
 
     VizHelpers.adimKontrol("viz-conv", maxAdim, (a) => { adim = a; render(); });
-    window.addEventListener("resize", render);
     render();
     guncelleSecili();
 };

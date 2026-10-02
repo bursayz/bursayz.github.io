@@ -31,13 +31,32 @@ window.DERS_VIZ["2d-rlhf"] = function () {
     function kutu(x, y, w, h, bg, border, baslik, alt) {
         ctx.fillStyle = bg; ctx.strokeStyle = border; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.roundRect(x, y, w, h, 9); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = "#e8eaf0"; ctx.font = "bold 12px Inter"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText(baslik, x + w / 2, y + h / 2 - (alt ? 8 : 0));
+        // Kutu içi yazılar kutu genişliğine sığdırılır
+        VizHelpers.ortaYazi(ctx, baslik, x + w / 2, y + h / 2 - (alt ? 8 : 0), "#e8eaf0", 12, true, w - 8);
         if (alt) {
-            ctx.fillStyle = "#9aa0b4"; ctx.font = "9.5px Inter";
-            ctx.fillText(alt, x + w / 2, y + h / 2 + 10);
+            VizHelpers.ortaYazi(ctx, alt, x + w / 2, y + h / 2 + 10, "#9aa0b4", 9.5, false, w - 8);
         }
     }
+
+    // Dar ekran için dikey akış tanımları (kutu adı, alt yazı, renk)
+    const DAR_ADIMLAR = {
+        0: [["Prompt", "\"Kediler neden mırıldar?\"", "#3b82f6"],
+            ["Cevap A ✓", "Detaylı, nazik, doğru", "#22c55e"],
+            ["Cevap B ✗", "\"Bilmiyorum\"", "#ef4444"],
+            ["👤 İnsan", "A'yı tercih etti", ACCENT],
+            ["Tercih DB", "(prompt, A, B)", "#a855f7"]],
+        1: [["Tercih Verisi", "Binlerce (chosen, rejected)", "#a855f7"],
+            ["Ödül Modeli", "B-T kaybıyla eğit", ACCENT],
+            ["Skor Üretici", "(prompt, cevap) → ℝ", "#3b82f6"],
+            ["Hazır!", "İnsan zevkini taklit", "#22c55e"]],
+        2: [["LLM (Politika)", "Cevap üretir", "#3b82f6"],
+            ["Ödül Modeli", "Skor üretir", "#a855f7"],
+            ["PPO Güncelleme", "Yüksek skoru teşvik et", ACCENT],
+            ["⚖ KL Cezası", "SFT modelden sapmayı sınırla", "#f59e0b"]],
+        3: [["Tercih Verisi", "(prompt, chosen, rejected)", "#a855f7"],
+            ["DPO Kaybı", "chosen olasılığı > rejected", ACCENT],
+            ["Hizalı LLM", "Ödül modeli olmadan!", "#22c55e"]],
+    };
 
     function ok(x1, y1, x2, y2, renk = "rgba(255,255,255,0.4)") {
         ctx.strokeStyle = renk; ctx.lineWidth = 1.5;
@@ -60,7 +79,27 @@ window.DERS_VIZ["2d-rlhf"] = function () {
         const cy = h * 0.45;
         const kw = Math.min(140, w * 0.22), kh = 64;
 
-        if (adim === 0) {
+        if (w < 640) {
+            // Dar ekran: kutular alt alta dizilir, oklarla bağlanır
+            const bw = w - 28, bh = 38, bosluk = 12;
+            const dugumler = DAR_ADIMLAR[adim] || [];
+            let y = 42;
+            dugumler.forEach(([b, alt, renk], i) => {
+                kutu(14, y, bw, bh, renk + "22", renk, b, alt);
+                if (i < dugumler.length - 1) {
+                    ctx.strokeStyle = renk; ctx.lineWidth = 1.5;
+                    ctx.beginPath(); ctx.moveTo(14 + bw / 2, y + bh); ctx.lineTo(14 + bw / 2, y + bh + bosluk); ctx.stroke();
+                    ctx.fillStyle = renk;
+                    ctx.beginPath();
+                    ctx.moveTo(14 + bw / 2, y + bh + bosluk);
+                    ctx.lineTo(14 + bw / 2 - 5, y + bh + bosluk - 6);
+                    ctx.lineTo(14 + bw / 2 + 5, y + bh + bosluk - 6);
+                    ctx.closePath(); ctx.fill();
+                }
+                y += bh + bosluk;
+            });
+            if (adim === 3) VizHelpers.ortaYazi(ctx, "Daha az GPU, daha stabil, daha basit", w / 2, y + 4, ACCENT2, 11, true);
+        } else if (adim === 0) {
             // Tercih toplama
             kutu(w * 0.05, cy - 70, kw, kh, "#3b82f622", "#3b82f6", "Prompt", "\"Kediler neden mırıldar?\"");
             ok(w * 0.05 + kw, cy - 38, w * 0.32, cy - 65);
@@ -104,16 +143,8 @@ window.DERS_VIZ["2d-rlhf"] = function () {
             VizHelpers.ortaYazi(ctx, "Daha az GPU, daha stabil, daha basit", w / 2, cy + 55, ACCENT2, 12, true);
         }
 
-        // Açıklama
-        ctx.fillStyle = "#9aa0b4"; ctx.font = "12px Inter"; ctx.textAlign = "center";
-        const words = A.aciklama.split(" ");
-        let line = "", lines = [];
-        for (const word of words) {
-            const t = line ? line + " " + word : word;
-            if (ctx.measureText(t).width > w - 60) { lines.push(line); line = word; } else line = t;
-        }
-        lines.push(line);
-        lines.forEach((l, i) => ctx.fillText(l, w / 2, h - 22 + i * 17 - (lines.length - 1) * 17));
+        // Açıklama — HTML olarak sarılır (dar ekranda taşmaz)
+        VizHelpers.altYazi("viz-rlhf", A.aciklama);
     }
 
     VizHelpers.adimKontrol("viz-rlhf", ADIMLAR.length, ciz);

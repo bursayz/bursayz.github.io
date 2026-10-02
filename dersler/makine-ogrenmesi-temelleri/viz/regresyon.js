@@ -89,8 +89,10 @@ window.DERS_VIZ["2d-regresyon"] = function () {
         ctx.textAlign = "left";
         ctx.fillStyle = "#f59e0b";
         ctx.fillText(`y = ${wNow.toFixed(2)}x + ${bNow.toFixed(2)}`, pad.l + 5, pad.t - 12);
+        // Dar ekranda kısaltılır (canvas'tan taşmasın)
+        const mseDurum = frame < FRAME_SAYISI ? (w < 480 ? "(azalıyor)" : "(azalıyor...)") : (w < 480 ? "(✓)" : "(yakınsadı ✓)");
         ctx.fillStyle = "#9aa0b4";
-        ctx.fillText(`MSE Kayıp: ${mse.toFixed(4)} ${frame < FRAME_SAYISI ? "(azalıyor...)" : "(yakınsadı ✓)"}`, pad.l + 5, pad.t + gh + 28);
+        ctx.fillText(`${w < 480 ? "MSE" : "MSE Kayıp"}: ${mse.toFixed(4)} ${mseDurum}`, pad.l + 5, pad.t + gh + 28);
 
         // Legent
         ctx.fillStyle = ACCENT;
