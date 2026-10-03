@@ -139,29 +139,61 @@
 
     // --- Görselleştirme ---
     const vizKutusu = document.querySelector(".viz-kutu");
-    const vizHataGoster = (hata) => {
-        console.error("[viz] görselleştirme başlatılamadı:", hata);
-        if (!vizKutusu || vizKutusu.querySelector(".viz-hata")) return;
+    const VIZ_IPUCU = "Reklam engelleyiciler (uBlock Origin vb.) bazı etkileşim betiklerini engelleyebilir — bu sitede engelleyiciyi duraklatıp sayfayı yenileyin.";
+
+    const vizHataKutusuEkle = (kutu, sebep) => {
+        if (!kutu || kutu.querySelector(".viz-hata")) return;
         const hataEl = document.createElement("div");
         hataEl.className = "viz-hata";
-        hataEl.textContent = "Bu interaktif bu cihazda başlatılamadı. Sayfayı yenilemeyi deneyin.";
-        vizKutusu.appendChild(hataEl);
+        const neden = document.createElement("div");
+        neden.className = "viz-hata-neden";
+        neden.textContent = sebep;
+        const ipucu = document.createElement("div");
+        ipucu.className = "viz-hata-ipucu";
+        ipucu.textContent = VIZ_IPUCU;
+        hataEl.append(neden, ipucu);
+        kutu.appendChild(hataEl);
     };
-
-    if (window.DERS_VIZ && ders.viz && window.DERS_VIZ[ders.viz]) {
+    const vizHataGoster = (hata) => {
+        const sebep = (hata && (hata.message || String(hata))) || "Bilinmeyen hata";
+        console.error("[viz] görselleştirme başlatılamadı:", hata);
+        vizHataKutusuEkle(vizKutusu, "Bu interaktif başlatılamadı: " + String(sebep).slice(0, 160));
+    };
+    const vizCagir = () => {
+        if (!(window.DERS_VIZ && ders.viz && window.DERS_VIZ[ders.viz])) return false;
         try {
             const sonuc = window.DERS_VIZ[ders.viz]();
             if (sonuc && typeof sonuc.catch === "function") sonuc.catch(vizHataGoster);
         } catch (e) {
             vizHataGoster(e);
         }
-    } else if (vizKutusu) {
+        return true;
+    };
+
+    if (!vizCagir() && vizKutusu) {
         // Modül script'ler (ör. tokenization'ın kendi HTML interaktifi) sonra
-        // çalışır; gecikmeli kontrol edilsin ki yanlış uyarı verilmesin
+        // çalışır; gecikmeli kontrol edilsin ki yanlış uyarı verilmesin.
+        // "Boş kutu" = başlık/noscript dışında içerik yok VE mount boş.
         setTimeout(() => {
-            if (Array.from(vizKutusu.children).every(c => c.classList.contains("viz-baslik"))) {
-                vizHataGoster("DERS_VIZ kaydı yok: " + ders.viz);
+            const kutuBos = Array.from(vizKutusu.children)
+                .filter(c => !c.classList.contains("viz-baslik") && c.tagName !== "NOSCRIPT")
+                .every(c => c.classList.contains("viz-mount") && c.children.length === 0);
+            if (!kutuBos) return;
+            if (vizCagir()) return;
+            // Betik engellenmiş/kopmuşsa bir kez cache-bust ile yeniden yüklemeyi dene
+            const vizScript = document.querySelector('script[src*="/viz/"]');
+            if (vizScript && !vizScript.dataset.retry) {
+                const yeni = document.createElement("script");
+                yeni.src = vizScript.src + (vizScript.src.includes("?") ? "&" : "?") + "retry=" + Date.now();
+                yeni.dataset.retry = "1";
+                yeni.onload = () => {
+                    if (!vizCagir()) vizHataKutusuEkle(vizKutusu, "Etkileşim betiği engellenmiş görünüyor: viz/" + (vizScript.src.split("/").pop() || ""));
+                };
+                yeni.onerror = () => vizHataKutusuEkle(vizKutusu, "Etkileşim betiği yüklenemedi: viz/" + (vizScript.src.split("/").pop() || ""));
+                document.head.appendChild(yeni);
+                return;
             }
+            vizHataKutusuEkle(vizKutusu, "Etkileşim kaydı yok (" + ders.viz + ").");
         }, 600);
     }
 
@@ -177,11 +209,7 @@
         document.querySelectorAll(".viz-mount").forEach(m => {
             if (m.children.length) return;
             const kutu = m.closest(".viz-kutu");
-            if (!kutu || kutu.querySelector(".viz-hata")) return;
-            const hataEl = document.createElement("div");
-            hataEl.className = "viz-hata";
-            hataEl.textContent = "Bu interaktif yüklenemedi. Sayfayı yenilemeyi deneyin.";
-            kutu.appendChild(hataEl);
+            vizHataKutusuEkle(kutu, "Bu interaktif yüklenemedi — betik çalışmadı.");
         });
     }, 4000);
 })();

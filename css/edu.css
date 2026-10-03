@@ -597,6 +597,12 @@ a:hover { text-decoration: underline; }
     color: var(--edu-text-dim);
     font-size: 0.85rem;
 }
+.viz-hata .viz-hata-neden { color: #fca5a5; }
+.viz-hata .viz-hata-ipucu {
+    margin-top: 0.45rem;
+    font-size: 0.78rem;
+    opacity: 0.9;
+}
 
 /* İnteraktifin canvas altındaki uzun açıklama metni (HTML olarak sarılır) */
 .viz-kutu .viz-alt-yazi {
