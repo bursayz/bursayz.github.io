@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-10-08T23:10:09.180Z",
-  "count": 20,
+  "updatedAt": "2026-10-09T05:37:09.823Z",
+  "count": 23,
   "members": [
     {
       "name": "! Asil10tr </>",
@@ -23,6 +23,14 @@
       "role": null,
       "roles": [],
       "avatar": "https://cdn.discordapp.com/avatars/288123451489648640/f400a4f7b9ff8cfccdacceb9915f6ccb.png?size=256"
+    },
+    {
+      "name": "ademozpsych",
+      "role": "Üye",
+      "roles": [
+        "Üye"
+      ],
+      "avatar": "https://cdn.discordapp.com/embed/avatars/4.png"
     },
     {
       "name": "Ayberk",
@@ -82,6 +90,14 @@
       "avatar": "https://cdn.discordapp.com/avatars/264117914154565633/fe4b6edf6092390ce284303e894627fa.png?size=256"
     },
     {
+      "name": "İhsan, MSc",
+      "role": "Üye",
+      "roles": [
+        "Üye"
+      ],
+      "avatar": "https://cdn.discordapp.com/embed/avatars/2.png"
+    },
+    {
       "name": "intruder",
       "role": null,
       "roles": [],
@@ -121,6 +137,14 @@
         "sudo"
       ],
       "avatar": "https://cdn.discordapp.com/avatars/323264975726444546/babacb381078a5e473cee6cb669240b7.png?size=256"
+    },
+    {
+      "name": "opmin",
+      "role": "Üye",
+      "roles": [
+        "Üye"
+      ],
+      "avatar": "https://cdn.discordapp.com/avatars/1543666490002374766/5b7e51c7c540992c633e76c0a590fc0b.png?size=256"
     },
     {
       "name": "sayweer",
