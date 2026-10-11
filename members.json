@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-10-11T12:29:37.111Z",
-  "count": 24,
+  "updatedAt": "2026-10-11T21:43:02.646Z",
+  "count": 25,
   "members": [
     {
       "name": "! Asil10tr </>",
@@ -175,6 +175,14 @@
       "role": null,
       "roles": [],
       "avatar": "https://cdn.discordapp.com/avatars/624621801082978326/01b0195c21b5a7500c4654de1514e991.png?size=256"
+    },
+    {
+      "name": "yunuservices",
+      "role": "Üye",
+      "roles": [
+        "Üye"
+      ],
+      "avatar": "https://cdn.discordapp.com/avatars/1298241073784557631/e131bf0acc45e880001b585c6b748628.png?size=256"
     }
   ]
 }
